@@ -4,7 +4,7 @@ import { extractWords, isStopword } from '@/lib/wikipedia'
 
 export async function GET(req: NextRequest) {
   const lang = (req.nextUrl.searchParams.get('lang') || 'fr') as 'fr' | 'en'
-  const today = new Date().toISOString().split('T')[0]
+  const today = req.nextUrl.searchParams.get('date') || new Date().toISOString().split('T')[0]
 
   const { data: page, error } = await supabaseAdmin
     .from('pages')

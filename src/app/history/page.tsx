@@ -4,23 +4,23 @@ import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import Header from '@/components/Header'
 
-type GameEntry = {
-  id: string
+type HistoryEntry = {
+  page_id: string
   date: string
-  lang: string
-  guess_count: number
-  completed: boolean
-  completed_at: string | null
-  pages: {
-    wikipedia_title_fr: string
-    wikipedia_title_en: string
-  }
+  wikipedia_title_fr: string
+  wikipedia_title_en: string
+  game: {
+    id: string
+    lang: string
+    guess_count: number
+    completed: boolean
+  } | null
 }
 
 export default function HistoryPage() {
-  const [games, setGames] = useState<GameEntry[]>([])
+  const [history, setHistory] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
+  const [lang, setLang] = useState<'fr' | 'en'>('fr')
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
@@ -29,21 +29,19 @@ export default function HistoryPage() {
         window.location.href = '/auth/login'
         return
       }
-      setUser(data.user)
       loadHistory()
     })
   }, [])
 
   async function loadHistory() {
     const res = await fetch('/api/history')
-    if (!res.ok) {
-      setLoading(false)
-      return
-    }
+    if (!res.ok) { setLoading(false); return }
     const data = await res.json()
-    setGames(data.games || [])
+    setHistory(data.history || [])
     setLoading(false)
   }
+
+  const today = new Date().toISOString().split('T')[0]
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
@@ -61,52 +59,53 @@ export default function HistoryPage() {
 
         <h1 style={{ margin: '0 0 24px 0', fontSize: 28, color: 'var(--text)' }}>Historique</h1>
 
-        {games.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>Aucune partie jouée pour l'instant.</p>
+        {history.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>Aucune page disponible pour l&apos;instant.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {games.map(game => {
-              const page = game.pages as any
-              const title = game.lang === 'fr' ? page?.wikipedia_title_fr : page?.wikipedia_title_en
+            {history.map(entry => {
+              const title = lang === 'fr' ? entry.wikipedia_title_fr : entry.wikipedia_title_en
+              const isToday = entry.date === today
+              const game = entry.game
+              const completed = game?.completed
+              const notStarted = !game
+              const gameUrl = '/game?date=' + entry.date + '&lang=' + lang
+
               return (
-                <div key={game.id} style={{
+                <div key={entry.page_id} style={{
                   padding: '16px 20px',
                   borderRadius: 10,
-                  border: '1px solid var(--border)',
+                  border: '1px solid ' + (isToday ? 'var(--accent)' : 'var(--border)'),
                   backgroundColor: 'var(--surface)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: 16,
+                  opacity: notStarted ? 0.7 : 1,
                 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
-                      {page?.date}
+                    <div style={{ fontWeight: 600, fontSize: 13, color: isToday ? 'var(--accent)' : 'var(--text-muted)', marginBottom: 4 }}>
+                      {entry.date}{isToday ? " — Aujourd'hui" : ''}
                     </div>
-                    <div style={{ color: 'var(--text)', fontSize: 15, fontWeight: game.completed ? 500 : 400 }}>
-                      {game.completed ? title : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non terminée</span>}
-                      <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-                        {game.lang}
-                      </span>
+                    <div style={{ color: 'var(--text)', fontSize: 15 }}>
+                      {completed
+                        ? <span style={{ fontWeight: 500 }}>{title}</span>
+                        : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            {notStarted ? 'Non commencée' : 'En cours...'}
+                          </span>
+                      }
                     </div>
                   </div>
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                    <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                      {game.guess_count} tentative{game.guess_count > 1 ? 's' : ''}
-                    </span>
-                    {game.completed ? (
-                      <span style={{
-                        color: 'var(--accent)',
-                        fontWeight: 600,
-                        fontSize: 14,
-                        padding: '4px 10px',
-                        borderRadius: 20,
-                        border: '1px solid var(--accent)',
-                      }}>
-                        ✓ Trouvé
+                    {game && (
+                      <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+                        {game.guess_count} tentative{game.guess_count > 1 ? 's' : ''}
                       </span>
-                    ) : (
-                      <a href={`/game?date=${page?.date}&lang=${game.lang}`} style={{
+                    )}
+                    <a
+                      href={gameUrl}
+                      style={{
                         color: 'var(--accent)',
                         fontWeight: 600,
                         textDecoration: 'none',
@@ -114,10 +113,10 @@ export default function HistoryPage() {
                         padding: '4px 10px',
                         borderRadius: 20,
                         border: '1px solid var(--accent)',
-                      }}>
-                        Reprendre →
-                      </a>
-                    )}
+                      }}
+                    >
+                      {completed ? '✓ Revoir →' : notStarted ? 'Jouer →' : 'Reprendre →'}
+                    </a>
                   </div>
                 </div>
               )

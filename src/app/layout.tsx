@@ -3,6 +3,7 @@ import { DM_Sans, DM_Serif_Display } from 'next/font/google'
 import FeedbackButton from '@/components/FeedbackButton'
 import ThemeProvider from '@/components/ThemeProvider'
 import './globals.css'
+import ScrollToTop from '@/components/ScrollToTop'
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -33,6 +34,7 @@ export default function RootLayout({
         <ThemeProvider>
           <>
             {children}
+            <ScrollToTop />
             <FeedbackButton />
           </>
         </ThemeProvider>

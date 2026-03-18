@@ -11,24 +11,28 @@ export async function POST(req: NextRequest) {
 
   if (!user) return NextResponse.json({ saved: false })
 
-  // Calcule le hash IP + navigateur
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-  const userAgent = req.headers.get('user-agent') || 'unknown'
-  const ipHash = createHash('sha256').update(ip).digest('hex').slice(0, 16)
-  const browserHash = createHash('sha256').update(userAgent).digest('hex').slice(0, 16)
-
-  // Vérifie si une partie existe déjà
+  // Cherche la meilleure partie existante (complétée en priorité, sinon la plus récente)
   const { data: existing } = await supabaseAdmin
     .from('games')
     .select('*')
     .eq('user_id', user.id)
     .eq('page_id', pageId)
     .eq('lang', lang)
+    .order('completed', { ascending: false })
+    .order('guess_count', { ascending: false })
+    .limit(1)
     .single()
 
-  if (existing) return NextResponse.json({ saved: true, game: existing })
+  if (existing) {
+    return NextResponse.json({ saved: true, game: existing })
+  }
 
-  // Détecte si d'autres comptes ont joué avec le même hash aujourd'hui
+  // Calcule le hash IP + navigateur
+  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+  const userAgent = req.headers.get('user-agent') || 'unknown'
+  const ipHash = createHash('sha256').update(ip).digest('hex').slice(0, 16)
+  const browserHash = createHash('sha256').update(userAgent).digest('hex').slice(0, 16)
+
   const { data: sameIpGames } = await supabaseAdmin
     .from('games')
     .select('user_id')
