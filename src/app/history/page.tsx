@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import Header from '@/components/Header'
 
 type GameEntry = {
   id: string
@@ -33,7 +34,7 @@ export default function HistoryPage() {
     })
   }, [])
 
-async function loadHistory() {
+  async function loadHistory() {
     const res = await fetch('/api/history')
     if (!res.ok) {
       setLoading(false)
@@ -44,49 +45,86 @@ async function loadHistory() {
     setLoading(false)
   }
 
-  if (loading) return <div style={{ padding: 40 }}>Chargement...</div>
+  if (loading) return (
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
+      <Header />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
+        Chargement...
+      </div>
+    </div>
+  )
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 20, fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>Historique</h1>
-        <a href="/game" style={{ color: '#1a1a1a', textDecoration: 'none', fontWeight: 'bold' }}>← Jouer</a>
-      </div>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
+      <Header />
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
 
-      {games.length === 0 ? (
-        <p style={{ color: '#666' }}>Aucune partie jouée pour l'instant.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {games.map(game => {
-            const page = game.pages as any
-            const title = game.lang === 'fr' ? page?.wikipedia_title_fr : page?.wikipedia_title_en
-            return (
-              <div key={game.id} style={{
-                padding: 16, borderRadius: 8, border: '1px solid #e0e0e0',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ fontWeight: 'bold', marginBottom: 4 }}>{page?.date}</div>
-                  <div style={{ color: '#666', fontSize: 14 }}>
-                    {game.completed ? title : '???'} — {game.lang.toUpperCase()}
+        <h1 style={{ margin: '0 0 24px 0', fontSize: 28, color: 'var(--text)' }}>Historique</h1>
+
+        {games.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>Aucune partie jouée pour l'instant.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {games.map(game => {
+              const page = game.pages as any
+              const title = game.lang === 'fr' ? page?.wikipedia_title_fr : page?.wikipedia_title_en
+              return (
+                <div key={game.id} style={{
+                  padding: '16px 20px',
+                  borderRadius: 10,
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--surface)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 16,
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
+                      {page?.date}
+                    </div>
+                    <div style={{ color: 'var(--text)', fontSize: 15, fontWeight: game.completed ? 500 : 400 }}>
+                      {game.completed ? title : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non terminée</span>}
+                      <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                        {game.lang}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                    <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+                      {game.guess_count} tentative{game.guess_count > 1 ? 's' : ''}
+                    </span>
+                    {game.completed ? (
+                      <span style={{
+                        color: 'var(--accent)',
+                        fontWeight: 600,
+                        fontSize: 14,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        border: '1px solid var(--accent)',
+                      }}>
+                        ✓ Trouvé
+                      </span>
+                    ) : (
+                      <a href={`/game?date=${page?.date}&lang=${game.lang}`} style={{
+                        color: 'var(--accent)',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        fontSize: 14,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        border: '1px solid var(--accent)',
+                      }}>
+                        Reprendre →
+                      </a>
+                    )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 14, color: '#666' }}>{game.guess_count} tentatives</span>
-                  {game.completed ? (
-                    <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>✓ Trouvé</span>
-                  ) : (
-                    <a href={`/game?date=${page?.date}&lang=${game.lang}`}
-                      style={{ color: '#1565c0', fontWeight: 'bold', textDecoration: 'none', fontSize: 14 }}>
-                      Reprendre →
-                    </a>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

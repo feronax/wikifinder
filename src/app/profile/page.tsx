@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import Header from '@/components/Header'
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
@@ -24,7 +25,6 @@ export default function ProfilePage() {
       const provider = data.user.app_metadata?.provider
       setIsEmailUser(provider === 'email')
 
-      // Charge le profil
       const { data: profile } = await supabase
         .from('profiles')
         .select('username')
@@ -39,12 +39,10 @@ export default function ProfilePage() {
     setLoading(true)
     setMessage('')
     setError('')
-
     const { error } = await supabase
       .from('profiles')
       .update({ username })
       .eq('id', user.id)
-
     if (error) setError(error.message)
     else setMessage('Pseudo mis à jour !')
     setLoading(false)
@@ -54,7 +52,6 @@ export default function ProfilePage() {
     setLoading(true)
     setMessage('')
     setError('')
-
     if (newPassword !== confirmPassword) {
       setError('Les mots de passe ne correspondent pas.')
       setLoading(false)
@@ -65,7 +62,6 @@ export default function ProfilePage() {
       setLoading(false)
       return
     }
-
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) setError(error.message)
     else {
@@ -76,83 +72,133 @@ export default function ProfilePage() {
     setLoading(false)
   }
 
-  if (!user) return <div style={{ padding: 40 }}>Chargement...</div>
+  const inputStyle = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 6,
+    border: '1px solid var(--border)',
+    fontSize: 15,
+    boxSizing: 'border-box' as const,
+    marginBottom: 12,
+    backgroundColor: 'var(--bg)',
+    color: 'var(--text)',
+    fontFamily: 'var(--font-sans)',
+  }
+
+  const cardStyle = {
+    marginBottom: 20,
+    padding: 24,
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    backgroundColor: 'var(--surface)',
+  }
+
+  if (!user) return (
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
+      <Header />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
+        Chargement...
+      </div>
+    </div>
+  )
 
   return (
-    <div style={{ maxWidth: 500, margin: '40px auto', padding: 32, fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-        <h1 style={{ margin: 0 }}>Mon profil</h1>
-        <a href="/game" style={{ color: '#1a1a1a', textDecoration: 'none', fontWeight: 'bold' }}>← Jouer</a>
-      </div>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
+      <Header />
+      <div style={{ maxWidth: 520, margin: '0 auto', padding: '32px 20px' }}>
 
-      {message && (
-        <div style={{ padding: 12, borderRadius: 6, backgroundColor: '#e8f5e9', color: '#2e7d32', marginBottom: 16, fontSize: 14 }}>
-          ✓ {message}
-        </div>
-      )}
-      {error && (
-        <div style={{ padding: 12, borderRadius: 6, backgroundColor: '#ffebee', color: '#c62828', marginBottom: 16, fontSize: 14 }}>
-          ✗ {error}
-        </div>
-      )}
+        <h1 style={{ margin: '0 0 28px 0', fontSize: 28, color: 'var(--text)' }}>Mon profil</h1>
 
-      {/* Pseudo */}
-      <div style={{ marginBottom: 32, padding: 24, border: '1px solid #e0e0e0', borderRadius: 8 }}>
-        <h2 style={{ marginTop: 0, fontSize: 18 }}>Pseudo</h2>
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-          Affiché sur le leaderboard
-        </div>
-        <input
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-          placeholder="Ton pseudo"
-          style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #ccc', fontSize: 15, boxSizing: 'border-box', marginBottom: 12 }}
-        />
-        <button
-          onClick={updateUsername}
-          disabled={loading || !username.trim()}
-          style={{ padding: '8px 20px', borderRadius: 6, backgroundColor: '#1a1a1a', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15 }}
-        >
-          Sauvegarder
-        </button>
-      </div>
+        {message && (
+          <div style={{ padding: 12, borderRadius: 6, backgroundColor: 'var(--revealed)', border: '1px solid var(--accent)', color: 'var(--accent)', marginBottom: 16, fontSize: 14 }}>
+            ✓ {message}
+          </div>
+        )}
+        {error && (
+          <div style={{ padding: 12, borderRadius: 6, backgroundColor: 'var(--bg-secondary)', border: '1px solid #c62828', color: '#c62828', marginBottom: 16, fontSize: 14 }}>
+            ✗ {error}
+          </div>
+        )}
 
-      {/* Mot de passe — uniquement pour les comptes email */}
-      {isEmailUser && (
-        <div style={{ marginBottom: 32, padding: 24, border: '1px solid #e0e0e0', borderRadius: 8 }}>
-          <h2 style={{ marginTop: 0, fontSize: 18 }}>Changer le mot de passe</h2>
+        {/* Pseudo */}
+        <div style={cardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 4, fontSize: 17, color: 'var(--text)' }}>Pseudo</h2>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+            Affiché sur le leaderboard
+          </div>
           <input
-            type="password"
-            value={newPassword}
-            onChange={e => setNewPassword(e.target.value)}
-            placeholder="Nouveau mot de passe"
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #ccc', fontSize: 15, boxSizing: 'border-box', marginBottom: 10 }}
-          />
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={e => setConfirmPassword(e.target.value)}
-            placeholder="Confirmer le mot de passe"
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #ccc', fontSize: 15, boxSizing: 'border-box', marginBottom: 12 }}
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="Ton pseudo"
+            style={inputStyle}
           />
           <button
-            onClick={updatePassword}
-            disabled={loading || !newPassword}
-            style={{ padding: '8px 20px', borderRadius: 6, backgroundColor: '#1a1a1a', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15 }}
+            onClick={updateUsername}
+            disabled={loading || !username.trim()}
+            style={{
+              padding: '9px 20px',
+              borderRadius: 6,
+              backgroundColor: 'var(--accent)',
+              color: 'white',
+              border: 'none',
+              cursor: loading || !username.trim() ? 'default' : 'pointer',
+              fontSize: 14,
+              fontWeight: 600,
+              opacity: loading || !username.trim() ? 0.6 : 1,
+            }}
           >
-            Mettre à jour
+            Sauvegarder
           </button>
         </div>
-      )}
 
-      {/* Infos compte */}
-      <div style={{ padding: 24, border: '1px solid #e0e0e0', borderRadius: 8, backgroundColor: '#f9f9f9' }}>
-        <h2 style={{ marginTop: 0, fontSize: 18 }}>Informations</h2>
-        <div style={{ fontSize: 14, color: '#666', lineHeight: 2 }}>
-          <div><strong>Email :</strong> {user.email}</div>
-          <div><strong>Connexion :</strong> {isEmailUser ? 'Email / mot de passe' : 'Google'}</div>
-          <div><strong>Membre depuis :</strong> {new Date(user.created_at).toLocaleDateString('fr-FR')}</div>
+        {/* Mot de passe */}
+        {isEmailUser && (
+          <div style={cardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, color: 'var(--text)' }}>Changer le mot de passe</h2>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="Nouveau mot de passe"
+              style={inputStyle}
+            />
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="Confirmer le mot de passe"
+              style={inputStyle}
+            />
+            <button
+              onClick={updatePassword}
+              disabled={loading || !newPassword}
+              style={{
+                padding: '9px 20px',
+                borderRadius: 6,
+                backgroundColor: 'var(--accent)',
+                color: 'white',
+                border: 'none',
+                cursor: loading || !newPassword ? 'default' : 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
+                opacity: loading || !newPassword ? 0.6 : 1,
+              }}
+            >
+              Mettre à jour
+            </button>
+          </div>
+        )}
+
+        {/* Infos compte */}
+        <div style={{ ...cardStyle, backgroundColor: 'var(--bg-secondary)' }}>
+          <h2 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, color: 'var(--text)' }}>Informations</h2>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 2.2 }}>
+            <div><span style={{ color: 'var(--text)', fontWeight: 500 }}>Email :</span> {user.email}</div>
+            <div><span style={{ color: 'var(--text)', fontWeight: 500 }}>Connexion :</span> {isEmailUser ? 'Email / mot de passe' : 'Google'}</div>
+            <div><span style={{ color: 'var(--text)', fontWeight: 500 }}>Membre depuis :</span> {new Date(user.created_at).toLocaleDateString('fr-FR')}</div>
+          </div>
         </div>
+
       </div>
     </div>
   )

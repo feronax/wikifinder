@@ -1,4 +1,26 @@
+import type { Metadata } from 'next'
+import { DM_Sans, DM_Serif_Display } from 'next/font/google'
 import FeedbackButton from '@/components/FeedbackButton'
+import ThemeProvider from '@/components/ThemeProvider'
+import './globals.css'
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  weight: ['300', '400', '500', '600'],
+})
+
+const dmSerif = DM_Serif_Display({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  weight: '400',
+  style: ['normal', 'italic'],
+})
+
+export const metadata: Metadata = {
+  title: 'Wikifinder',
+  description: 'Trouve la page Wikipédia du jour',
+}
 
 export default function RootLayout({
   children,
@@ -6,10 +28,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="fr">
-      <body>
-        {children}
-        <FeedbackButton />
+    <html lang="fr" suppressHydrationWarning>
+      <body className={`${dmSans.variable} ${dmSerif.variable}`}>
+        <ThemeProvider>
+          <>
+            {children}
+            <FeedbackButton />
+          </>
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import Header from '@/components/Header'
 
 type Token = {
     type: 'word' | 'space' | 'punct'
@@ -9,6 +10,8 @@ type Token = {
     visible?: boolean
     isStopword?: boolean
     isTitle?: boolean
+    isHeading?: boolean
+    headingLevel?: number
     length?: number
 }
 
@@ -25,9 +28,13 @@ const translations = {
         placeholder: 'Entrez un mot...',
         validate: 'Valider',
         found: (n: number) => `🎉 Bravo ! Trouvé en ${n} tentatives !`,
-        history: 'Tentatives :',
+        history: 'Mots essayés',
+        noWords: 'Aucun mot encore',
         login: 'Connexion',
         logout: 'Déconnexion',
+        revealAll: '👁️ Révéler tous les mots',
+        hideAll: '🙈 Masquer les mots',
+        readArticle: '📖 Lire l\'article Wikipedia',
     },
     en: {
         titleLabel: 'Article title:',
@@ -35,9 +42,13 @@ const translations = {
         placeholder: 'Enter a word...',
         validate: 'Submit',
         found: (n: number) => `🎉 Well done! Found in ${n} attempts!`,
-        history: 'Attempts:',
+        history: 'Tried words',
+        noWords: 'No words yet',
         login: 'Login',
         logout: 'Logout',
+        revealAll: '👁️ Reveal all words',
+        hideAll: '🙈 Hide words',
+        readArticle: '📖 Read Wikipedia article',
     }
 }
 
@@ -48,32 +59,33 @@ export default function GamePage() {
     const [input, setInput] = useState('')
     const [guessCount, setGuessCount] = useState(0)
     const [won, setWon] = useState(false)
+    const [revealAll, setRevealAll] = useState(false)
     const [lang, setLang] = useState<'fr' | 'en'>('fr')
     const [loading, setLoading] = useState(true)
     const [user, setUser] = useState<any>(null)
+    const [username, setUsername] = useState<string | null>(null)
     const [pageId, setPageId] = useState<string | null>(null)
+    const [pageData, setPageData] = useState<any>(null)
     const [gameId, setGameId] = useState<string | null>(null)
     const [startedAt, setStartedAt] = useState<Date | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
-    const [username, setUsername] = useState<string | null>(null)
-
 
     const t = translations[lang]
 
     useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-        setUser(data.user)
-        if (data.user) {
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('username')
-                .eq('id', data.user.id)
-                .single()
-            if (profile) setUsername(profile.username)
-        }
-    })
-}, [])
+        supabase.auth.getUser().then(async ({ data }) => {
+            setUser(data.user)
+            if (data.user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', data.user.id)
+                    .single()
+                if (profile) setUsername(profile.username)
+            }
+        })
+    }, [])
 
     useEffect(() => { loadGame(lang) }, [lang])
 
@@ -85,14 +97,15 @@ export default function GamePage() {
         setTokens(data.tokens)
         setTitleWords(data.titleWords)
         setPageId(data.id)
+        setPageData(data)
         setGuesses([])
         setGuessCount(0)
         setWon(false)
+        setRevealAll(false)
         setStartedAt(new Date())
         setLoading(false)
         setTimeout(() => inputRef.current?.focus(), 100)
 
-        // Démarre ou reprend une partie si connecté
         const startRes = await fetch('/api/game/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -103,11 +116,8 @@ export default function GamePage() {
             const game = startData.game
             setGameId(game.id)
 
-            if (game.completed) {
-                setWon(true)
-            }
+            if (game.completed) setWon(true)
 
-            // Reprend les tentatives précédentes
             if (game.guess_count > 0) {
                 const guessRes = await fetch(`/api/game/guesses?gameId=${game.id}`)
                 const guessData = await guessRes.json()
@@ -116,7 +126,6 @@ export default function GamePage() {
                 setGuessCount(game.guess_count)
                 setGuesses(previousGuesses.slice().reverse())
 
-                // Rejoue chaque mot pour révéler les tokens
                 let restoredTokens = [...data.tokens]
                 let restoredTitleWords = [...data.titleWords]
 
@@ -141,10 +150,19 @@ export default function GamePage() {
 
     async function handleGuess() {
         const word = input.trim()
-        if (!word || won) return
+        if (!word) return
 
         const clean = word.toLowerCase()
-        const newGuessCount = guessCount + 1
+
+        // Ignore si le mot a déjà été essayé
+        if (guesses.some(g => g.toLowerCase() === clean)) {
+            setInput('')
+            inputRef.current?.focus()
+            return
+        }
+
+        const alreadyWon = won
+        const newGuessCount = alreadyWon ? guessCount : guessCount + 1
         setGuessCount(newGuessCount)
         setInput('')
 
@@ -169,8 +187,7 @@ export default function GamePage() {
         if (isWon) setWon(true)
         setGuesses(prev => [word, ...prev])
 
-        // Sauvegarde si connecté
-        if (gameId) {
+        if (gameId && !alreadyWon) {
             const now = new Date()
             const duration = startedAt ? Math.floor((now.getTime() - startedAt.getTime()) / 1000) : 0
             await fetch('/api/game/guess', {
@@ -190,140 +207,340 @@ export default function GamePage() {
         inputRef.current?.focus()
     }
 
-    if (loading || titleWords.length === 0) return <div style={{ padding: 40 }}>Chargement...</div>
+    if (loading || titleWords.length === 0) {
+        return (
+            <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
+                <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
+                    Chargement...
+                </div>
+            </div>
+        )
+    }
+
+    const wikipediaUrl = lang === 'fr' ? pageData?.wikipedia_url_fr : pageData?.wikipedia_url_en
 
     return (
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: 20, fontFamily: 'sans-serif' }}>
+        <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
+            <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
 
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <h1 style={{ margin: 0 }}>Wikifinder</h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    {user ? (
-                        <span style={{ fontSize: 14, color: '#666' }}>
-                            <a href="/profile" style={{ color: '#1a1a1a', textDecoration: 'none', fontWeight: 'bold' }}>
-                                {username || user.email}
-                            </a>
-                            <a href="/history" style={{ marginLeft: 12, fontSize: 13, color: '#1a1a1a', textDecoration: 'none', fontWeight: 'bold' }}>
-                                Historique
-                            </a>
-                            <a href="/leaderboard" style={{ fontSize: 14, color: '#1a1a1a', textDecoration: 'none' }}>
-                                Classement
-                            </a>
-                            <button onClick={async () => { await supabase.auth.signOut(); setUser(null) }}
-                                style={{ marginLeft: 8, fontSize: 13, color: '#999', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                {t.logout}
-                            </button>
-                        </span>
+            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 20px', display: 'flex', gap: 32 }}>
+
+                {/* Colonne gauche — historique */}
+                <div style={{
+                    width: 180,
+                    flexShrink: 0,
+                    position: 'sticky',
+                    top: 80,
+                    alignSelf: 'flex-start',
+                    maxHeight: 'calc(100vh - 100px)',
+                    overflowY: 'auto',
+                }}>
+                    <div style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-muted)',
+                        marginBottom: 12,
+                    }}>
+                        {t.history}
+                    </div>
+                    {guesses.length === 0 ? (
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            {t.noWords}
+                        </div>
                     ) : (
-                        <a href="/auth/login" style={{ fontSize: 14, color: '#1a1a1a', fontWeight: 'bold', textDecoration: 'none' }}>
-                            {t.login}
-                        </a>
-                    )}
-                    <div>
-                        <button onClick={() => setLang('fr')} style={{ marginRight: 8, fontWeight: lang === 'fr' ? 'bold' : 'normal' }}>FR</button>
-                        <button onClick={() => setLang('en')} style={{ fontWeight: lang === 'en' ? 'bold' : 'normal' }}>EN</button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Titre masqué */}
-            <div style={{ marginBottom: 24, padding: 16, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>{t.titleLabel}</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                    {titleWords.map((tw, i) => {
-                        if (tw.isStopword) {
-                            return <span key={i} style={{ fontSize: 20, color: '#999' }}>{tw.value}</span>
-                        }
-                        if (tw.revealed || won) {
-                            return (
-                                <span key={i} style={{
-                                    fontSize: 20, fontWeight: 'bold',
-                                    color: won ? '#2e7d32' : '#1565c0',
-                                    backgroundColor: won ? '#e8f5e9' : '#e3f2fd',
-                                    padding: '2px 8px', borderRadius: 4
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {guesses.map((g, i) => (
+                                <div key={i} style={{
+                                    backgroundColor: 'var(--surface)',
+                                    border: '1px solid var(--border)',
+                                    padding: '6px 12px',
+                                    borderRadius: 6,
+                                    fontSize: 14,
+                                    color: 'var(--text-muted)',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
                                 }}>
-                                    {tw.value}
-                                </span>
-                            )
-                        }
-                        return (
-                            <span key={i} style={{
-                                display: 'inline-block',
-                                backgroundColor: '#e0e0e0',
-                                borderRadius: 3,
-                                width: 80,
-                                height: '1.2em',
-                                verticalAlign: 'middle',
-                            }} />
-                        )
-                    })}
+                                    {g}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-                {won && <div style={{ marginTop: 12, color: '#2e7d32', fontWeight: 'bold' }}>{t.found(guessCount)}</div>}
-            </div>
 
-            {/* Score + saisie */}
-            <div style={{ marginBottom: 8, fontSize: 16 }}>{t.attempts} <strong>{guessCount}</strong></div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-                <input
-                    ref={inputRef}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleGuess()}
-                    placeholder={t.placeholder}
-                    disabled={won}
-                    style={{ flex: 1, padding: '8px 12px', fontSize: 16, borderRadius: 6, border: '1px solid #ccc' }}
-                />
-                <button onClick={handleGuess} disabled={won}
-                    style={{ padding: '8px 20px', fontSize: 16, borderRadius: 6, cursor: 'pointer' }}>
-                    {t.validate}
-                </button>
-            </div>
+                {/* Colonne droite — jeu */}
+                <div style={{ flex: 1, minWidth: 0 }}>
 
-            {/* Texte masqué */}
-            <div style={{ lineHeight: 2.4, fontSize: 15 }}>
-                {tokens.map((token, i) => {
-                    if (token.type === 'space') return <span key={i}>{token.value}</span>
-                    if (token.type === 'punct') return <span key={i}>{token.value}</span>
-                    if (token.visible) {
-                        return (
-                            <span key={i} style={{
-                                backgroundColor: token.isTitle ? '#fff9c4' : token.isStopword ? 'transparent' : '#e3f2fd',
-                                borderRadius: 3, padding: '1px 2px',
-                                fontWeight: token.isTitle ? 'bold' : 'normal'
-                            }}>
-                                {token.value}
-                            </span>
-                        )
-                    }
-                    return (
-                        <span key={i} style={{
-                            display: 'inline-block',
-                            backgroundColor: '#e0e0e0',
-                            borderRadius: 3,
-                            minWidth: `${(token.length || 3) * 8}px`,
-                            height: '0.85em',
-                            verticalAlign: 'middle',
-                            margin: '0 1px'
-                        }} />
-                    )
-                })}
-            </div>
+                    {/* Titre masqué */}
+                    <div style={{
+                        marginBottom: 28,
+                        padding: '20px 24px',
+                        backgroundColor: 'var(--surface)',
+                        borderRadius: 12,
+                        border: '1px solid var(--border)',
+                        boxShadow: 'var(--shadow)',
+                    }}>
+                        <div style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: 'var(--text-muted)',
+                            marginBottom: 12,
+                        }}>
+                            {t.titleLabel}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', minHeight: 36 }}>
+                            {titleWords.map((tw, i) => {
+                                if (tw.isStopword) {
+                                    return <span key={i} style={{ fontSize: 22, color: 'var(--text-muted)', fontWeight: 300 }}>{tw.value}</span>
+                                }
+                                if (tw.revealed || won) {
+                                    return (
+                                        <span key={i} style={{
+                                            fontSize: 22,
+                                            fontWeight: 600,
+                                            color: 'var(--accent)',
+                                        }}>
+                                            {tw.value}
+                                        </span>
+                                    )
+                                }
+                                return (
+                                    <span key={i} style={{
+                                        display: 'inline-block',
+                                        backgroundColor: 'var(--masked)',
+                                        borderRadius: 4,
+                                        width: 80,
+                                        height: '1.3em',
+                                        verticalAlign: 'middle',
+                                    }} />
+                                )
+                            })}
+                        </div>
 
-            {/* Historique */}
-            {guesses.length > 0 && (
-                <div style={{ marginTop: 32 }}>
-                    <h3>{t.history}</h3>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        {guesses.map((g, i) => (
-                            <span key={i} style={{
-                                backgroundColor: '#f0f0f0', padding: '4px 10px',
-                                borderRadius: 16, fontSize: 14
-                            }}>{g}</span>
-                        ))}
+                        {won && (
+                            <div style={{ marginTop: 14 }}>
+                                <div style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>
+                                    {t.found(guessCount)}
+                                </div>
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                    <button
+                                        onClick={() => setRevealAll(r => !r)}
+                                        style={{
+                                            padding: '6px 14px',
+                                            borderRadius: 6,
+                                            border: '1px solid var(--border)',
+                                            backgroundColor: 'var(--surface)',
+                                            color: 'var(--text)',
+                                            fontSize: 13,
+                                            cursor: 'pointer',
+                                            fontFamily: 'var(--font-sans)',
+                                        }}
+                                    >
+                                        {revealAll ? t.hideAll : t.revealAll}
+                                    </button>
+                                    {wikipediaUrl && (
+                                        <a
+                                            href={wikipediaUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{
+                                                padding: '6px 14px',
+                                                borderRadius: 6,
+                                                border: '1px solid var(--accent)',
+                                                color: 'var(--accent)',
+                                                fontSize: 13,
+                                                textDecoration: 'none',
+                                                fontWeight: 600,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                            }}
+                                        >
+                                            {t.readArticle}
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Score + saisie */}
+                    <div style={{ marginBottom: 6, fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>
+                        {t.attempts} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{guessCount}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
+                        <input
+                            ref={inputRef}
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleGuess()}
+                            placeholder={t.placeholder}
+                            style={{
+                                flex: 1,
+                                padding: '12px 16px',
+                                fontSize: 16,
+                                borderRadius: 8,
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--surface)',
+                                color: 'var(--text)',
+                                outline: 'none',
+                                transition: 'border-color 0.2s',
+                            }}
+                        />
+                        <button
+                            onClick={handleGuess}
+                            disabled={!input.trim()}
+                            style={{
+                                padding: '12px 24px',
+                                fontSize: 15,
+                                fontWeight: 600,
+                                borderRadius: 8,
+                                border: 'none',
+                                backgroundColor: 'var(--accent)',
+                                color: 'white',
+                                cursor: !input.trim() ? 'default' : 'pointer',
+                                opacity: !input.trim() ? 0.6 : 1,
+                                transition: 'background-color 0.2s',
+                            }}
+                        >
+                            {t.validate}
+                        </button>
+                    </div>
+
+                    {/* Texte masqué */}
+                    <div style={{ fontSize: 15, color: 'var(--text)' }}>
+                        {(() => {
+                            const elements: React.ReactNode[] = []
+                            let i = 0
+
+                            while (i < tokens.length) {
+                                const token = tokens[i]
+
+                                // Détecte un bloc de titre (séquence de tokens isHeading)
+                                if (token.type === 'word' && token.isHeading) {
+                                    const headingTokens: React.ReactNode[] = []
+                                    const level = token.headingLevel || 2
+
+                                    while (i < tokens.length && (
+                                        (tokens[i].type === 'word' && tokens[i].isHeading) ||
+                                        (tokens[i].type === 'space' && !tokens[i].value.includes('\n'))
+                                    )) {
+                                        const t = tokens[i]
+                                        if (t.type === 'space') {
+                                            headingTokens.push(<span key={i}>{t.value}</span>)
+                                        } else if (t.visible) {
+                                            headingTokens.push(
+                                                <span key={i} style={{ color: t.isTitle ? 'var(--accent)' : 'var(--text)' }}>
+                                                    {t.value}
+                                                </span>
+                                            )
+                                        } else if (revealAll) {
+                                            headingTokens.push(
+                                                <span key={i} style={{ color: t.isTitle ? 'var(--accent)' : 'var(--text-muted)', fontStyle: 'italic' }}>
+                                                    {t.value}
+                                                </span>
+                                            )
+                                        } else {
+                                            headingTokens.push(
+                                                <span key={i} style={{
+                                                    display: 'inline-block',
+                                                    backgroundColor: 'var(--masked)',
+                                                    borderRadius: 3,
+                                                    minWidth: `${(t.length || 3) * 8}px`,
+                                                    height: '1.1em',
+                                                    verticalAlign: 'middle',
+                                                    margin: '0 1px',
+                                                }} />
+                                            )
+                                        }
+                                        i++
+                                    }
+
+                                    elements.push(
+                                        <div key={`heading-${i}`} style={{
+                                            fontWeight: 700,
+                                            fontSize: level === 2 ? '1.2em' : '1.05em',
+                                            marginTop: '1.5em',
+                                            marginBottom: '0.5em',
+                                            paddingBottom: '0.3em',
+                                            borderBottom: '1px solid var(--border)',
+                                            lineHeight: 1.4,
+                                        }}>
+                                            {headingTokens}
+                                        </div>
+                                    )
+                                    continue
+                                }
+
+                                // Saut de ligne
+                                if (token.type === 'space' && token.value.includes('\n')) {
+                                    i++
+                                    continue
+                                }
+
+                                // Texte normal — accumule jusqu'au prochain saut de ligne ou heading
+                                const lineTokens: React.ReactNode[] = []
+                                while (i < tokens.length &&
+                                    !(tokens[i].type === 'space' && tokens[i].value.includes('\n')) &&
+                                    !(tokens[i].type === 'word' && tokens[i].isHeading)
+                                ) {
+                                    const t = tokens[i]
+                                    if (t.type === 'space' || t.type === 'punct') {
+                                        lineTokens.push(<span key={i}>{t.value}</span>)
+                                    } else if (t.visible) {
+                                        lineTokens.push(
+                                            <span key={i} style={{
+                                                fontWeight: t.isTitle ? 700 : 400,
+                                                color: t.isTitle ? 'var(--accent)' : 'var(--text)',
+                                            }}>
+                                                {t.value}
+                                            </span>
+                                        )
+                                    } else if (revealAll) {
+                                        lineTokens.push(
+                                            <span key={i} style={{
+                                                color: t.isTitle ? 'var(--accent)' : 'var(--text-muted)',
+                                                fontStyle: 'italic',
+                                            }}>
+                                                {t.value}
+                                            </span>
+                                        )
+                                    } else {
+                                        lineTokens.push(
+                                            <span key={i} style={{
+                                                display: 'inline-block',
+                                                backgroundColor: 'var(--masked)',
+                                                borderRadius: 3,
+                                                minWidth: `${(t.length || 3) * 8}px`,
+                                                height: '1.5em',
+                                                verticalAlign: 'middle',
+                                                margin: '0 1px',
+                                            }} />
+                                        )
+                                    }
+                                    i++
+                                }
+
+                                if (lineTokens.length > 0) {
+                                    elements.push(
+                                        <span key={`line-${i}`} style={{ lineHeight: 2.6 }}>
+                                            {lineTokens}
+                                        </span>
+                                    )
+                                }
+                                i++
+                            }
+
+                            return elements
+                        })()}
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     )
 }

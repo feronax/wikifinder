@@ -16,7 +16,6 @@ export default function FeedbackButton() {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
   }, [])
 
-  // Uniquement visible pour les connectés
   if (!user) return null
 
   async function handleSubmit() {
@@ -56,20 +55,25 @@ export default function FeedbackButton() {
         bottom: 80,
         right: open ? 0 : -420,
         width: 360,
-        backgroundColor: 'white',
+        backgroundColor: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRight: 'none',
         borderRadius: '12px 0 0 12px',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+        boxShadow: 'var(--shadow-lg)',
         padding: 24,
         zIndex: 50,
         transition: 'right 0.3s ease',
+        fontFamily: 'var(--font-sans)',
       }}>
-        <h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>Signaler un problème</h3>
-        <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#666' }}>
+        <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: 'var(--text)' }}>
+          Signaler un problème
+        </h3>
+        <p style={{ margin: '0 0 16px 0', fontSize: 13, color: 'var(--text-muted)' }}>
           Un bug, une page bizarre, une suggestion ? Dis-nous tout.
         </p>
 
         {sent ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#2e7d32', fontWeight: 'bold' }}>
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--accent)', fontWeight: 'bold' }}>
             ✓ Merci pour ton retour !
           </div>
         ) : (
@@ -83,12 +87,15 @@ export default function FeedbackButton() {
                 width: '100%',
                 padding: '10px 12px',
                 borderRadius: 6,
-                border: '1px solid #ccc',
+                border: '1px solid var(--border)',
                 fontSize: 14,
                 resize: 'vertical',
                 boxSizing: 'border-box',
                 marginBottom: 12,
-                fontFamily: 'sans-serif',
+                fontFamily: 'var(--font-sans)',
+                backgroundColor: 'var(--bg)',
+                color: 'var(--text)',
+                outline: 'none',
               }}
             />
             <button
@@ -98,12 +105,14 @@ export default function FeedbackButton() {
                 width: '100%',
                 padding: '10px 0',
                 borderRadius: 6,
-                backgroundColor: '#1a1a1a',
+                backgroundColor: 'var(--accent)',
                 color: 'white',
                 border: 'none',
-                cursor: 'pointer',
+                cursor: loading || !message.trim() ? 'default' : 'pointer',
                 fontSize: 14,
-                fontWeight: 'bold',
+                fontWeight: '600',
+                fontFamily: 'var(--font-sans)',
+                opacity: loading || !message.trim() ? 0.6 : 1,
               }}
             >
               {loading ? 'Envoi...' : 'Envoyer'}
@@ -130,10 +139,11 @@ export default function FeedbackButton() {
       >
         {/* Languette animée */}
         <div style={{
-          backgroundColor: '#1a1a1a',
-          color: 'white',
+          backgroundColor: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text)',
           fontSize: 12,
-          fontWeight: 'bold',
+          fontWeight: 600,
           padding: '6px 10px',
           borderRadius: 6,
           opacity: hovered ? 1 : 0,
@@ -141,6 +151,8 @@ export default function FeedbackButton() {
           transition: 'all 0.2s ease',
           whiteSpace: 'nowrap',
           pointerEvents: 'none',
+          boxShadow: 'var(--shadow)',
+          fontFamily: 'var(--font-sans)',
         }}>
           Signaler un problème
         </div>
@@ -150,13 +162,14 @@ export default function FeedbackButton() {
           width: 48,
           height: 48,
           borderRadius: '50%',
-          backgroundColor: '#1a1a1a',
-          color: 'white',
+          backgroundColor: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 20,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
+          boxShadow: 'var(--shadow)',
           transform: hovered ? 'scale(1.1)' : 'scale(1)',
           transition: 'transform 0.2s ease',
         }}>

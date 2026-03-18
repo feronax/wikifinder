@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap');
+
+:root {
+    /* Thème clair */
+    --bg: #F6F0D7;
+    --bg-secondary: #EDE8CC;
+    --surface: #FFFFFF;
+    --border: #D8D2BB;
+    --text: #2A2A2A;
+    --text-muted: #6B6557;
+    --accent: #5C7A3E;
+    --accent-dark: #4A6230;
+    --accent-light: #7A9E56;
+    --revealed: #C5D89D;
+    --revealed-title: #9CAB84;
+    --masked: #B8B2A0;
+    --font-sans: 'DM Sans', sans-serif;
+    --font-serif: 'DM Serif Display', serif;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+    --transition: 0.2s ease;
+}
+
+[data-theme="dark"] {
+    --bg: #222831;
+    --bg-secondary: #2D3340;
+    --surface: #393E46;
+    --border: #4A5060;
+    --text: #EEEEEE;
+    --text-muted: #EEEEEE;
+    --accent: #00ADB5;
+    --accent-dark: #008A91;
+    --accent-light: #33C0C7;
+    --revealed: transparent;
+    --revealed-title: transparent;
+    --masked: #1A1D24;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--bg);
+    color: var(--text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--accent-dark);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--accent);
+}
+
+button {
+    font-family: var(--font-sans);
+    cursor: pointer;
+}
+
+input,
+textarea {
+    font-family: var(--font-sans);
+}
+
+/* Animations */
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes revealWord {
+    from {
+        opacity: 0;
+        background-color: var(--masked);
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.reveal-animation {
+    animation: fadeSlideIn 0.3s ease forwards;
+}
