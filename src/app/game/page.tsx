@@ -50,6 +50,8 @@ const translations = {
         revealAll: "👁️ Révéler tous les mots",
         hideAll: '🙈 Masquer les mots',
         readArticle: "📖 Lire l'article Wikipedia",
+        score: 'Score',
+        pts: 'pts',
     },
     en: {
         titleLabel: 'Article title:',
@@ -64,7 +66,16 @@ const translations = {
         revealAll: '👁️ Reveal all words',
         hideAll: '🙈 Hide words',
         readArticle: '📖 Read Wikipedia article',
+        score: 'Score',
+        pts: 'pts',
     }
+}
+
+function calculateScore(guessCount: number, completed: boolean): number {
+    if (!completed || guessCount > 400) return 0
+    const wRaw = Math.max(0, guessCount - 70)
+    const w = wRaw / (400 - 70)
+    return Math.round(5000 * Math.exp(-3.5 * w))
 }
 
 export default function GamePage() {
@@ -76,6 +87,7 @@ export default function GamePage() {
     const [startedAt, setStartedAt] = useState<Date | null>(null)
     const [user, setUser] = useState<any>(null)
     const [username, setUsername] = useState<string | null>(null)
+    const [clickedWord, setClickedWord] = useState<{ word: string, index: number } | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
 
@@ -109,6 +121,7 @@ export default function GamePage() {
     async function loadGame(l: 'fr' | 'en', date?: string) {
         setLoading(true)
         setRevealAll(false)
+        setClickedWord(null)
 
         const url = date
             ? `/api/game/today?lang=${l}&date=${date}`
@@ -182,6 +195,31 @@ export default function GamePage() {
         setStartedAt(new Date())
         setLoading(false)
         setTimeout(() => inputRef.current?.focus(), 100)
+    }
+
+    function scrollToOccurrence(word: string) {
+        const clean = word.toLowerCase()
+        const elements = document.querySelectorAll(`[data-word="${clean}"]`)
+        if (elements.length === 0) return
+
+        elements.forEach(el => el.classList.remove('word-highlight'))
+
+        setClickedWord(prev => {
+            const nextIndex = prev?.word === clean
+                ? (prev.index + 1) % elements.length
+                : 0
+            const el = elements[nextIndex]
+
+            const headerOffset = 160
+            const elementPosition = (el as HTMLElement).getBoundingClientRect().top + window.scrollY
+            window.scrollTo({ top: elementPosition - headerOffset, behavior: 'smooth' })
+
+            void (el as HTMLElement).offsetWidth
+            el.classList.add('word-highlight')
+            setTimeout(() => el.classList.remove('word-highlight'), 1200)
+
+            return { word: clean, index: nextIndex }
+        })
     }
 
     async function handleGuess() {
@@ -264,6 +302,7 @@ export default function GamePage() {
 
     const { tokens, titleWords, guesses, guessCount, won, pageData } = gameState
     const wikipediaUrl = lang === 'fr' ? pageData?.wikipedia_url_fr : pageData?.wikipedia_url_en
+    const score = calculateScore(guessCount, won)
 
     return (
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
@@ -300,18 +339,25 @@ export default function GamePage() {
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {guesses.map((g, i) => (
-                                <div key={i} style={{
-                                    backgroundColor: g.found ? 'var(--revealed)' : 'var(--surface)',
-                                    border: '1px solid ' + (g.found ? 'var(--accent)' : 'var(--border)'),
-                                    padding: '6px 12px',
-                                    borderRadius: 6,
-                                    fontSize: 14,
-                                    color: g.found ? 'var(--accent)' : 'var(--text-muted)',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    fontWeight: g.found ? 600 : 400,
-                                }}>
+                                <div
+                                    key={i}
+                                    onClick={() => g.found && scrollToOccurrence(g.word)}
+                                    title={g.found ? 'Cliquer pour localiser dans le texte' : ''}
+                                    style={{
+                                        backgroundColor: g.found ? 'var(--revealed)' : 'var(--surface)',
+                                        border: '1px solid ' + (g.found ? 'var(--accent)' : 'var(--border)'),
+                                        padding: '6px 12px',
+                                        borderRadius: 6,
+                                        fontSize: 14,
+                                        color: g.found ? 'var(--accent)' : 'var(--text-muted)',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        fontWeight: g.found ? 600 : 400,
+                                        cursor: g.found ? 'pointer' : 'default',
+                                        transition: 'opacity 0.15s',
+                                    }}
+                                >
                                     {g.word}
                                 </div>
                             ))}
@@ -331,84 +377,133 @@ export default function GamePage() {
                         borderRadius: 12,
                         border: '1px solid var(--border)',
                         boxShadow: 'var(--shadow)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: 16,
                     }}>
-                        <div style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: '0.08em',
-                            textTransform: 'uppercase',
-                            color: 'var(--text-muted)',
-                            marginBottom: 12,
-                        }}>
-                            {t.titleLabel}
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', minHeight: 36 }}>
-                            {titleWords.map((tw, i) => {
-                                if (tw.isStopword) {
-                                    return <span key={i} style={{ fontSize: 22, color: 'var(--text-muted)', fontWeight: 300 }}>{tw.value}</span>
-                                }
-                                if (tw.revealed || won) {
+                        {/* Contenu gauche — titre + victoire */}
+                        <div style={{ flex: 1 }}>
+                            <div style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                letterSpacing: '0.08em',
+                                textTransform: 'uppercase',
+                                color: 'var(--text-muted)',
+                                marginBottom: 12,
+                            }}>
+                                {t.titleLabel}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', minHeight: 36 }}>
+                                {titleWords.map((tw, i) => {
+                                    if (tw.isStopword) {
+                                        return <span key={i} style={{ fontSize: 22, color: 'var(--text-muted)', fontWeight: 300 }}>{tw.value}</span>
+                                    }
+                                    if (tw.revealed || won) {
+                                        return (
+                                            <span key={i} style={{ fontSize: 22, fontWeight: 600, color: 'var(--accent)' }}>
+                                                {tw.value}
+                                            </span>
+                                        )
+                                    }
                                     return (
-                                        <span key={i} style={{ fontSize: 22, fontWeight: 600, color: 'var(--accent)' }}>
-                                            {tw.value}
-                                        </span>
+                                        <span key={i} style={{
+                                            display: 'inline-block',
+                                            backgroundColor: 'var(--masked)',
+                                            borderRadius: 4,
+                                            width: 80,
+                                            height: '1.3em',
+                                            verticalAlign: 'middle',
+                                        }} />
                                     )
-                                }
-                                return (
-                                    <span key={i} style={{
-                                        display: 'inline-block',
-                                        backgroundColor: 'var(--masked)',
-                                        borderRadius: 4,
-                                        width: 80,
-                                        height: '1.3em',
-                                        verticalAlign: 'middle',
-                                    }} />
-                                )
-                            })}
-                        </div>
+                                })}
+                            </div>
 
-                        {won && (
-                            <div style={{ marginTop: 14 }}>
-                                <div style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>
-                                    {t.found(guessCount)}
-                                </div>
-                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                                    <button
-                                        onClick={() => setRevealAll(r => !r)}
-                                        style={{
-                                            padding: '6px 14px',
-                                            borderRadius: 6,
-                                            border: '1px solid var(--border)',
-                                            backgroundColor: 'var(--surface)',
-                                            color: 'var(--text)',
-                                            fontSize: 13,
-                                            cursor: 'pointer',
-                                            fontFamily: 'var(--font-sans)',
-                                        }}
-                                    >
-                                        {revealAll ? t.hideAll : t.revealAll}
-                                    </button>
-                                    {wikipediaUrl && (
-                                        <a
-                                            href={wikipediaUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                            {won && (
+                                <div style={{ marginTop: 14 }}>
+                                    <div style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>
+                                        {t.found(guessCount)}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                        <button
+                                            onClick={() => setRevealAll(r => !r)}
                                             style={{
                                                 padding: '6px 14px',
                                                 borderRadius: 6,
-                                                border: '1px solid var(--accent)',
-                                                color: 'var(--accent)',
+                                                border: '1px solid var(--border)',
+                                                backgroundColor: 'var(--surface)',
+                                                color: 'var(--text)',
                                                 fontSize: 13,
-                                                textDecoration: 'none',
-                                                fontWeight: 600,
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: 6,
+                                                cursor: 'pointer',
+                                                fontFamily: 'var(--font-sans)',
                                             }}
                                         >
-                                            {t.readArticle}
-                                        </a>
-                                    )}
+                                            {revealAll ? t.hideAll : t.revealAll}
+                                        </button>
+                                        {wikipediaUrl && (
+                                            <a
+                                                href={wikipediaUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                    padding: '6px 14px',
+                                                    borderRadius: 6,
+                                                    border: '1px solid var(--accent)',
+                                                    color: 'var(--accent)',
+                                                    fontSize: 13,
+                                                    textDecoration: 'none',
+                                                    fontWeight: 600,
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 6,
+                                                }}
+                                            >
+                                                {t.readArticle}
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Score — affiché uniquement si gagné */}
+                        {won && (
+                            <div style={{
+                                flexShrink: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '12px 20px',
+                                borderRadius: 10,
+                                border: '1px solid var(--accent)',
+                                backgroundColor: 'var(--bg)',
+                                minWidth: 110,
+                            }}>
+                                <div style={{
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    letterSpacing: '0.08em',
+                                    textTransform: 'uppercase',
+                                    color: 'var(--text-muted)',
+                                    marginBottom: 4,
+                                }}>
+                                    {t.score}
+                                </div>
+                                <div style={{
+                                    fontSize: 28,
+                                    fontWeight: 700,
+                                    color: 'var(--accent)',
+                                    lineHeight: 1,
+                                }}>
+                                    {score.toLocaleString()}
+                                </div>
+                                <div style={{
+                                    fontSize: 12,
+                                    color: 'var(--text-muted)',
+                                    marginTop: 2,
+                                }}>
+                                    {t.pts}
                                 </div>
                             </div>
                         )}
@@ -490,7 +585,11 @@ export default function GamePage() {
                                             headingTokens.push(<span key={i}>{t.value}</span>)
                                         } else if (t.visible) {
                                             headingTokens.push(
-                                                <span key={i} style={{ color: t.isTitle ? 'var(--accent)' : 'var(--text)' }}>
+                                                <span
+                                                    key={i}
+                                                    data-word={t.value.replace(/[^a-zA-ZÀ-ÿ'-]/g, '').toLowerCase()}
+                                                    style={{ color: t.isTitle ? 'var(--accent)' : 'var(--text)' }}
+                                                >
                                                     {t.value}
                                                 </span>
                                             )
@@ -547,10 +646,14 @@ export default function GamePage() {
                                         lineTokens.push(<span key={i}>{t.value}</span>)
                                     } else if (t.visible) {
                                         lineTokens.push(
-                                            <span key={i} style={{
-                                                fontWeight: t.isTitle ? 700 : 400,
-                                                color: t.isTitle ? 'var(--accent)' : 'var(--text)',
-                                            }}>
+                                            <span
+                                                key={i}
+                                                data-word={t.value.replace(/[^a-zA-ZÀ-ÿ'-]/g, '').toLowerCase()}
+                                                style={{
+                                                    fontWeight: t.isTitle ? 700 : 400,
+                                                    color: t.isTitle ? 'var(--accent)' : 'var(--text)',
+                                                }}
+                                            >
                                                 {t.value}
                                             </span>
                                         )
