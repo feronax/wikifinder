@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { extractWords, isStopword } from '@/lib/wikipedia'
+import { isStopword } from '@/lib/wikipedia'
 
 export async function GET(req: NextRequest) {
   const lang = (req.nextUrl.searchParams.get('lang') || 'fr') as 'fr' | 'en'
@@ -28,12 +28,7 @@ export async function GET(req: NextRequest) {
 
   const truncatedContent = truncateAtSections(content, excludedSections)
 
-  const titleWords = extractWords(title).map(w => ({
-    value: w,
-    isStopword: isStopword(w, lang),
-    revealed: false,
-  }))
-
+  const titleWords = extractTitleParts(title, lang)
   const titleWordsClean = titleWords
     .filter(tw => !tw.isStopword)
     .map(tw => tw.value.toLowerCase())
@@ -50,6 +45,43 @@ export async function GET(req: NextRequest) {
     wikipedia_url_fr: page.wikipedia_url_fr,
     wikipedia_url_en: page.wikipedia_url_en,
   })
+}
+
+function extractTitleParts(title: string, lang: 'fr' | 'en') {
+  const result: { value: string, isStopword: boolean, revealed: boolean, length: number }[] = []
+
+  const rawParts = title.split(/[\s()\[\],.!?;:"«»]+/).filter(p => p.length > 0)
+
+  for (const part of rawParts) {
+    const hyphenParts = part.split('-').filter(p => p.length > 0)
+    for (const hp of hyphenParts) {
+      const clean = hp.replace(/[^a-zA-ZÀ-ÿ0-9]/g, '')
+      if (!clean) continue
+
+      // Purement numérique → masqué, devinable
+      if (/^\d+$/.test(clean)) {
+        result.push({ value: clean, isStopword: false, revealed: false, length: clean.length })
+        continue
+      }
+
+      // Mixte chiffres+lettres → split
+      if (/\d/.test(clean) && /[a-zA-ZÀ-ÿ]/.test(clean)) {
+        const mixedParts = clean.split(/(\d+)/g).filter(p => p.length > 0)
+        for (const mp of mixedParts) {
+          if (/^\d+$/.test(mp)) {
+            result.push({ value: mp, isStopword: false, revealed: false, length: mp.length })
+          } else {
+            result.push({ value: mp, isStopword: isStopword(mp.toLowerCase(), lang), revealed: false, length: mp.length })
+          }
+        }
+        continue
+      }
+
+      result.push({ value: clean, isStopword: isStopword(clean.toLowerCase(), lang), revealed: false, length: clean.length })
+    }
+  }
+
+  return result
 }
 
 function truncateAtSections(content: string, excludedSections: string[]): string {
@@ -70,6 +102,75 @@ function truncateAtSections(content: string, excludedSections: string[]): string
   return result.join('\n')
 }
 
+function tokenizeFragment(fragment: string, lang: 'fr' | 'en', titleWords: string[], opts: { isHeading?: boolean, headingLevel?: number } = {}): any[] {
+  const result: any[] = []
+  const hyphenParts = fragment.split(/(-)/g)
+
+  for (const part of hyphenParts) {
+    if (!part) continue
+    if (part === '-') {
+      result.push({ type: 'punct', value: '-' })
+      continue
+    }
+
+    const subParts = part.split(/([,.!?;:()\[\]"«»]+)/g)
+    for (const sub of subParts) {
+      if (!sub) continue
+      if (/^[,.!?;:()\[\]"«»]+$/.test(sub)) {
+        result.push({ type: 'punct', value: sub })
+        continue
+      }
+
+      const clean = sub.replace(/[^a-zA-ZÀ-ÿ0-9]/g, '').toLowerCase()
+      if (!clean) {
+        result.push({ type: 'punct', value: sub })
+        continue
+      }
+
+      // Purement numérique → masqué, devinable
+      if (/^\d+$/.test(clean)) {
+        const isTitleWord = titleWords.includes(clean)
+        result.push({ type: 'word', value: sub, visible: false, isTitle: isTitleWord, length: clean.length, ...(opts.isHeading ? { isHeading: true, headingLevel: opts.headingLevel } : {}) })
+        continue
+      }
+
+      // Mixte chiffres+lettres → split
+      if (/\d/.test(clean) && /[a-zA-ZÀ-ÿ]/.test(clean)) {
+        const mixedParts = sub.split(/(\d+)/g)
+        for (const mp of mixedParts) {
+          if (!mp) continue
+          const mpClean = mp.replace(/[^a-zA-ZÀ-ÿ0-9]/g, '').toLowerCase()
+          if (!mpClean) continue
+          if (/^\d+$/.test(mpClean)) {
+            const isTitleWord = titleWords.includes(mpClean)
+            result.push({ type: 'word', value: mp, visible: false, isTitle: isTitleWord, length: mpClean.length, ...(opts.isHeading ? { isHeading: true, headingLevel: opts.headingLevel } : {}) })
+          } else {
+            if (isStopword(mpClean, lang)) {
+              result.push({ type: 'word', value: mp, visible: true, isStopword: true, ...(opts.isHeading ? { isHeading: true, headingLevel: opts.headingLevel } : {}) })
+            } else {
+              result.push({ type: 'word', value: mp, visible: false, isTitle: titleWords.includes(mpClean), length: mpClean.length, ...(opts.isHeading ? { isHeading: true, headingLevel: opts.headingLevel } : {}) })
+            }
+          }
+        }
+        continue
+      }
+
+      if (isStopword(clean, lang)) {
+        result.push({ type: 'word', value: sub, visible: true, isStopword: true, ...(opts.isHeading ? { isHeading: true, headingLevel: opts.headingLevel } : {}) })
+        continue
+      }
+
+      const isTitleWord = titleWords.includes(clean)
+      result.push({
+        type: 'word', value: sub, visible: false, isTitle: isTitleWord, length: clean.length,
+        ...(opts.isHeading ? { isHeading: true, headingLevel: opts.headingLevel } : {}),
+      })
+    }
+  }
+
+  return result
+}
+
 function buildTokens(content: string, lang: 'fr' | 'en', titleWords: string[]) {
   const lines = content.split('\n')
   const tokens: any[] = []
@@ -79,69 +180,22 @@ function buildTokens(content: string, lang: 'fr' | 'en', titleWords: string[]) {
     if (sectionMatch) {
       const level = sectionMatch[1].length
       const sectionTitle = sectionMatch[2]
-
       tokens.push({ type: 'space', value: '\n' })
-
       const parts = sectionTitle.split(/(\s+)/g)
       for (const part of parts) {
         if (!part) continue
-        if (/^\s+$/.test(part)) {
-          tokens.push({ type: 'space', value: part })
-          continue
-        }
-        const clean = part.replace(/[^a-zA-ZÀ-ÿ'-]/g, '').toLowerCase()
-        if (!clean) {
-          tokens.push({ type: 'punct', value: part })
-          continue
-        }
-        if (isStopword(clean, lang)) {
-          tokens.push({ type: 'word', value: part, visible: true, isStopword: true, isHeading: true, headingLevel: level })
-          continue
-        }
-        const isTitleWord = titleWords.includes(clean)
-        tokens.push({
-          type: 'word',
-          value: part,
-          visible: false,
-          isTitle: isTitleWord,
-          isHeading: true,
-          headingLevel: level,
-          length: clean.length,
-        })
+        if (/^\s+$/.test(part)) { tokens.push({ type: 'space', value: part }); continue }
+        tokens.push(...tokenizeFragment(part, lang, titleWords, { isHeading: true, headingLevel: level }))
       }
-
       tokens.push({ type: 'space', value: '\n' })
       continue
     }
 
-    const parts = line.split(/(\s+|[,.!?;:()\[\]"«»])/g)
+    const parts = line.split(/(\s+)/g)
     for (const part of parts) {
       if (!part) continue
-      if (/^\s+$/.test(part)) {
-        tokens.push({ type: 'space', value: part })
-        continue
-      }
-      if (/^[,.!?;:()\[\]"«»]$/.test(part)) {
-        tokens.push({ type: 'punct', value: part })
-        continue
-      }
-      const clean = part.replace(/[^a-zA-ZÀ-ÿ'-]/g, '').toLowerCase()
-      if (!clean) {
-        tokens.push({ type: 'punct', value: part })
-        continue
-      }
-      if (isStopword(clean, lang)) {
-        tokens.push({ type: 'word', value: part, visible: true, isStopword: true })
-        continue
-      }
-      const isTitleWord = titleWords.includes(clean)
-      tokens.push({
-        type: 'word',
-        value: part,
-        visible: false,
-        isTitle: isTitleWord,
-        length: clean.length,
-      })
+      if (/^\s+$/.test(part)) { tokens.push({ type: 'space', value: part }); continue }
+      tokens.push(...tokenizeFragment(part, lang, titleWords))
     }
     tokens.push({ type: 'space', value: '\n' })
   }

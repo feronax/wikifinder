@@ -17,6 +17,13 @@ type HistoryEntry = {
   } | null
 }
 
+function calculateScore(guessCount: number, completed: boolean): number {
+  if (!completed || guessCount > 400) return 0
+  const wRaw = Math.max(0, guessCount - 70)
+  const w = wRaw / (400 - 70)
+  return Math.round(5000 * Math.exp(-3.5 * w))
+}
+
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,6 +77,7 @@ export default function HistoryPage() {
               const completed = game?.completed
               const notStarted = !game
               const gameUrl = '/game?date=' + entry.date + '&lang=' + lang
+              const score = game ? calculateScore(game.guess_count, !!completed) : null
 
               return (
                 <div key={entry.page_id} style={{
@@ -83,7 +91,7 @@ export default function HistoryPage() {
                   gap: 16,
                   opacity: notStarted ? 0.7 : 1,
                 }}>
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: isToday ? 'var(--accent)' : 'var(--text-muted)', marginBottom: 4 }}>
                       {entry.date}{isToday ? " — Aujourd'hui" : ''}
                     </div>
@@ -95,14 +103,19 @@ export default function HistoryPage() {
                           </span>
                       }
                     </div>
+                    {game && (
+                      <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                        {game.guess_count} tentative{game.guess_count > 1 ? 's' : ''}
+                        {completed && score !== null && (
+                          <span style={{ marginLeft: 10, color: 'var(--accent)', fontWeight: 600 }}>
+                            {score.toLocaleString()} pts
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                    {game && (
-                      <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                        {game.guess_count} tentative{game.guess_count > 1 ? 's' : ''}
-                      </span>
-                    )}
+                  <div style={{ flexShrink: 0 }}>
                     <a
                       href={gameUrl}
                       style={{
@@ -113,6 +126,7 @@ export default function HistoryPage() {
                         padding: '4px 10px',
                         borderRadius: 20,
                         border: '1px solid var(--accent)',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {completed ? '✓ Revoir →' : notStarted ? 'Jouer →' : 'Reprendre →'}

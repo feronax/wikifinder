@@ -21,15 +21,15 @@ export function isStopword(word: string, lang: 'fr' | 'en'): boolean {
 }
 
 export function extractWords(text: string): string[] {
+  // Inclut les chiffres pour les titres comme "10e comte de Dundonald"
   return text
-    .replace(/[^a-zA-ZÀ-ÿ\s'-]/g, ' ')
+    .replace(/[^a-zA-ZÀ-ÿ0-9\s'-]/g, ' ')
     .split(/\s+/)
     .filter(w => w.length > 0)
 }
 
 // Récupère un article Wikipedia de qualité aléatoire
 export async function fetchRandomQualityArticle(lang: 'fr' | 'en') {
-  // 1. Récupère une liste d'articles de qualité
   const categoryUrl = lang === 'fr'
     ? 'https://fr.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Cat%C3%A9gorie:Article_de_qualit%C3%A9&cmlimit=500&format=json&origin=*'
     : 'https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:Featured_articles&cmlimit=500&format=json&origin=*'
@@ -38,10 +38,8 @@ export async function fetchRandomQualityArticle(lang: 'fr' | 'en') {
   const catData = await catRes.json()
   const members = catData.query.categorymembers
 
-  // 2. Choisit un article aléatoire dans la liste
   const random = members[Math.floor(Math.random() * members.length)]
 
-  // 3. Récupère le contenu de l'article
   const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(random.title)}&prop=extracts&explaintext=true&format=json&origin=*`
   const contentRes = await fetch(contentUrl)
   const contentData = await contentRes.json()
