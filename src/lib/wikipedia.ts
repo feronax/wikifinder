@@ -21,42 +21,12 @@ export function isStopword(word: string, lang: 'fr' | 'en'): boolean {
 }
 
 export function extractWords(text: string): string[] {
-  // Inclut les chiffres pour les titres comme "10e comte de Dundonald"
   return text
     .replace(/[^a-zA-ZÀ-ÿ0-9\s'-]/g, ' ')
     .split(/\s+/)
     .filter(w => w.length > 0)
 }
 
-// Récupère un article Wikipedia de qualité aléatoire
-export async function fetchRandomQualityArticle(lang: 'fr' | 'en') {
-  const categoryUrl = lang === 'fr'
-    ? 'https://fr.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Cat%C3%A9gorie:Article_de_qualit%C3%A9&cmlimit=500&format=json&origin=*'
-    : 'https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:Featured_articles&cmlimit=500&format=json&origin=*'
-
-  const catRes = await fetch(categoryUrl)
-  const catData = await catRes.json()
-  const members = catData.query.categorymembers
-
-  const random = members[Math.floor(Math.random() * members.length)]
-
-  const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(random.title)}&prop=extracts&explaintext=true&format=json&origin=*`
-  const contentRes = await fetch(contentUrl)
-  const contentData = await contentRes.json()
-  const pages = contentData.query.pages
-  const page = Object.values(pages)[0] as any
-
-  const words = extractWords(page.extract || '')
-
-  return {
-    title: page.title,
-    url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
-    content: page.extract || '',
-    wordCount: words.length
-  }
-}
-
-// Trouve l'article lié dans l'autre langue
 export async function fetchLinkedArticle(title: string, fromLang: 'fr' | 'en') {
   const toLang = fromLang === 'fr' ? 'en' : 'fr'
   const url = `https://${fromLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=langlinks&lllang=${toLang}&format=json&origin=*`

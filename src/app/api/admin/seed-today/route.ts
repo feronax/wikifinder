@@ -1,74 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { fetchRandomQualityArticle, fetchLinkedArticle } from '@/lib/wikipedia'
+import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
+import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}))
-  const today = body.date || new Date().toISOString().split('T')[0]
+  const cookieStore = await cookies()
+  const adminToken = cookieStore.get('admin_token')?.value
+  if (adminToken !== process.env.ADMIN_PASSWORD) {
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  }
 
-  // Vérifie qu'il n'y a pas déjà une page aujourd'hui
+  const body = await req.json().catch(() => ({}))
+  const targetDate: string = body.date || new Date().toISOString().split('T')[0]
+
   const { data: existing } = await supabaseAdmin
     .from('pages')
     .select('id')
-    .eq('date', today)
+    .eq('date', targetDate)
     .single()
 
   if (existing) {
-    return NextResponse.json({ message: 'Une page existe déjà pour aujourd\'hui' })
+    return NextResponse.json({ error: `Une page existe déjà pour le ${targetDate}` }, { status: 409 })
   }
 
-  // Cherche une paire FR+EN valide (max 20 tentatives)
-  let articleFr, articleEn
-  let attempts = 0
-
-  while (attempts < 20) {
-    attempts++
-
-    try {
-      // Cherche un article FR de qualité avec min 1500 mots
-      const candidate = await fetchRandomQualityArticle('fr')
-      if (candidate.wordCount < 1500) continue
-
-      // Cherche l'article EN lié
-      const linked = await fetchLinkedArticle(candidate.title, 'fr')
-      if (!linked || linked.wordCount < 1500) continue
-
-      // Paire valide trouvée
-      articleFr = candidate
-      articleEn = linked
-      break
-    } catch (e) {
-      continue
-    }
-  }
-
-  if (!articleFr || !articleEn) {
-    return NextResponse.json(
-      { error: `Impossible de trouver une paire valide après ${attempts} tentatives` },
-      { status: 422 }
-    )
-  }
-
-  // Insère en BDD
-  const { data, error } = await supabaseAdmin
+  const { data: usedPages } = await supabaseAdmin
     .from('pages')
-    .insert({
-      date: today,
-      wikipedia_title_fr: articleFr.title,
-      wikipedia_title_en: articleEn.title,
-      wikipedia_url_fr: articleFr.url,
-      wikipedia_url_en: articleEn.url,
-      word_count_fr: articleFr.wordCount,
-      word_count_en: articleEn.wordCount,
-      content_fr: articleFr.content,
-      content_en: articleEn.content,
+    .select('wikipedia_title_fr')
+
+  const alreadyUsedTitles = (usedPages || [])
+    .map((p: any) => p.wikipedia_title_fr)
+    .filter(Boolean)
+
+  try {
+    const frArticle = await fetchRandomQualityArticle('fr', alreadyUsedTitles)
+    const enArticle = await fetchLinkedArticle(frArticle.title, 'fr')
+
+    const { error } = await supabaseAdmin.from('pages').insert({
+      date: targetDate,
+      wikipedia_title_fr: frArticle.title,
+      wikipedia_title_en: enArticle?.title || frArticle.title,
+      wikipedia_url_fr: frArticle.url,
+      wikipedia_url_en: enArticle?.url || frArticle.url,
+      content_fr: frArticle.content,
+      content_en: enArticle?.content || '',
+      word_count_fr: frArticle.wordCount,
+      word_count_en: enArticle?.wordCount || 0,
     })
-    .select()
-    .single()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      date: targetDate,
+      title_fr: frArticle.title,
+      title_en: enArticle?.title,
+      pageviews: frArticle.pageviews,
+      usedFallback: frArticle.usedFallback,
+      word_count_fr: frArticle.wordCount,
+    })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
-
-  return NextResponse.json({ success: true, page: data })
 }
