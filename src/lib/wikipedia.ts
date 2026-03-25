@@ -27,6 +27,30 @@ export function extractWords(text: string): string[] {
     .filter(w => w.length > 0)
 }
 
+export async function fetchRandomQualityArticle(lang: 'fr' | 'en') {
+  // 1. On récupère un article au hasard dans le namespace principal (0)
+  const randomUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`
+  const randomRes = await fetch(randomUrl)
+  const randomData = await randomRes.json()
+  const title = randomData.query.random[0].title
+
+  // 2. On récupère le contenu complet, l'URL et les infos de cet article
+  const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|info&explaintext=true&inprop=url&format=json&origin=*`
+  const contentRes = await fetch(contentUrl)
+  const contentData = await contentRes.json()
+  
+  const page = Object.values(contentData.query.pages)[0] as any
+  const content = page.extract || ''
+  const words = extractWords(content)
+
+  return {
+    title: page.title,
+    url: page.fullurl,
+    content: content,
+    wordCount: words.length
+  }
+}
+
 export async function fetchLinkedArticle(title: string, fromLang: 'fr' | 'en') {
   const toLang = fromLang === 'fr' ? 'en' : 'fr'
   const url = `https://${fromLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=langlinks&lllang=${toLang}&format=json&origin=*`
