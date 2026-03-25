@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import Header from '@/components/Header'
 
@@ -74,6 +74,17 @@ const translations = {
     }
 }
 
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+    return isMobile;
+}
+
 function calculateScore(guessCount: number, completed: boolean): number {
     if (!completed || guessCount > 400) return 0
     const wRaw = Math.max(0, guessCount - 70)
@@ -127,10 +138,11 @@ export default function GamePage() {
     const [inputHistory, setInputHistory] = useState<string[]>([])
     const [inputHistoryIndex, setInputHistoryIndex] = useState<number>(-1)
     const [hintTokenIndex, setHintTokenIndex] = useState<number | null>(null)
+    
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
-
+    const isMobile = useIsMobile()
     const t = translations[lang]
 
     useEffect(() => {
@@ -364,6 +376,55 @@ export default function GamePage() {
         inputRef.current?.focus()
     }
 
+    const titleScoreStyle = useMemo(() => {
+        const baseStyle = {
+            marginTop: 32, marginBottom: 28,
+            backgroundColor: 'var(--surface)', borderRadius: 12,
+            border: '1px solid var(--border)', boxShadow: 'var(--shadow)',
+            display: 'flex', gap: 16,
+        };
+
+        if (isMobile) {
+            return {
+                ...baseStyle,
+                flexDirection: 'column' as const,
+                alignItems: 'center',
+                padding: '12px 16px',
+                gap: 8,
+            };
+        }
+
+        return {
+            ...baseStyle,
+            flexDirection: 'row' as const,
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            padding: '20px 24px',
+        };
+    }, [isMobile]);
+
+    const scoreBoxStyle = useMemo(() => {
+        const baseStyle = {
+            flexShrink: 0, display: 'flex', flexDirection: 'column' as const, 
+            alignItems: 'center', justifyContent: 'center', 
+            borderRadius: 10, border: '1px solid var(--accent)', backgroundColor: 'var(--bg)', minWidth: 110,
+        };
+
+        if (isMobile) {
+            return {
+                ...baseStyle,
+                width: '100%',
+                padding: '8px 16px',
+                marginTop: 12,
+            };
+        }
+
+        return {
+            ...baseStyle,
+            padding: '12px 20px',
+        };
+    }, [isMobile]);
+
     if (loading || !gameState) {
         return (
             <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
@@ -383,57 +444,58 @@ export default function GamePage() {
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
             <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
 
-            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px', display: 'flex', gap: 32 }}>
+            <div style={{
+                maxWidth: 1200,
+                margin: '0 auto',
+                padding: '0 20px',
+                display: 'flex',
+                gap: 32,
+                flexDirection: isMobile ? 'column' : 'row'
+            }}>
 
                 {/* Colonne gauche — historique */}
-                <div className="history-scroll" style={{
-                    width: 180, flexShrink: 0, position: 'sticky', top: 80,
-                    alignSelf: 'flex-start', maxHeight: 'calc(100vh - 100px)',
-                    overflowY: 'auto', paddingTop: 32, paddingRight: 8,
-                }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
-                        {t.history}
-                    </div>
-                    {guesses.length === 0 ? (
-                        <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t.noWords}</div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {guesses.map((g, i) => (
-                                <div key={i} onClick={() => g.found && scrollToOccurrence(g.word)}
-                                    title={g.found ? 'Cliquer pour localiser dans le texte' : ''}
-                                    style={{
-                                        backgroundColor: g.found ? 'var(--revealed)' : 'var(--surface)',
-                                        border: '1px solid ' + (g.found ? 'var(--accent)' : 'var(--border)'),
-                                        padding: '6px 12px', borderRadius: 6, fontSize: 14,
-                                        color: g.found ? 'var(--accent)' : 'var(--text-muted)',
-                                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                        fontWeight: g.found ? 600 : 400,
-                                        cursor: g.found ? 'pointer' : 'default', transition: 'opacity 0.15s',
-                                    }}>
-                                    {g.word}
-                                </div>
-                            ))}
+                {!isMobile && (
+                    <div className="history-scroll" style={{
+                        width: 180, flexShrink: 0, position: 'sticky', top: 20, // Ajusté à 20px
+                        alignSelf: 'flex-start', maxHeight: 'calc(100vh - 40px)',
+                        overflowY: 'auto', paddingTop: 32, paddingRight: 8,
+                    }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
+                            {t.history}
                         </div>
-                    )}
-                </div>
+                        {guesses.length === 0 ? (
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t.noWords}</div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {guesses.map((g, i) => (
+                                    <div key={i} onClick={() => g.found && scrollToOccurrence(g.word)}
+                                        title={g.found ? 'Cliquer pour localiser dans le texte' : ''}
+                                        style={{
+                                            backgroundColor: g.found ? 'var(--revealed)' : 'var(--surface)',
+                                            border: '1px solid ' + (g.found ? 'var(--accent)' : 'var(--border)'),
+                                            padding: '6px 12px', borderRadius: 6, fontSize: 14,
+                                            color: g.found ? 'var(--accent)' : 'var(--text-muted)',
+                                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                            fontWeight: g.found ? 600 : 400,
+                                            cursor: g.found ? 'pointer' : 'default', transition: 'opacity 0.15s',
+                                        }}>
+                                        {g.word}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
-                {/* Colonne droite — jeu */}
                 <div style={{ flex: 1, minWidth: 0 }}>
 
-                    {/* Titre masqué */}
-                    <div style={{
-                        marginTop: 32, marginBottom: 28, padding: '20px 24px',
-                        backgroundColor: 'var(--surface)', borderRadius: 12,
-                        border: '1px solid var(--border)', boxShadow: 'var(--shadow)',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16,
-                    }}>
-                        <div style={{ flex: 1 }}>
+                    <div style={titleScoreStyle}>
+                        <div style={{ flex: 1, textAlign: isMobile ? 'center' : 'left' }}>
                             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
                                 {t.titleLabel}
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', minHeight: 36 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', minHeight: 36 }}>
                                 {titleWords.map((tw, i) => {
-                                    // On utilise un index négatif pour les titleWords pour ne pas collisionner avec les tokens
                                     const hintIdx = -(i + 1)
                                     if (tw.isStopword) {
                                         return <span key={i} style={{ fontSize: 22, color: 'var(--text-muted)', fontWeight: 300 }}>{tw.value}</span>
@@ -463,7 +525,7 @@ export default function GamePage() {
                                     <div style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>
                                         {t.found(guessCount)}
                                     </div>
-                                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
                                         <button onClick={() => setRevealAll(r => !r)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--text)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                                             {revealAll ? t.hideAll : t.revealAll}
                                         </button>
@@ -478,7 +540,7 @@ export default function GamePage() {
                         </div>
 
                         {won && (
-                            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px 20px', borderRadius: 10, border: '1px solid var(--accent)', backgroundColor: 'var(--bg)', minWidth: 110 }}>
+                            <div style={scoreBoxStyle}>
                                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>{t.score}</div>
                                 <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{score.toLocaleString()}</div>
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{t.pts}</div>
@@ -486,11 +548,49 @@ export default function GamePage() {
                         )}
                     </div>
 
-                    {/* Saisie — sticky */}
-                    <div style={{ position: 'sticky', top: 57, zIndex: 9, backgroundColor: 'var(--bg)', paddingTop: 12, paddingBottom: 16, borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
-                        <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>
+                    {/* Zone Saisie (et Historique Mobile) collante partout */}
+                    <div style={{ 
+                        position: 'sticky', // Actif sur desktop ET mobile
+                        top: 0,             // Collé tout en haut de l'écran au scroll
+                        zIndex: 9, 
+                        backgroundColor: 'var(--bg)', 
+                        paddingTop: 12, 
+                        paddingBottom: 16, 
+                        borderBottom: '1px solid var(--border)', 
+                        marginBottom: 24 
+                    }}>
+                        
+                        {isMobile && (
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+                                    {t.history}
+                                </div>
+                                {guesses.length === 0 ? (
+                                    <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t.noWords}</div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                                        {guesses.map((g, i) => (
+                                            <div key={i} onClick={() => g.found && scrollToOccurrence(g.word)}
+                                                style={{
+                                                    backgroundColor: g.found ? 'var(--revealed)' : 'var(--surface)',
+                                                    border: '1px solid ' + (g.found ? 'var(--accent)' : 'var(--border)'),
+                                                    padding: '4px 8px', borderRadius: 4, fontSize: 13,
+                                                    color: g.found ? 'var(--accent)' : 'var(--text-muted)',
+                                                    fontWeight: g.found ? 600 : 400,
+                                                    cursor: g.found ? 'pointer' : 'default',
+                                                }}>
+                                                {g.word}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--text-muted)', fontWeight: 500, textAlign: isMobile ? 'center' : 'left' }}>
                             {t.attempts} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{guessCount}</span>
                         </div>
+                        
                         <div style={{ display: 'flex', gap: 8 }}>
                             <div style={{ flex: 1, position: 'relative' }}>
                                 <input ref={inputRef} value={input}
@@ -522,7 +622,6 @@ export default function GamePage() {
                         </div>
                     </div>
 
-                    {/* Texte masqué */}
                     <div style={{ fontSize: 15, color: 'var(--text)', paddingTop: inputError ? 20 : 0 }}>
                         {(() => {
                             const elements: React.ReactNode[] = []
@@ -576,7 +675,7 @@ export default function GamePage() {
                                     }
 
                                     elements.push(
-                                        <div key={`heading-${i}`} style={{ fontWeight: 700, fontSize: level === 2 ? '1.2em' : '1.05em', marginTop: '1.5em', marginBottom: '0.5em', paddingBottom: '0.3em', borderBottom: '1px solid var(--border)', lineHeight: 1.4 }}>
+                                        <div key={`heading-${i}`} style={{ fontWeight: 700, fontSize: level === 2 ? '1.2em' : '1.05em', marginTop: '1.5em', marginBottom: '0.5em', paddingBottom: '0.3em', borderBottom: '1px solid var(--border)', lineHeight: 1.4, textAlign: 'left' }}>
                                             {headingTokens}
                                         </div>
                                     )
@@ -627,7 +726,7 @@ export default function GamePage() {
                                 }
 
                                 if (lineTokens.length > 0) {
-                                    elements.push(<span key={`line-${i}`} style={{ lineHeight: 2.6 }}>{lineTokens}</span>)
+                                    elements.push(<span key={`line-${i}`} style={{ lineHeight: 2.6, textAlign: 'left' }}>{lineTokens}</span>)
                                 }
                                 i++
                             }
@@ -636,7 +735,6 @@ export default function GamePage() {
                         })()}
                     </div>
 
-                    {/* Bouton scroll top */}
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40, marginBottom: 20 }}>
                         <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ padding: '8px 20px', borderRadius: 20, border: '1px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                             ↑ Retour en haut

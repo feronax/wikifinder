@@ -137,3 +137,9 @@ textarea {
 .word-highlight {
   animation: highlight-pulse 1.2s ease forwards;
 }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Le reste de ton code CSS (tes variables --bg, --text, etc.) reste ici en dessous intact */
