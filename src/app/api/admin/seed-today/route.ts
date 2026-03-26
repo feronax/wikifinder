@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
+import { fetchLinkedArticle } from '@/lib/wikipedia'
 import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
@@ -28,8 +29,8 @@ export async function POST(req: NextRequest) {
     .select('wikipedia_title_fr')
 
   const alreadyUsedTitles = (usedPages || [])
-    .map((p: any) => p.wikipedia_title_fr)
-    .filter(Boolean)
+    .map((p: { wikipedia_title_fr?: string }) => p.wikipedia_title_fr)
+    .filter((title): title is string => Boolean(title))
 
   try {
     const frArticle = await fetchRandomQualityArticle('fr', alreadyUsedTitles)
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest) {
       usedFallback: frArticle.usedFallback,
       word_count_fr: frArticle.wordCount,
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Une erreur inconnue est survenue'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
