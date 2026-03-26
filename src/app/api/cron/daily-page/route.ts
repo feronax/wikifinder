@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { fetchRandomQualityArticle, fetchLinkedArticle } from '@/lib/wikipedia'
+import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
+import { fetchLinkedArticle } from '@/lib/wikipedia'
 
 export async function GET(req: NextRequest) {
   // Sécurité : vérifie le token Vercel Cron
@@ -25,62 +26,56 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'Page déjà générée pour demain' })
   }
 
-  // Cherche une paire FR+EN valide (max 20 tentatives)
-  let articleFr, articleEn
-  let attempts = 0
-
-  while (attempts < 20) {
-    attempts++
-    try {
-      const candidate = await fetchRandomQualityArticle('fr')
-      if (candidate.wordCount < 1500) continue
-
-      const linked = await fetchLinkedArticle(candidate.title, 'fr')
-      if (!linked || linked.wordCount < 1500) continue
-
-      // Vérifie que cet article n'a jamais été joué
-      const { data: alreadyPlayed } = await supabaseAdmin
-        .from('pages')
-        .select('id')
-        .eq('wikipedia_title_fr', candidate.title)
-        .single()
-
-      if (alreadyPlayed) continue
-
-      articleFr = candidate
-      articleEn = linked
-      break
-    } catch {
-      continue
-    }
-  }
-
-  if (!articleFr || !articleEn) {
-    return NextResponse.json(
-      { error: `Impossible de trouver une paire valide après ${attempts} tentatives` },
-      { status: 422 }
-    )
-  }
-
-  const { data, error } = await supabaseAdmin
+  // Récupère tous les titres déjà utilisés
+  const { data: usedPages } = await supabaseAdmin
     .from('pages')
-    .insert({
-      date,
-      wikipedia_title_fr: articleFr.title,
-      wikipedia_title_en: articleEn.title,
-      wikipedia_url_fr: articleFr.url,
-      wikipedia_url_en: articleEn.url,
-      word_count_fr: articleFr.wordCount,
-      word_count_en: articleEn.wordCount,
-      content_fr: articleFr.content,
-      content_en: articleEn.content,
+    .select('wikipedia_title_fr')
+
+  const alreadyUsedTitles = (usedPages || [])
+    .map((p: any) => p.wikipedia_title_fr)
+    .filter(Boolean)
+
+  try {
+    // fetchRandomQualityArticle gère déjà le filtre pageviews,
+    // les articles déjà utilisés, et le fallback automatiquement
+    const articleFr = await fetchRandomQualityArticle('fr', alreadyUsedTitles)
+
+    const articleEn = await fetchLinkedArticle(articleFr.title, 'fr')
+
+    if (!articleEn || articleEn.wordCount < 1500) {
+      return NextResponse.json(
+        { error: 'Article EN lié introuvable ou trop court' },
+        { status: 422 }
+      )
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('pages')
+      .insert({
+        date,
+        wikipedia_title_fr: articleFr.title,
+        wikipedia_title_en: articleEn.title,
+        wikipedia_url_fr: articleFr.url,
+        wikipedia_url_en: articleEn.url,
+        word_count_fr: articleFr.wordCount,
+        word_count_en: articleEn.wordCount,
+        content_fr: articleFr.content,
+        content_en: articleEn.content,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      page: data,
+      pageviews: articleFr.pageviews,
+      usedFallback: articleFr.usedFallback,
     })
-    .select()
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
-
-  return NextResponse.json({ success: true, page: data })
 }
