@@ -2,9 +2,21 @@
 
 import { useState, useEffect } from 'react'
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return isMobile
+}
+
 export default function ScrollToTop() {
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     function handleScroll() {
@@ -32,25 +44,27 @@ export default function ScrollToTop() {
         gap: 8,
       }}
     >
-      {/* Languette animée */}
-      <div style={{
-        backgroundColor: 'var(--surface)',
-        border: '1px solid var(--border)',
-        color: 'var(--text)',
-        fontSize: 12,
-        fontWeight: 600,
-        padding: '6px 10px',
-        borderRadius: 6,
-        opacity: hovered ? 1 : 0,
-        transform: hovered ? 'translateX(0)' : 'translateX(8px)',
-        transition: 'all 0.2s ease',
-        whiteSpace: 'nowrap',
-        pointerEvents: 'none',
-        boxShadow: 'var(--shadow)',
-        fontFamily: 'var(--font-sans)',
-      }}>
-        Retour en haut
-      </div>
+      {/* Languette — desktop uniquement */}
+      {!isMobile && (
+        <div style={{
+          backgroundColor: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text)',
+          fontSize: 12,
+          fontWeight: 600,
+          padding: '6px 10px',
+          borderRadius: 6,
+          opacity: hovered ? 1 : 0,
+          transform: hovered ? 'translateX(0)' : 'translateX(8px)',
+          transition: 'all 0.2s ease',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          boxShadow: 'var(--shadow)',
+          fontFamily: 'var(--font-sans)',
+        }}>
+          Retour en haut
+        </div>
+      )}
 
       {/* Bouton rond */}
       <div style={{
