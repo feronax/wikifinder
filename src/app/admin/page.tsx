@@ -1,23 +1,54 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const router = useRouter()
+
+  useEffect(() => {
+    // Vérifie si le cookie admin est valide en tentant un appel à seed-today sans date
+    fetch('/api/admin/seed-today', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: '__check__' })
+    }).then(res => {
+      // 401 = non authentifié, autre = authentifié (même 409 "déjà existante" = ok)
+      if (res.status === 401) {
+        router.replace('/admin/login')
+      } else {
+        setChecking(false)
+      }
+    }).catch(() => {
+      router.replace('/admin/login')
+    })
+  }, [])
 
   async function seedDate() {
     setLoading(true)
     setMessage('')
     const res = await fetch('/api/admin/seed-today', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ date })
     })
     const data = await res.json()
     setMessage(JSON.stringify(data, null, 2))
     setLoading(false)
+  }
+
+  if (checking) {
+    return (
+      <div style={{ maxWidth: 600, margin: '40px auto', padding: 32, fontFamily: 'sans-serif', color: '#666' }}>
+        Vérification...
+      </div>
+    )
   }
 
   return (

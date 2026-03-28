@@ -9,6 +9,7 @@ export default function AdminLoginPage() {
   async function handleLogin() {
     const res = await fetch('/api/admin/auth', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
     })

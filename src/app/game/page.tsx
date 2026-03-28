@@ -123,6 +123,12 @@ function wordsMatch(input: string, token: string): boolean {
     return false
 }
 
+// Sépare les mots autour des apostrophes : "d'un" => ["d", "un"]
+function splitOnApostrophe(word: string): string[] {
+    const parts = word.split(/[''']/)
+    return parts.filter(p => p.length > 0)
+}
+
 export default function GamePage() {
     const [gameState, setGameState] = useState<GameState | null>(null)
     const [revealAll, setRevealAll] = useState(false)
@@ -202,21 +208,27 @@ export default function GamePage() {
             let restoredTitleWords = [...data.titleWords]
 
             for (const word of previousGuesses) {
-                restoredTokens = restoredTokens.map((token: any) => {
-                    if (token.type !== 'word' || token.visible || token.isStopword) return token
-                    const tokenClean = token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
-                    return wordsMatch(word, tokenClean) ? { ...token, visible: true } : token
-                })
-                restoredTitleWords = restoredTitleWords.map((tw: any) => {
-                    if (tw.revealed || tw.isStopword) return tw
-                    return wordsMatch(word, tw.value) ? { ...tw, revealed: true } : tw
-                })
+                const variants = splitOnApostrophe(word)
+                for (const variant of variants) {
+                    restoredTokens = restoredTokens.map((token: any) => {
+                        if (token.type !== 'word' || token.visible || token.isStopword) return token
+                        const tokenClean = token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
+                        return wordsMatch(variant, tokenClean) ? { ...token, visible: true } : token
+                    })
+                    restoredTitleWords = restoredTitleWords.map((tw: any) => {
+                        if (tw.revealed || tw.isStopword) return tw
+                        return wordsMatch(variant, tw.value) ? { ...tw, revealed: true } : tw
+                    })
+                }
             }
 
             const guessesWithStatus = previousGuesses.map(word => {
-                const found = restoredTokens.some((token: any) =>
-                    token.type === 'word' && !token.isStopword &&
-                    wordsMatch(word, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
+                const variants = splitOnApostrophe(word)
+                const found = variants.some(variant =>
+                    restoredTokens.some((token: any) =>
+                        token.type === 'word' && !token.isStopword &&
+                        wordsMatch(variant, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
+                    )
                 )
                 return { word, found }
             })
@@ -264,7 +276,7 @@ export default function GamePage() {
         setClickedWord(prev => {
             const nextIndex = prev?.word === normWord ? (prev.index + 1) % elements.length : 0
             const el = elements[nextIndex]
-            const headerOffset = 160
+            const headerOffset = isMobile ? 220 : 160
             const elementPosition = (el as HTMLElement).getBoundingClientRect().top + window.scrollY
             window.scrollTo({ top: elementPosition - headerOffset, behavior: 'smooth' })
             void (el as HTMLElement).offsetWidth
@@ -312,9 +324,14 @@ export default function GamePage() {
             setInput(''); setInputError(null); inputRef.current?.focus(); return
         }
 
-        const isInText = gameState.tokens.some(token =>
-            token.type === 'word' && !token.isStopword &&
-            wordsMatch(word, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
+        // Sépare sur apostrophe pour la recherche dans le texte
+        const variants = splitOnApostrophe(word)
+
+        const isInText = variants.some(variant =>
+            gameState.tokens.some(token =>
+                token.type === 'word' && !token.isStopword &&
+                wordsMatch(variant, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
+            )
         )
 
         if (!isInText) {
@@ -336,12 +353,12 @@ export default function GamePage() {
         const newTokens = gameState.tokens.map(token => {
             if (token.type !== 'word' || token.visible || token.isStopword) return token
             const tokenClean = token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
-            return wordsMatch(word, tokenClean) ? { ...token, visible: true } : token
+            return variants.some(v => wordsMatch(v, tokenClean)) ? { ...token, visible: true } : token
         })
 
         const newTitleWords = gameState.titleWords.map(tw => {
             if (tw.revealed || tw.isStopword) return tw
-            return wordsMatch(word, tw.value) ? { ...tw, revealed: true } : tw
+            return variants.some(v => wordsMatch(v, tw.value)) ? { ...tw, revealed: true } : tw
         })
 
         const allFound = newTitleWords.filter(tw => !tw.isStopword).every(tw => tw.revealed)
@@ -440,6 +457,9 @@ export default function GamePage() {
     const wikipediaUrl = lang === 'fr' ? pageData?.wikipedia_url_fr : pageData?.wikipedia_url_en
     const score = calculateScore(guessCount, won)
 
+    // Sur mobile, on n'affiche que les 3 derniers mots essayés
+    const displayedGuesses = isMobile ? guesses.slice(0, 3) : guesses
+
     return (
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
             <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
@@ -453,10 +473,10 @@ export default function GamePage() {
                 flexDirection: isMobile ? 'column' : 'row'
             }}>
 
-                {/* Colonne gauche — historique */}
+                {/* Colonne gauche — historique desktop */}
                 {!isMobile && (
                     <div className="history-scroll" style={{
-                        width: 180, flexShrink: 0, position: 'sticky', top: 20, // Ajusté à 20px
+                        width: 180, flexShrink: 0, position: 'sticky', top: 20,
                         alignSelf: 'flex-start', maxHeight: 'calc(100vh - 40px)',
                         overflowY: 'auto', paddingTop: 32, paddingRight: 8,
                     }}>
@@ -548,10 +568,10 @@ export default function GamePage() {
                         )}
                     </div>
 
-                    {/* Zone Saisie (et Historique Mobile) collante partout */}
+                    {/* Zone Saisie + Historique mobile — sticky */}
                     <div style={{ 
-                        position: 'sticky', // Actif sur desktop ET mobile
-                        top: 0,             // Collé tout en haut de l'écran au scroll
+                        position: 'sticky',
+                        top: 0,
                         zIndex: 9, 
                         backgroundColor: 'var(--bg)', 
                         paddingTop: 12, 
@@ -561,15 +581,15 @@ export default function GamePage() {
                     }}>
                         
                         {isMobile && (
-                            <div style={{ marginBottom: 16 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+                            <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
                                     {t.history}
                                 </div>
                                 {guesses.length === 0 ? (
                                     <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t.noWords}</div>
                                 ) : (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
-                                        {guesses.map((g, i) => (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                                        {displayedGuesses.map((g, i) => (
                                             <div key={i} onClick={() => g.found && scrollToOccurrence(g.word)}
                                                 style={{
                                                     backgroundColor: g.found ? 'var(--revealed)' : 'var(--surface)',
@@ -582,6 +602,11 @@ export default function GamePage() {
                                                 {g.word}
                                             </div>
                                         ))}
+                                        {guesses.length > 3 && (
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                                +{guesses.length - 3}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -737,7 +762,7 @@ export default function GamePage() {
 
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40, marginBottom: 20 }}>
                         <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ padding: '8px 20px', borderRadius: 20, border: '1px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                            ↑ Retour en haut
+                            {isMobile ? '↑' : '↑ Retour en haut'}
                         </button>
                     </div>
 

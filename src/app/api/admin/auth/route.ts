@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ success: true })
-  res.cookies.set('admin_session', password, {
+  res.cookies.set('admin_token', password, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     maxAge: 60 * 60 * 24 * 7, // 7 jours
