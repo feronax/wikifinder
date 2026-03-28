@@ -131,7 +131,7 @@ export default function FeedbackButton() {
                 textAlign: 'right',
                 color: isValid ? 'var(--accent)' : 'var(--text-muted)',
               }}>
-                {charCount} / 30 min
+                {charCount} / 30
               </div>
               <button
                 onClick={handleSubmit}
