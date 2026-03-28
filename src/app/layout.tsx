@@ -5,6 +5,9 @@ import ThemeProvider from '@/components/ThemeProvider'
 import './globals.css'
 import ScrollToTop from '@/components/ScrollToTop'
 
+// Import de Google Tag Manager
+import { GoogleTagManager } from '@next/third-parties/google'
+
 const dmSans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-sans',
@@ -39,6 +42,8 @@ export default function RootLayout({
           </>
         </ThemeProvider>
       </body>
+      {/* Ajout du composant GTM ici avec ton ID */}
+      <GoogleTagManager gtmId="GTM-M2QGSL7C" />
     </html>
   )
 }
