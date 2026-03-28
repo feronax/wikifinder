@@ -1,32 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+
+const ADMIN_KEY = 'wikifinder_admin'
 
 export default function AdminPage() {
+  const [auth, setAuth] = useState(false)
+  const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  const router = useRouter()
+  const [date, setDate] = useState('')
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // Vérifie si le cookie admin est valide en tentant un appel à seed-today sans date
-    fetch('/api/admin/seed-today', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: '__check__' })
-    }).then(res => {
-      // 401 = non authentifié, autre = authentifié (même 409 "déjà existante" = ok)
-      if (res.status === 401) {
-        router.replace('/admin/login')
-      } else {
-        setChecking(false)
-      }
-    }).catch(() => {
-      router.replace('/admin/login')
-    })
+    setDate(new Date().toISOString().split('T')[0])
+    setAuth(sessionStorage.getItem(ADMIN_KEY) === 'true')
+    setMounted(true)
   }, [])
 
   async function seedDate() {
@@ -34,8 +23,10 @@ export default function AdminPage() {
     setMessage('')
     const res = await fetch('/api/admin/seed-today', {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': input || sessionStorage.getItem('wikifinder_pwd') || ''
+      },
       body: JSON.stringify({ date })
     })
     const data = await res.json()
@@ -43,18 +34,34 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  if (checking) {
-    return (
-      <div style={{ maxWidth: 600, margin: '40px auto', padding: 32, fontFamily: 'sans-serif', color: '#666' }}>
-        Vérification...
-      </div>
-    )
+  function handleAuth() {
+    sessionStorage.setItem(ADMIN_KEY, 'true')
+    sessionStorage.setItem('wikifinder_pwd', input)
+    setAuth(true)
   }
+
+  if (!mounted) return null
+
+  if (!auth) return (
+    <div style={{ maxWidth: 400, margin: '100px auto', padding: 32, fontFamily: 'sans-serif' }}>
+      <h1>Admin — Wikifinder</h1>
+      <input
+        type="password"
+        placeholder="Mot de passe admin"
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && handleAuth()}
+        style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #ccc', fontSize: 15, boxSizing: 'border-box', marginBottom: 12 }}
+      />
+      <button onClick={handleAuth} style={{ width: '100%', padding: '10px 0', borderRadius: 6, backgroundColor: '#1a1a1a', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15 }}>
+        Se connecter
+      </button>
+    </div>
+  )
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', padding: 32, fontFamily: 'sans-serif' }}>
       <h1>Admin — Wikifinder</h1>
-
       <div style={{ marginBottom: 32, padding: 24, border: '1px solid #e0e0e0', borderRadius: 8 }}>
         <h2 style={{ marginTop: 0 }}>Générer une page</h2>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -64,11 +71,7 @@ export default function AdminPage() {
             onChange={e => setDate(e.target.value)}
             style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ccc', fontSize: 15 }}
           />
-          <button
-            onClick={seedDate}
-            disabled={loading}
-            style={{ padding: '8px 20px', borderRadius: 6, backgroundColor: '#1a1a1a', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15 }}
-          >
+          <button onClick={seedDate} disabled={loading} style={{ padding: '8px 20px', borderRadius: 6, backgroundColor: '#1a1a1a', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15 }}>
             {loading ? 'Génération...' : 'Générer'}
           </button>
         </div>

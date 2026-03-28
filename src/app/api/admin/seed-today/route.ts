@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
 import { fetchLinkedArticle } from '@/lib/wikipedia'
-import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies()
-  const adminToken = cookieStore.get('admin_token')?.value
-  if (adminToken !== process.env.ADMIN_PASSWORD) {
+  const adminPassword = req.headers.get('x-admin-password')
+  if (adminPassword !== process.env.ADMIN_PASSWORD) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 
   const body = await req.json().catch(() => ({}))
   const targetDate: string = body.date || new Date().toISOString().split('T')[0]
+
+  if (targetDate === '__check__') {
+    return NextResponse.json({ ok: true })
+  }
 
   const { data: existing } = await supabaseAdmin
     .from('pages')
