@@ -31,7 +31,7 @@ export default function FeedbackButton() {
   if (!user) return null
 
   async function handleSubmit() {
-    if (!message.trim()) return
+    if (!message.trim() || message.trim().length < 30) return
     setLoading(true)
 
     const res = await fetch('/api/feedback', {
@@ -51,6 +51,9 @@ export default function FeedbackButton() {
     setLoading(false)
   }
 
+  const charCount = message.trim().length
+  const isValid = charCount >= 30
+
   return (
     <>
       {/* Overlay pour fermer */}
@@ -61,31 +64,20 @@ export default function FeedbackButton() {
         />
       )}
 
-      {/* Panel — centré sur mobile, aside sur desktop */}
+      {/* Panel — s'adapte à tous les écrans */}
       {open && (
         <div style={{
           position: 'fixed',
           zIndex: 50,
           fontFamily: 'var(--font-sans)',
-          ...(isMobile ? {
-            bottom: 80,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 'calc(100vw - 32px)',
-            maxWidth: 400,
-            borderRadius: 12,
-            border: '1px solid var(--border)',
-          } : {
-            bottom: 80,
-            right: 0,
-            width: 360,
-            borderRadius: '12px 0 0 12px',
-            border: '1px solid var(--border)',
-            borderRight: 'none',
-          }),
           backgroundColor: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
           boxShadow: 'var(--shadow-lg)',
           padding: 24,
+          bottom: 84,
+          right: 16,
+          width: 'min(360px, calc(100vw - 32px))',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ margin: 0, fontSize: 16, color: 'var(--text)', fontWeight: 600 }}>
@@ -96,12 +88,13 @@ export default function FeedbackButton() {
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 color: 'var(--text-muted)', fontSize: 18, lineHeight: 1,
-                padding: '0 4px',
+                padding: '0 4px', fontFamily: 'var(--font-sans)',
               }}
             >
               ✕
             </button>
           </div>
+
           <p style={{ margin: '0 0 16px 0', fontSize: 13, color: 'var(--text-muted)' }}>
             Un bug, une page bizarre, une suggestion ? Dis-nous tout.
           </p>
@@ -125,19 +118,24 @@ export default function FeedbackButton() {
                   fontSize: 14,
                   resize: 'vertical',
                   boxSizing: 'border-box',
-                  marginBottom: 12,
+                  marginBottom: 6,
                   fontFamily: 'var(--font-sans)',
                   backgroundColor: 'var(--bg)',
                   color: 'var(--text)',
                   outline: 'none',
                 }}
               />
-              <div style={{ fontSize: 12, color: message.trim().length < 30 ? 'var(--text-muted)' : 'var(--accent)', marginBottom: 12, textAlign: 'right' }}>
-                {message.trim().length} / 30
+              <div style={{
+                fontSize: 12,
+                marginBottom: 12,
+                textAlign: 'right',
+                color: isValid ? 'var(--accent)' : 'var(--text-muted)',
+              }}>
+                {charCount} / 30 min
               </div>
               <button
                 onClick={handleSubmit}
-                disabled={loading || message.trim().length < 30}
+                disabled={loading || !isValid}
                 style={{
                   width: '100%',
                   padding: '10px 0',
@@ -145,11 +143,12 @@ export default function FeedbackButton() {
                   backgroundColor: 'var(--accent)',
                   color: 'white',
                   border: 'none',
-                  cursor: loading || !message.trim() ? 'default' : 'pointer',
+                  cursor: loading || !isValid ? 'default' : 'pointer',
                   fontSize: 14,
                   fontWeight: 600,
                   fontFamily: 'var(--font-sans)',
-                  opacity: loading || !message.trim() ? 0.6 : 1,
+                  opacity: loading || !isValid ? 0.6 : 1,
+                  transition: 'opacity 0.2s ease',
                 }}
               >
                 {loading ? 'Envoi...' : 'Envoyer'}
@@ -175,7 +174,7 @@ export default function FeedbackButton() {
           gap: 8,
         }}
       >
-        {/* Languette — desktop uniquement */}
+        {/* Languette — desktop uniquement, masquée quand panel ouvert */}
         {!isMobile && (
           <div style={{
             backgroundColor: 'var(--surface)',
@@ -185,8 +184,8 @@ export default function FeedbackButton() {
             fontWeight: 600,
             padding: '6px 10px',
             borderRadius: 6,
-            opacity: hovered ? 1 : 0,
-            transform: hovered ? 'translateX(0)' : 'translateX(8px)',
+            opacity: hovered && !open ? 1 : 0,
+            transform: hovered && !open ? 'translateX(0)' : 'translateX(8px)',
             transition: 'all 0.2s ease',
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
