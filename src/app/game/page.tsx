@@ -2,9 +2,13 @@
 
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import { isStopword } from '@/lib/wikipedia'
+import { normalize, wordsMatch } from '@/lib/matching'
+import { useIsMobile, calculateScore } from '@/lib/utils'
 import Header from '@/components/Header'
 
 type Token = {
+    index: number
     type: 'word' | 'space' | 'punct'
     value: string
     visible?: boolean
@@ -16,6 +20,7 @@ type Token = {
 }
 
 type TitleWord = {
+    index: number
     value: string
     isStopword: boolean
     revealed: boolean
@@ -74,69 +79,15 @@ const translations = {
     }
 }
 
-function useIsMobile() {
-    const [isMobile, setIsMobile] = useState(false);
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-    return isMobile;
-}
-
-function calculateScore(guessCount: number, completed: boolean): number {
-    if (!completed || guessCount > 400) return 0
-    const wRaw = Math.max(0, guessCount - 70)
-    const w = wRaw / (400 - 70)
-    return Math.round(5000 * Math.exp(-3.5 * w))
-}
-
-function normalize(word: string): string {
-    return word.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-}
-
-async function checkWordExists(word: string, lang: 'fr' | 'en'): Promise<boolean> {
-    try {
-        const url = `https://${lang}.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word)}&format=json&origin=*`
-        const res = await fetch(url)
-        const data = await res.json()
-        const pages = data.query.pages
-        return !('-1' in pages)
-    } catch {
-        return true
-    }
-}
-
-function wordsMatch(input: string, token: string): boolean {
-    const normInput = normalize(input)
-    const normToken = normalize(token)
-    if (normInput === normToken) return true
-    if (normToken === normInput + 's') return true
-    if (normToken === normInput + 'x') return true
-    if (normToken === normInput + 'es') return true
-    if (normInput === normToken + 's') return true
-    if (normInput === normToken + 'x') return true
-    if (normInput === normToken + 'es') return true
-    if (normToken.endsWith('aux') && normInput === normToken.slice(0, -3) + 'al') return true
-    if (normInput.endsWith('aux') && normToken === normInput.slice(0, -3) + 'al') return true
-    return false
-}
-
-// Sépare les mots autour des apostrophes : "d'un" => ["d", "un"]
-function splitOnApostrophe(word: string): string[] {
-    const parts = word.split(/[''']/)
-    return parts.filter(p => p.length > 0)
-}
-
 export default function GamePage() {
     const [gameState, setGameState] = useState<GameState | null>(null)
     const [revealAll, setRevealAll] = useState(false)
     const [lang, setLang] = useState<'fr' | 'en'>('fr')
     const [loading, setLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
     const [input, setInput] = useState('')
     const [inputError, setInputError] = useState<string | null>(null)
-    const [checkingWord, setCheckingWord] = useState(false)
+    const [submitting, setSubmitting] = useState(false)
     const [startedAt, setStartedAt] = useState<Date | null>(null)
     const [user, setUser] = useState<any>(null)
     const [username, setUsername] = useState<string | null>(null)
@@ -144,7 +95,8 @@ export default function GamePage() {
     const [inputHistory, setInputHistory] = useState<string[]>([])
     const [inputHistoryIndex, setInputHistoryIndex] = useState<number>(-1)
     const [hintTokenIndex, setHintTokenIndex] = useState<number | null>(null)
-    
+    const [streak, setStreak] = useState<number | null>(null)
+
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
@@ -178,84 +130,85 @@ export default function GamePage() {
 
     async function loadGame(l: 'fr' | 'en', date?: string) {
         setLoading(true)
+        setLoadError(null)
         setRevealAll(false)
         setClickedWord(null)
         setHintTokenIndex(null)
 
-        const url = date
-            ? `/api/game/today?lang=${l}&date=${date}`
-            : `/api/game/today?lang=${l}`
-        const res = await fetch(url)
-        if (!res.ok) { setLoading(false); return }
-        const data = await res.json()
+        let todayUrl = `/api/game/today?lang=${l}`
+        if (date) todayUrl += `&date=${date}`
 
-        const startRes = await fetch('/api/game/start', {
+        // Charge la page sans gameId d'abord pour obtenir le pageId
+        const preRes = await fetch(todayUrl)
+        if (!preRes.ok) {
+            setLoadError(l === 'fr' ? 'Impossible de charger la partie du jour.' : 'Could not load today\'s game.')
+            setLoading(false)
+            return
+        }
+        const preData = await preRes.json()
+        const pageId = preData.id
+
+        // Start/restore la partie
+        const startRes2 = await fetch('/api/game/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lang: l, pageId: data.id })
+            body: JSON.stringify({ lang: l, pageId })
         })
-        const startData = await startRes.json()
+        const startData = await startRes2.json()
+        const game = startData.game
+        const gameId = game?.id || null
 
-        let finalState: GameState
+        // 2. Si partie existante avec des guesses, recharge les tokens avec restauration serveur
+        let finalData = preData
+        if (game && game.guess_count > 0 && gameId) {
+            const restoreUrl = `${todayUrl}&gameId=${gameId}`
+            const restoreRes = await fetch(restoreUrl)
+            if (restoreRes.ok) {
+                finalData = await restoreRes.json()
+            }
 
-        if (startData.game && startData.game.guess_count > 0) {
-            const game = startData.game
-            const guessRes = await fetch(`/api/game/guesses?gameId=${game.id}`)
+            // Récupère la liste des guesses pour l'historique
+            const guessRes = await fetch(`/api/game/guesses?gameId=${gameId}`)
             const guessData = await guessRes.json()
             const previousGuesses: string[] = guessData.guesses || []
 
-            let restoredTokens = [...data.tokens]
-            let restoredTitleWords = [...data.titleWords]
-
-            for (const word of previousGuesses) {
-                const variants = splitOnApostrophe(word)
-                for (const variant of variants) {
-                    restoredTokens = restoredTokens.map((token: any) => {
-                        if (token.type !== 'word' || token.visible || token.isStopword) return token
-                        const tokenClean = token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
-                        return wordsMatch(variant, tokenClean) ? { ...token, visible: true } : token
-                    })
-                    restoredTitleWords = restoredTitleWords.map((tw: any) => {
-                        if (tw.revealed || tw.isStopword) return tw
-                        return wordsMatch(variant, tw.value) ? { ...tw, revealed: true } : tw
-                    })
-                }
-            }
-
+            // Détermine quels mots étaient trouvés en se basant sur les tokens révélés
             const guessesWithStatus = previousGuesses.map(word => {
-                const variants = splitOnApostrophe(word)
-                const found = variants.some(variant =>
-                    restoredTokens.some((token: any) =>
-                        token.type === 'word' && !token.isStopword &&
-                        wordsMatch(variant, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
-                    )
+                const found = finalData.tokens.some((token: any) =>
+                    token.type === 'word' && token.visible && !token.isStopword && token.value &&
+                    wordsMatch(word, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
                 )
                 return { word, found }
             })
 
-            finalState = {
-                tokens: restoredTokens,
-                titleWords: restoredTitleWords,
+            const finalState: GameState = {
+                tokens: finalData.tokens,
+                titleWords: finalData.titleWords,
                 guesses: guessesWithStatus.slice().reverse(),
                 guessCount: game.guess_count,
                 won: game.completed,
-                pageData: data,
-                gameId: game.id,
+                pageData: finalData,
+                gameId,
+            }
+
+            setGameState(finalState)
+            if (finalState.won) {
+                fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
             }
         } else {
-            finalState = {
-                tokens: data.tokens,
-                titleWords: data.titleWords,
+            setGameState({
+                tokens: finalData.tokens,
+                titleWords: finalData.titleWords,
                 guesses: [],
                 guessCount: 0,
                 won: false,
-                pageData: data,
-                gameId: startData.game?.id || null,
-            }
+                pageData: finalData,
+                gameId,
+            })
         }
 
-        setGameState(finalState)
-        setStartedAt(new Date())
+        const gameCreatedAt = game?.created_at
+        setStartedAt(gameCreatedAt ? new Date(gameCreatedAt) : new Date())
         setLoading(false)
         setTimeout(() => inputRef.current?.focus(), 100)
     }
@@ -307,7 +260,7 @@ export default function GamePage() {
     }
 
     async function handleGuess() {
-        if (!gameState) return
+        if (!gameState || submitting) return
         const word = input.trim()
         if (!word) return
         const clean = word.toLowerCase()
@@ -315,7 +268,6 @@ export default function GamePage() {
         setInputHistory(prev => [word, ...prev.filter(w => w !== word)])
         setInputHistoryIndex(-1)
 
-        const { isStopword } = await import('@/lib/wikipedia')
         if (isStopword(clean, lang)) {
             setInput(''); setInputError(null); inputRef.current?.focus(); return
         }
@@ -324,72 +276,79 @@ export default function GamePage() {
             setInput(''); setInputError(null); inputRef.current?.focus(); return
         }
 
-        // Sépare sur apostrophe pour la recherche dans le texte
-        const variants = splitOnApostrophe(word)
+        if (gameState.won) return
 
-        const isInText = variants.some(variant =>
-            gameState.tokens.some(token =>
-                token.type === 'word' && !token.isStopword &&
-                wordsMatch(variant, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
-            )
-        )
-
-        if (!isInText) {
-            setCheckingWord(true)
-            const exists = await checkWordExists(word, lang)
-            setCheckingWord(false)
-            if (!exists) {
-                setInputError(t.wordNotFound)
-                inputRef.current?.focus()
-                return
-            }
-        }
-
+        setSubmitting(true)
         setInputError(null)
-        const alreadyWon = gameState.won
-        const newGuessCount = alreadyWon ? gameState.guessCount : gameState.guessCount + 1
         setInput('')
 
-        const newTokens = gameState.tokens.map(token => {
-            if (token.type !== 'word' || token.visible || token.isStopword) return token
-            const tokenClean = token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
-            return variants.some(v => wordsMatch(v, tokenClean)) ? { ...token, visible: true } : token
-        })
-
-        const newTitleWords = gameState.titleWords.map(tw => {
-            if (tw.revealed || tw.isStopword) return tw
-            return variants.some(v => wordsMatch(v, tw.value)) ? { ...tw, revealed: true } : tw
-        })
-
-        const allFound = newTitleWords.filter(tw => !tw.isStopword).every(tw => tw.revealed)
-        const isWon = allFound
-
-        setGameState(prev => prev ? {
-            ...prev,
-            tokens: newTokens,
-            titleWords: newTitleWords,
-            guesses: [{ word, found: isInText }, ...prev.guesses],
-            guessCount: newGuessCount,
-            won: isWon || prev.won,
-        } : prev)
-
-        if (gameState.gameId && !alreadyWon) {
-            const now = new Date()
-            const duration = startedAt ? Math.floor((now.getTime() - startedAt.getTime()) / 1000) : 0
-            await fetch('/api/game/guess', {
+        try {
+            const res = await fetch('/api/game/guess', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     gameId: gameState.gameId,
+                    pageId: gameState.pageData.id,
+                    lang,
                     word,
-                    guessCount: newGuessCount,
-                    completed: isWon,
-                    completedAt: isWon ? now.toISOString() : null,
-                    durationSeconds: isWon ? duration : null,
+                    // Pour les anonymes : envoie les guesses précédents pour la détection de victoire
+                    ...(!gameState.gameId && { previousGuesses: gameState.guesses.map(g => g.word) }),
                 })
             })
+
+            const data = await res.json()
+
+            if (!res.ok) {
+                setInputError(data.error || t.wordNotFound)
+                setSubmitting(false)
+                inputRef.current?.focus()
+                return
+            }
+
+            const { isInText, revealedTokens, revealedTitleIndices, won: isWon, guessCount: serverCount } = data
+
+            // Construit un map des tokens révélés pour un accès rapide
+            const revealedTokenMap = new Map<number, string>()
+            for (const rt of revealedTokens) {
+                revealedTokenMap.set(rt.index, rt.value)
+            }
+            const revealedTitleMap = new Map<number, string>()
+            for (const rt of revealedTitleIndices) {
+                revealedTitleMap.set(rt.index, rt.value)
+            }
+
+            setGameState(prev => {
+                if (!prev) return prev
+                const newTokens = prev.tokens.map(token => {
+                    if (revealedTokenMap.has(token.index)) {
+                        return { ...token, value: revealedTokenMap.get(token.index)!, visible: true }
+                    }
+                    return token
+                })
+                const newTitleWords = prev.titleWords.map(tw => {
+                    if (revealedTitleMap.has(tw.index)) {
+                        return { ...tw, value: revealedTitleMap.get(tw.index)!, revealed: true }
+                    }
+                    return tw
+                })
+                return {
+                    ...prev,
+                    tokens: newTokens,
+                    titleWords: newTitleWords,
+                    guesses: [{ word, found: isInText }, ...prev.guesses],
+                    guessCount: serverCount ?? prev.guessCount + 1,
+                    won: isWon || prev.won,
+                }
+            })
+
+            if (isWon) {
+                fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
+            }
+        } catch {
+            setInputError(lang === 'fr' ? 'Erreur réseau, réessayez.' : 'Network error, try again.')
         }
 
+        setSubmitting(false)
         inputRef.current?.focus()
     }
 
@@ -446,8 +405,21 @@ export default function GamePage() {
         return (
             <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
                 <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
-                    Chargement...
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)', gap: 16 }}>
+                    {loadError ? (
+                        <>
+                            <div style={{ fontSize: 16, color: 'var(--text)', fontWeight: 600 }}>{loadError}</div>
+                            <button onClick={() => loadGame(lang)} style={{
+                                padding: '10px 24px', borderRadius: 8, border: '1px solid var(--accent)',
+                                backgroundColor: 'var(--surface)', color: 'var(--accent)', fontSize: 14,
+                                fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                            }}>
+                                {lang === 'fr' ? 'Réessayer' : 'Retry'}
+                            </button>
+                        </>
+                    ) : (
+                        'Chargement...'
+                    )}
                 </div>
             </div>
         )
@@ -566,6 +538,13 @@ export default function GamePage() {
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{t.pts}</div>
                             </div>
                         )}
+                        {won && streak !== null && streak > 0 && (
+                            <div style={scoreBoxStyle}>
+                                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Streak</div>
+                                <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{streak} 🔥</div>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{lang === 'fr' ? (streak === 1 ? 'jour' : 'jours') : (streak === 1 ? 'day' : 'days')}</div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Zone Saisie + Historique mobile — sticky */}
@@ -615,36 +594,38 @@ export default function GamePage() {
                         <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--text-muted)', fontWeight: 500, textAlign: isMobile ? 'center' : 'left' }}>
                             {t.attempts} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{guessCount}</span>
                         </div>
-                        
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <div style={{ flex: 1, position: 'relative' }}>
-                                <input ref={inputRef} value={input}
-                                    onChange={e => { setInput(e.target.value); setInputError(null) }}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={t.placeholder}
-                                    style={{
-                                        width: '100%', padding: '12px 16px', fontSize: 16, borderRadius: 8,
-                                        border: '1px solid ' + (inputError ? '#e53e3e' : 'var(--border)'),
-                                        backgroundColor: 'var(--surface)', color: 'var(--text)',
-                                        outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box',
-                                    }}
-                                />
-                                {inputError && (
-                                    <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, fontSize: 12, color: '#e53e3e', fontWeight: 500 }}>
-                                        {inputError}
-                                    </div>
-                                )}
+
+                        {!won && (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <div style={{ flex: 1, position: 'relative' }}>
+                                    <input ref={inputRef} value={input}
+                                        onChange={e => { setInput(e.target.value); setInputError(null) }}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder={t.placeholder}
+                                        style={{
+                                            width: '100%', padding: '12px 16px', fontSize: 16, borderRadius: 8,
+                                            border: '1px solid ' + (inputError ? '#e53e3e' : 'var(--border)'),
+                                            backgroundColor: 'var(--surface)', color: 'var(--text)',
+                                            outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box',
+                                        }}
+                                    />
+                                    {inputError && (
+                                        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, fontSize: 12, color: '#e53e3e', fontWeight: 500 }}>
+                                            {inputError}
+                                        </div>
+                                    )}
+                                </div>
+                                <button onClick={handleGuess} disabled={!input.trim() || submitting} style={{
+                                    padding: '12px 24px', fontSize: 15, fontWeight: 600, borderRadius: 8, border: 'none',
+                                    backgroundColor: 'var(--accent)', color: 'white',
+                                    cursor: (!input.trim() || submitting) ? 'default' : 'pointer',
+                                    opacity: (!input.trim() || submitting) ? 0.6 : 1,
+                                    transition: 'background-color 0.2s', whiteSpace: 'nowrap',
+                                }}>
+                                    {submitting ? '...' : t.validate}
+                                </button>
                             </div>
-                            <button onClick={handleGuess} disabled={!input.trim() || checkingWord} style={{
-                                padding: '12px 24px', fontSize: 15, fontWeight: 600, borderRadius: 8, border: 'none',
-                                backgroundColor: 'var(--accent)', color: 'white',
-                                cursor: (!input.trim() || checkingWord) ? 'default' : 'pointer',
-                                opacity: (!input.trim() || checkingWord) ? 0.6 : 1,
-                                transition: 'background-color 0.2s', whiteSpace: 'nowrap',
-                            }}>
-                                {checkingWord ? '...' : t.validate}
-                            </button>
-                        </div>
+                        )}
                     </div>
 
                     <div style={{ fontSize: 15, color: 'var(--text)', paddingTop: inputError ? 20 : 0 }}>

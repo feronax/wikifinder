@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import { calculateScore } from '@/lib/utils'
 import Header from '@/components/Header'
 
 type HistoryEntry = {
@@ -15,13 +16,6 @@ type HistoryEntry = {
     guess_count: number
     completed: boolean
   } | null
-}
-
-function calculateScore(guessCount: number, completed: boolean): number {
-  if (!completed || guessCount > 400) return 0
-  const wRaw = Math.max(0, guessCount - 70)
-  const w = wRaw / (400 - 70)
-  return Math.round(5000 * Math.exp(-3.5 * w))
 }
 
 export default function HistoryPage() {

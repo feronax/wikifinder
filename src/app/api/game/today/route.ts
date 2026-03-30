@@ -1,96 +1,125 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { isStopword } from '@/lib/wikipedia'
+import { fetchLinkedArticle } from '@/lib/wikipedia'
+import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
+import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
+import { tokenizeContent, tokenizeTitle, maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
+
+async function seedPage(date: string) {
+  const { data: usedPages } = await supabaseAdmin
+    .from('pages')
+    .select('wikipedia_title_fr')
+
+  const alreadyUsedTitles = (usedPages || [])
+    .map((p: { wikipedia_title_fr?: string }) => p.wikipedia_title_fr)
+    .filter((title): title is string => Boolean(title))
+
+  const MAX_RETRIES = 5
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const frArticle = await fetchRandomQualityArticle('fr', alreadyUsedTitles)
+    const enArticle = await fetchLinkedArticle(frArticle.title, 'fr')
+
+    if (!enArticle || enArticle.wordCount < 1500) {
+      alreadyUsedTitles.push(frArticle.title)
+      continue
+    }
+
+    const { data, error } = await supabaseAdmin.from('pages').insert({
+      date,
+      wikipedia_title_fr: frArticle.title,
+      wikipedia_title_en: enArticle.title,
+      wikipedia_url_fr: frArticle.url,
+      wikipedia_url_en: enArticle.url,
+      content_fr: frArticle.content,
+      content_en: enArticle.content,
+      word_count_fr: frArticle.wordCount,
+      word_count_en: enArticle.wordCount,
+    }).select().single()
+
+    if (error) throw new Error(error.message)
+    return data
+  }
+
+  throw new Error('Impossible de générer la page du jour')
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const lang = searchParams.get('lang') as 'fr' | 'en' || 'fr'
   let targetDate = searchParams.get('date')
+  const gameId = searchParams.get('gameId')
 
   if (!targetDate) {
     targetDate = new Date().toISOString().split('T')[0]
   }
 
   // 1. Récupération de l'article depuis la base de données
-  const { data: page, error } = await supabaseAdmin
+  let { data: page, error } = await supabaseAdmin
     .from('pages')
     .select('*')
     .eq('date', targetDate)
     .single()
 
-  if (error || !page) {
+  // Si la page du jour n'existe pas (cron échoué), la générer automatiquement
+  if ((error || !page) && targetDate === new Date().toISOString().split('T')[0]) {
+    try {
+      page = await seedPage(targetDate)
+    } catch {
+      return NextResponse.json({ error: 'Page non trouvée et génération impossible' }, { status: 500 })
+    }
+  }
+
+  if (!page) {
     return NextResponse.json({ error: 'Page non trouvée' }, { status: 404 })
   }
 
   const title = lang === 'fr' ? page.wikipedia_title_fr : page.wikipedia_title_en
   const content = lang === 'fr' ? page.content_fr : page.content_en
 
-  // 2. Tokenization du titre
-  const titleWords = title.split(/(\s+|[-',.()])/).filter(Boolean).map((t: string) => {
-    const isWord = /[a-zA-ZÀ-ÿ0-9]/.test(t)
-    const isStop = isWord ? isStopword(t, lang) : true
-    return {
-      value: t,
-      isStopword: isStop,
-      revealed: !isWord || isStop,
-      length: isWord ? t.replace(/[^a-zA-ZÀ-ÿ0-9]/g, '').length : 0
-    }
-  })
+  // 2. Tokenization via module partagé
+  const fullTokens = tokenizeContent(content, lang)
+  const fullTitleTokens = tokenizeTitle(title, lang)
 
-  // 3. Tokenization du contenu de l'article
-  const lines = content.split('\n')
-  const tokens: any[] = []
+  // 3. Masquer les valeurs pour le client
+  const tokens = maskTokensForClient(fullTokens)
+  const titleWords = maskTitleForClient(fullTitleTokens)
 
-  for (const line of lines) {
-    // Gestion basique des titres (si Wikipedia renvoie des == Titre ==)
-    const headingMatch = line.match(/^(={2,6})\s*(.+?)\s*\1$/)
-    if (headingMatch) {
-      const level = headingMatch[1].length
-      const text = headingMatch[2]
-      
-      const lineTokens = text.split(/([ \t]+|[-',.()«»"!?;:])/).filter(Boolean)
-      for (const t of lineTokens) {
-        if (/^[ \t]+$/.test(t)) {
-          tokens.push({ type: 'space', value: t })
-        } else if (/^[a-zA-ZÀ-ÿ0-9]+$/.test(t)) {
-          tokens.push({
-            type: 'word',
-            value: t,
-            visible: false,
-            isStopword: isStopword(t, lang),
-            isHeading: true,
-            headingLevel: level,
-            length: t.length
-          })
-        } else {
-          tokens.push({ type: 'punct', value: t })
-        }
-      }
-      tokens.push({ type: 'space', value: '\n' })
-      continue
-    }
+  // 4. Si un gameId est fourni, révéler les mots déjà devinés
+  if (gameId) {
+    const { data: guesses } = await supabaseAdmin
+      .from('guesses')
+      .select('word')
+      .eq('game_id', gameId)
+      .order('guessed_at', { ascending: true })
 
-    // Gestion du texte normal
-    const lineTokens = line.split(/([ \t]+|[-',.()«»"!?;:])/).filter(Boolean)
-    for (const t of lineTokens) {
-      if (/^[ \t]+$/.test(t)) {
-        tokens.push({ type: 'space', value: t })
-      } else if (/[a-zA-ZÀ-ÿ0-9]/.test(t)) {
-        tokens.push({
-          type: 'word',
-          value: t,
-          visible: false,
-          isStopword: isStopword(t, lang),
-          length: t.replace(/[^a-zA-ZÀ-ÿ0-9]/g, '').length
-        })
-      } else {
-        tokens.push({ type: 'punct', value: t })
+    const previousWords = (guesses || []).map((g: any) => g.word)
+    const allVariants = previousWords.flatMap(splitOnApostrophe)
+
+    // Révèle les tokens du contenu qui matchent
+    for (const token of tokens) {
+      if (token.type !== 'word' || token.isStopword || token.visible) continue
+      const realToken = fullTokens[token.index]
+      if (!realToken) continue
+      const tokenClean = cleanTokenValue(realToken.value)
+      if (allVariants.some((v: string) => wordsMatch(v, tokenClean))) {
+        token.value = realToken.value
+        token.visible = true
       }
     }
-    tokens.push({ type: 'space', value: '\n' })
+
+    // Révèle les mots du titre
+    for (const tw of titleWords) {
+      if (tw.revealed) continue
+      const realTw = fullTitleTokens[tw.index]
+      if (!realTw) continue
+      if (allVariants.some((v: string) => wordsMatch(v, realTw.value))) {
+        tw.value = realTw.value
+        tw.revealed = true
+      }
+    }
   }
 
-  // 4. Renvoi des données au format attendu par le jeu
+  // 5. Renvoi des données au format attendu par le jeu
   return NextResponse.json({
     id: page.id,
     date: page.date,

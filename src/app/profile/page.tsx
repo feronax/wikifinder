@@ -13,6 +13,8 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [isEmailUser, setIsEmailUser] = useState(false)
+  const [streak, setStreak] = useState(0)
+  const [bestStreak, setBestStreak] = useState(0)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
@@ -32,6 +34,11 @@ export default function ProfilePage() {
         .single()
 
       if (profile) setUsername(profile.username || '')
+
+      fetch('/api/game/streak').then(r => r.json()).then(d => {
+        setStreak(d.streak || 0)
+        setBestStreak(d.bestStreak || 0)
+      })
     })
   }, [])
 
@@ -149,6 +156,26 @@ export default function ProfilePage() {
           >
             Sauvegarder
           </button>
+        </div>
+
+        {/* Streak */}
+        <div style={cardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, color: 'var(--text)' }}>Streak</h2>
+          <div style={{ display: 'flex', gap: 24 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>
+                {streak > 0 ? `${streak} 🔥` : '0'}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Streak actuel</div>
+            </div>
+            <div style={{ width: 1, backgroundColor: 'var(--border)' }} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>
+                {bestStreak > 0 ? `${bestStreak} ⭐` : '0'}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Meilleur streak</div>
+            </div>
+          </div>
         </div>
 
         {/* Mot de passe */}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useIsMobile } from '@/lib/utils'
 import Header from '@/components/Header'
 
 type DailyEntry = {
@@ -16,17 +17,6 @@ type GlobalEntry = {
   total_games: number
   avg_guesses: number
   best_score: number
-}
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  return isMobile;
 }
 
 export default function LeaderboardPage() {

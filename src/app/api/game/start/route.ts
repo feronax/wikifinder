@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) return NextResponse.json({ saved: false })
+  if (!user) return NextResponse.json({ saved: false, anonymous: true })
 
   // Cherche la meilleure partie existante (complétée en priorité, sinon la plus récente)
   const { data: existing } = await supabaseAdmin

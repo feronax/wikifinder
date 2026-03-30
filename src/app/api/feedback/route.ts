@@ -36,18 +36,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  // Échappe le HTML pour éviter les injections XSS dans l'email
+  const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  const safeEmail = escapeHtml(user.email || '')
+  const safeMessage = escapeHtml(message.trim()).replace(/\n/g, '<br>')
+  const safePageId = pageId ? escapeHtml(String(pageId)) : ''
+
   await resend.emails.send({
     from: 'Wikifinder <onboarding@resend.dev>',
     to: process.env.FEEDBACK_EMAIL!,
     subject: '💬 Nouveau feedback Wikifinder',
     html: `
       <h2>Nouveau feedback reçu</h2>
-      <p><strong>Utilisateur :</strong> ${user.email}</p>
+      <p><strong>Utilisateur :</strong> ${safeEmail}</p>
       <p><strong>Message :</strong></p>
       <blockquote style="border-left: 3px solid #00ADB5; padding-left: 12px; color: #444;">
-        ${message.trim().replace(/\n/g, '<br>')}
+        ${safeMessage}
       </blockquote>
-      ${pageId ? `<p><strong>Page ID :</strong> ${pageId}</p>` : ''}
+      ${safePageId ? `<p><strong>Page ID :</strong> ${safePageId}</p>` : ''}
     `
   })
 

@@ -10,6 +10,17 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ guesses: [] })
 
+  // Vérifie que la partie appartient à l'utilisateur
+  const { data: game } = await supabaseAdmin
+    .from('games')
+    .select('user_id')
+    .eq('id', gameId)
+    .single()
+
+  if (!game || game.user_id !== user.id) {
+    return NextResponse.json({ guesses: [] })
+  }
+
   const { data: guesses } = await supabaseAdmin
     .from('guesses')
     .select('word')

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from './ThemeProvider'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import { useIsMobile } from '@/lib/utils'
 
 type HeaderProps = {
   lang?: 'fr' | 'en'
@@ -10,17 +11,6 @@ type HeaderProps = {
   user?: any
   username?: string | null
   onLogout?: () => void
-}
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  return isMobile;
 }
 
 export default function Header({ lang, onLangChange, user: userProp, username: usernameProp, onLogout: onLogoutProp }: HeaderProps) {
@@ -128,7 +118,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                   {username || user.email}
                   {streak > 0 && (
                     <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>
-                      🔥 {streak}
+                      {streak} 🔥
                     </span>
                   )}
                 </a>
@@ -191,7 +181,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                 Mon Profil ({username || user.email})
                 {streak > 0 && (
                   <span style={{ fontSize: 14, color: 'var(--accent)', fontWeight: 700 }}>
-                    🔥 {streak}
+                    {streak} 🔥
                   </span>
                 )}
               </a>
