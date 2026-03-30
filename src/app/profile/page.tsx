@@ -26,6 +26,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false)
   const [isEmailUser, setIsEmailUser] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
@@ -47,6 +50,14 @@ export default function ProfilePage() {
       if (profile) setUsername(profile.username || '')
 
       fetch('/api/stats').then(r => r.json()).then(d => setStats(d))
+
+      // Check push notification support and current state
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        setPushSupported(true)
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        setPushEnabled(!!sub)
+      }
     })
   }, [])
 
@@ -102,6 +113,39 @@ export default function ProfilePage() {
       setConfirmPassword('')
     }
     setLoading(false)
+  }
+
+  async function togglePush() {
+    setPushLoading(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      if (pushEnabled) {
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) {
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          })
+          await sub.unsubscribe()
+        }
+        setPushEnabled(false)
+      } else {
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        })
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription: sub.toJSON() }),
+        })
+        setPushEnabled(true)
+      }
+    } catch {
+      setError('Impossible d\'activer les notifications. Vérifie les permissions de ton navigateur.')
+    }
+    setPushLoading(false)
   }
 
   const inputStyle = {
@@ -168,7 +212,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Pseudo */}
+        {/* Pseudo + Notifications */}
         <div style={cardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 4, fontSize: 17, color: 'var(--text)' }}>Pseudo</h2>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
@@ -197,6 +241,39 @@ export default function ProfilePage() {
           >
             Sauvegarder
           </button>
+
+          {pushSupported && (
+            <>
+              <div style={{ height: 1, backgroundColor: 'var(--border)', margin: '20px 0' }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Notifications</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Rappel quotidien à 18h30
+                  </div>
+                </div>
+                <button
+                  onClick={togglePush}
+                  disabled={pushLoading}
+                  style={{
+                    padding: '7px 16px',
+                    borderRadius: 6,
+                    backgroundColor: pushEnabled ? 'var(--accent)' : 'var(--border)',
+                    color: pushEnabled ? 'white' : 'var(--text-muted)',
+                    border: 'none',
+                    cursor: pushLoading ? 'default' : 'pointer',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    opacity: pushLoading ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                    flexShrink: 0,
+                  }}
+                >
+                  {pushLoading ? '...' : pushEnabled ? 'Activées' : 'Activer'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Statistiques */}

@@ -4,6 +4,7 @@ import FeedbackButton from '@/components/FeedbackButton'
 import ThemeProvider from '@/components/ThemeProvider'
 import './globals.css'
 import ScrollToTop from '@/components/ScrollToTop'
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 
 // Import de Google Tag Manager
 import { GoogleTagManager } from '@next/third-parties/google'
@@ -24,6 +25,18 @@ const dmSerif = DM_Serif_Display({
 export const metadata: Metadata = {
   title: 'Wikifinder',
   description: 'Trouve la page Wikipédia du jour',
+  manifest: '/manifest.json',
+  themeColor: '#5C7A3E',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Wikifinder',
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+  },
 }
 
 export default function RootLayout({
@@ -33,12 +46,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
+      <head>
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+      </head>
       <body className={`${dmSans.variable} ${dmSerif.variable}`}>
         <ThemeProvider>
           <>
             {children}
             <ScrollToTop />
             <FeedbackButton />
+            <ServiceWorkerRegistrar />
           </>
         </ThemeProvider>
       </body>
