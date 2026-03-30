@@ -8,6 +8,8 @@ const ADMIN_KEY = 'wikifinder_admin'
 export default function AdminPage() {
   const [auth, setAuth] = useState(false)
   const [input, setInput] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<any>(null)
   const [date, setDate] = useState('')
@@ -15,9 +17,51 @@ export default function AdminPage() {
 
   useEffect(() => {
     setDate(new Date().toISOString().split('T')[0])
-    setAuth(sessionStorage.getItem(ADMIN_KEY) === 'true')
+    // Vérifie si le mot de passe en session est encore valide
+    const storedPwd = sessionStorage.getItem('wikifinder_pwd')
+    if (storedPwd) {
+      verifyPassword(storedPwd).then(valid => {
+        setAuth(valid)
+        if (!valid) {
+          sessionStorage.removeItem(ADMIN_KEY)
+          sessionStorage.removeItem('wikifinder_pwd')
+        }
+      })
+    }
     setMounted(true)
   }, [])
+
+  async function verifyPassword(password: string): Promise<boolean> {
+    try {
+      const res = await fetch('/api/admin/seed-today', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({ date: '__check__' })
+      })
+      return res.ok
+    } catch {
+      return false
+    }
+  }
+
+  async function handleAuth() {
+    if (!input.trim()) return
+    setAuthLoading(true)
+    setAuthError('')
+
+    const valid = await verifyPassword(input)
+    if (valid) {
+      sessionStorage.setItem(ADMIN_KEY, 'true')
+      sessionStorage.setItem('wikifinder_pwd', input)
+      setAuth(true)
+    } else {
+      setAuthError('Mot de passe incorrect')
+    }
+    setAuthLoading(false)
+  }
 
   async function seedDate() {
     setLoading(true)
@@ -31,14 +75,13 @@ export default function AdminPage() {
       body: JSON.stringify({ date })
     })
     const data = await res.json()
+    if (res.status === 401) {
+      setAuth(false)
+      sessionStorage.removeItem(ADMIN_KEY)
+      sessionStorage.removeItem('wikifinder_pwd')
+    }
     setMessage(data)
     setLoading(false)
-  }
-
-  function handleAuth() {
-    sessionStorage.setItem(ADMIN_KEY, 'true')
-    sessionStorage.setItem('wikifinder_pwd', input)
-    setAuth(true)
   }
 
   if (!mounted) return null
@@ -55,17 +98,31 @@ export default function AdminPage() {
             type="password"
             placeholder="Mot de passe admin"
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => { setInput(e.target.value); setAuthError('') }}
             onKeyDown={e => e.key === 'Enter' && handleAuth()}
             className="w-full rounded-lg px-4 py-3 text-sm outline-none mb-3"
-            style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontFamily: 'var(--font-sans)' }}
+            style={{
+              backgroundColor: 'var(--bg)',
+              border: `1px solid ${authError ? '#e53e3e' : 'var(--border)'}`,
+              color: 'var(--text)',
+              fontFamily: 'var(--font-sans)',
+            }}
           />
+          {authError && (
+            <div style={{ fontSize: 13, color: '#e53e3e', marginBottom: 10 }}>{authError}</div>
+          )}
           <button
             onClick={handleAuth}
+            disabled={authLoading || !input.trim()}
             className="w-full py-3 rounded-lg text-sm font-semibold text-white"
-            style={{ backgroundColor: 'var(--accent)', fontFamily: 'var(--font-sans)' }}
+            style={{
+              backgroundColor: 'var(--accent)',
+              fontFamily: 'var(--font-sans)',
+              opacity: authLoading || !input.trim() ? 0.6 : 1,
+              cursor: authLoading || !input.trim() ? 'default' : 'pointer',
+            }}
           >
-            Se connecter
+            {authLoading ? 'Vérification...' : 'Se connecter'}
           </button>
         </div>
       </div>
@@ -115,16 +172,16 @@ export default function AdminPage() {
               }}>
               {message.success ? (
                 <div className="space-y-1">
-                  <div className="font-semibold mb-2" style={{ color: 'var(--accent)' }}>✓ Page générée</div>
+                  <div className="font-semibold mb-2" style={{ color: 'var(--accent)' }}>Page générée</div>
                   <div style={{ color: 'var(--text-muted)' }}>📅 {message.date}</div>
                   <div style={{ color: 'var(--text-muted)' }}>🇫🇷 {message.title_fr}</div>
                   <div style={{ color: 'var(--text-muted)' }}>🇬🇧 {message.title_en}</div>
                   <div style={{ color: 'var(--text-muted)' }}>👁️ {message.pageviews?.toLocaleString()} vues</div>
                   <div style={{ color: 'var(--text-muted)' }}>📝 {message.word_count_fr?.toLocaleString()} mots</div>
-                  {message.usedFallback && <div style={{ color: '#e59e3e' }}>⚠️ Fallback utilisé</div>}
+                  {message.usedFallback && <div style={{ color: '#e59e3e' }}>Fallback utilisé</div>}
                 </div>
               ) : (
-                <div style={{ color: '#e53e3e' }}>✗ {message.error}</div>
+                <div style={{ color: '#e53e3e' }}>{message.error}</div>
               )}
             </div>
           )}

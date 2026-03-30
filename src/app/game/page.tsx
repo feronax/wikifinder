@@ -5,6 +5,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { isStopword } from '@/lib/wikipedia'
 import { normalize, wordsMatch } from '@/lib/matching'
 import { useIsMobile, calculateScore } from '@/lib/utils'
+import confetti from 'canvas-confetti'
 import Header from '@/components/Header'
 
 type Token = {
@@ -343,6 +344,10 @@ export default function GamePage() {
 
             if (isWon) {
                 fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
+                // Confettis !
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
+                setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
+                setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
             }
         } catch {
             setInputError(lang === 'fr' ? 'Erreur réseau, réessayez.' : 'Network error, try again.')
@@ -591,9 +596,38 @@ export default function GamePage() {
                             </div>
                         )}
 
-                        <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--text-muted)', fontWeight: 500, textAlign: isMobile ? 'center' : 'left' }}>
-                            {t.attempts} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{guessCount}</span>
-                        </div>
+                        {(() => {
+                            const wordTokens = tokens.filter(t => t.type === 'word' && !t.isStopword)
+                            const revealed = wordTokens.filter(t => t.visible).length
+                            const total = wordTokens.length
+                            const pct = total > 0 ? Math.round((revealed / total) * 100) : 0
+                            return (
+                                <div style={{ marginBottom: 10 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                        <div style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>
+                                            {t.attempts} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{guessCount}</span>
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
+                                            {pct}%
+                                        </div>
+                                    </div>
+                                    <div style={{
+                                        height: 6,
+                                        borderRadius: 3,
+                                        backgroundColor: 'var(--border)',
+                                        overflow: 'hidden',
+                                    }}>
+                                        <div style={{
+                                            height: '100%',
+                                            width: `${pct}%`,
+                                            backgroundColor: 'var(--accent)',
+                                            borderRadius: 3,
+                                            transition: 'width 0.4s ease',
+                                        }} />
+                                    </div>
+                                </div>
+                            )
+                        })()}
 
                         {!won && (
                             <div style={{ display: 'flex', gap: 8 }}>
