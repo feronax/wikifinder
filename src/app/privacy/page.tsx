@@ -1,5 +1,6 @@
 import Header from '@/components/Header'
 import CookieTable from './cookie-table'
+import CookieSettingsButton from './cookie-settings-button'
 
 export const metadata = {
   title: 'Politique de confidentialité — Wikifinder',
@@ -57,6 +58,8 @@ export default function PrivacyPage() {
           <h3 style={{ fontSize: 16, fontWeight: 600, marginTop: 24, marginBottom: 12 }}>Liste des cookies et traceurs</h3>
 
           <CookieTable />
+
+          <CookieSettingsButton />
 
           <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 32, marginBottom: 12 }}>4. Finalités du traitement</h2>
           <ul style={{ paddingLeft: 20, marginBottom: 16 }}>
