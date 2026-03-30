@@ -3,19 +3,43 @@
 import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 
+const masked = (w: number) => ({
+  display: 'inline-block',
+  backgroundColor: 'var(--masked)',
+  borderRadius: 3,
+  width: w,
+  height: '1.3em',
+  verticalAlign: 'middle',
+  margin: '0 2px',
+})
+
+const revealed = {
+  fontWeight: 700 as const,
+  color: 'var(--accent)',
+}
+
+const stopword = {
+  color: 'var(--text-muted)',
+}
+
 const translations = {
   fr: {
     subtitle: 'Chaque jour, un article Wikipedia à deviner.',
     subtitle2: 'Mot par mot. En un minimum de tentatives.',
     play: 'Jouer',
-    howToPlay: 'Comment jouer',
-    steps: [
-      { icon: '📖', title: 'Un article par jour', desc: 'Chaque jour, un nouvel article Wikipedia est sélectionné. Les mots sont masqués — à toi de les révéler.' },
-      { icon: '💡', title: 'Devine mot par mot', desc: 'Tape un mot. S\'il apparaît dans l\'article, il se révèle partout. Les mots courants (le, de, un...) sont déjà visibles.' },
-      { icon: '🎯', title: 'Trouve le titre', desc: 'Ton objectif : deviner tous les mots du titre de l\'article. Moins de tentatives = meilleur score !' },
-    ],
-    example: 'Exemple',
-    exampleCaption: 'Le joueur a deviné "Marseille" — le mot se révèle partout dans le texte.',
+    howItWorks: 'Comment ça marche ?',
+    step1title: 'Un article Wikipedia est sélectionné',
+    step1desc: 'Tous les mots sont masqués sauf les mots courants (le, de, un, est...). Le titre est aussi masqué — c\'est lui que tu dois trouver.',
+    step1label: 'Titre :',
+    step2title: 'Tu proposes un mot',
+    step2desc: 'Par exemple "pays". S\'il apparaît dans l\'article, il se révèle partout dans le texte.',
+    step2input: 'pays',
+    step2label: 'Tentative 1 :',
+    step3title: 'Tu continues jusqu\'à trouver le titre',
+    step3desc: 'Chaque mot trouvé te donne des indices. Ici après quelques essais, le joueur devine "États" puis "Unis" — victoire !',
+    step3label: 'Trouvé en 12 tentatives !',
+    goalTitle: 'L\'objectif',
+    goalDesc: 'Trouve tous les mots du titre en un minimum de tentatives. Moins de tentatives = meilleur score !',
     features: [
       { icon: '🔥', label: 'Streaks quotidiens' },
       { icon: '🏆', label: 'Classement global' },
@@ -23,20 +47,25 @@ const translations = {
       { icon: '🌍', label: 'Français & Anglais' },
     ],
     cta: 'Commencer la partie du jour',
-    noAccount: 'Pas besoin de compte pour jouer',
+    noAccount: 'Gratuit, pas besoin de compte',
   },
   en: {
     subtitle: 'Every day, a Wikipedia article to guess.',
     subtitle2: 'Word by word. In as few attempts as possible.',
     play: 'Play',
-    howToPlay: 'How to play',
-    steps: [
-      { icon: '📖', title: 'One article per day', desc: 'Every day, a new Wikipedia article is selected. Words are hidden — it\'s up to you to reveal them.' },
-      { icon: '💡', title: 'Guess word by word', desc: 'Type a word. If it appears in the article, it gets revealed everywhere. Common words (the, a, of...) are already visible.' },
-      { icon: '🎯', title: 'Find the title', desc: 'Your goal: guess all the words in the article\'s title. Fewer guesses = higher score!' },
-    ],
-    example: 'Example',
-    exampleCaption: 'The player guessed "Marseille" — the word is revealed everywhere in the text.',
+    howItWorks: 'How does it work?',
+    step1title: 'A Wikipedia article is selected',
+    step1desc: 'All words are hidden except common ones (the, of, a, is...). The title is also hidden — that\'s what you need to find.',
+    step1label: 'Title:',
+    step2title: 'You guess a word',
+    step2desc: 'For example "country". If it appears in the article, it gets revealed everywhere in the text.',
+    step2input: 'country',
+    step2label: 'Guess 1:',
+    step3title: 'Keep going until you find the title',
+    step3desc: 'Each word you find gives you clues. Here after a few guesses, the player guesses "United" then "States" — victory!',
+    step3label: 'Found in 12 guesses!',
+    goalTitle: 'The goal',
+    goalDesc: 'Find all the words in the title in as few guesses as possible. Fewer guesses = higher score!',
     features: [
       { icon: '🔥', label: 'Daily streaks' },
       { icon: '🏆', label: 'Global leaderboard' },
@@ -44,7 +73,7 @@ const translations = {
       { icon: '🌍', label: 'French & English' },
     ],
     cta: 'Start today\'s game',
-    noAccount: 'No account needed to play',
+    noAccount: 'Free, no account needed',
   },
 }
 
@@ -68,6 +97,32 @@ export default function LandingPage() {
   if (checking) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)' }} />
   )
+
+  const cardStyle = {
+    padding: 24,
+    borderRadius: 12,
+    border: '1px solid var(--border)',
+    backgroundColor: 'var(--surface)',
+    marginBottom: 16,
+  }
+
+  const stepNumStyle = {
+    width: 32, height: 32, borderRadius: '50%',
+    backgroundColor: 'var(--accent)', color: 'white',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 15, fontWeight: 700, flexShrink: 0,
+  } as const
+
+  const demoBoxStyle = {
+    marginTop: 16,
+    padding: '16px 20px',
+    borderRadius: 8,
+    backgroundColor: 'var(--bg)',
+    border: '1px solid var(--border)',
+    fontSize: 15,
+    lineHeight: 2.2,
+    color: 'var(--text)',
+  }
 
   return (
     <div style={{
@@ -95,151 +150,181 @@ export default function LandingPage() {
       </div>
 
       {/* Hero */}
-      <div style={{
-        width: '100%',
-        maxWidth: 680,
-        padding: '40px 24px 40px',
-        textAlign: 'center',
-      }}>
+      <div style={{ width: '100%', maxWidth: 680, padding: '40px 24px 32px', textAlign: 'center' }}>
         <div style={{ marginBottom: 16 }}>
           <img src="/icon-192.png" alt="Wikifinder" width={80} height={80} style={{ borderRadius: '50%' }} />
         </div>
-        <h1 style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 42,
-          color: 'var(--text)',
-          margin: '0 0 12px',
-          lineHeight: 1.1,
-        }}>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--text)', margin: '0 0 12px', lineHeight: 1.1 }}>
           Wikifinder
         </h1>
-        <p style={{
-          fontSize: 18,
-          color: 'var(--text-muted)',
-          margin: '0 0 32px',
-          lineHeight: 1.5,
-        }}>
-          {t.subtitle}<br />
-          {t.subtitle2}
+        <p style={{ fontSize: 18, color: 'var(--text-muted)', margin: '0 0 28px', lineHeight: 1.5 }}>
+          {t.subtitle}<br />{t.subtitle2}
         </p>
         <a href="/game" style={{
-          display: 'inline-block',
-          padding: '14px 36px',
-          borderRadius: 10,
-          backgroundColor: 'var(--accent)',
-          color: 'white',
-          fontSize: 17,
-          fontWeight: 600,
-          textDecoration: 'none',
-          fontFamily: 'var(--font-sans)',
+          display: 'inline-block', padding: '14px 36px', borderRadius: 10,
+          backgroundColor: 'var(--accent)', color: 'white', fontSize: 17,
+          fontWeight: 600, textDecoration: 'none', fontFamily: 'var(--font-sans)',
         }}>
           {t.play}
         </a>
       </div>
 
-      {/* Comment jouer */}
-      <div style={{
-        width: '100%',
-        maxWidth: 680,
-        padding: '20px 24px 40px',
-      }}>
+      {/* Tutoriel étape par étape */}
+      <div style={{ width: '100%', maxWidth: 680, padding: '12px 24px 40px' }}>
         <h2 style={{
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-          textAlign: 'center',
-          marginBottom: 24,
+          fontSize: 20, fontWeight: 700, color: 'var(--text)', textAlign: 'center', marginBottom: 24,
         }}>
-          {t.howToPlay}
+          {t.howItWorks}
         </h2>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {t.steps.map((step, i) => (
-            <div key={i} style={{
-              display: 'flex',
-              gap: 16,
-              padding: '20px 24px',
-              borderRadius: 12,
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--surface)',
-              alignItems: 'flex-start',
-            }}>
-              <div style={{ fontSize: 28, flexShrink: 0, lineHeight: 1 }}>{step.icon}</div>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
-                  {step.title}
-                </div>
-                <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  {step.desc}
-                </div>
-              </div>
+        {/* Étape 1 : Article masqué */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 12 }}>
+            <div style={stepNumStyle}>1</div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{t.step1title}</div>
+              <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{t.step1desc}</div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Démo visuelle */}
-      <div style={{
-        width: '100%',
-        maxWidth: 680,
-        padding: '0 24px 40px',
-      }}>
-        <div style={{
-          padding: '24px',
-          borderRadius: 12,
-          border: '1px solid var(--border)',
-          backgroundColor: 'var(--surface)',
-        }}>
+          {/* Titre masqué */}
+          <div style={{ marginTop: 12, padding: '12px 16px', borderRadius: 8, backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+              {t.step1label}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={masked(55)} />
+              <span style={masked(40)} />
+            </div>
+          </div>
+
+          {/* Contenu masqué */}
+          <div style={demoBoxStyle}>
+            {lang === 'fr' ? (
+              <>
+                <span style={stopword}>Les </span><span style={masked(45)} /><span style={stopword}>{' '}sont </span><span style={masked(25)} /><span style={stopword}> des </span><span style={masked(60)} /><span style={stopword}> en </span><span style={masked(55)} /><span style={stopword}> du </span><span style={masked(35)} /><span style={stopword}>. </span>
+                <span style={stopword}>Le </span><span style={masked(40)} /><span style={stopword}> est une </span><span style={masked(65)} /><span style={stopword}> de </span><span style={masked(40)} /><span style={stopword}> à </span><span style={masked(70)} /><span style={stopword}>.</span>
+              </>
+            ) : (
+              <>
+                <span style={stopword}>The </span><span style={masked(45)} /><span style={stopword}>{' '}is a </span><span style={masked(50)} /><span style={stopword}> in </span><span style={masked(40)} /><span style={stopword}>. </span>
+                <span style={stopword}>It is the </span><span style={masked(40)} /><span style={stopword}> most </span><span style={masked(55)} /><span style={stopword}> and the </span><span style={masked(40)} /><span style={stopword}> most </span><span style={masked(60)} /><span style={stopword}>.</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Étape 2 : Premier guess */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 12 }}>
+            <div style={stepNumStyle}>2</div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{t.step2title}</div>
+              <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{t.step2desc}</div>
+            </div>
+          </div>
+
+          {/* Input simulé */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, marginBottom: 12 }}>
+            <div style={{
+              flex: 1, padding: '10px 14px', borderRadius: 8,
+              border: '1px solid var(--border)', backgroundColor: 'var(--bg)',
+              fontSize: 15, color: 'var(--text)',
+            }}>
+              {t.step2input}
+            </div>
+            <div style={{
+              padding: '10px 20px', borderRadius: 8, backgroundColor: 'var(--accent)',
+              color: 'white', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center',
+            }}>
+              {lang === 'fr' ? 'Valider' : 'Submit'}
+            </div>
+          </div>
+
+          {/* Contenu avec mot révélé */}
+          <div style={demoBoxStyle}>
+            {lang === 'fr' ? (
+              <>
+                <span style={stopword}>Les </span><span style={masked(45)} /><span style={stopword}>{' '}sont </span><span style={masked(25)} /><span style={stopword}> des </span><span style={masked(60)} /><span style={stopword}> en </span><span style={masked(55)} /><span style={stopword}> du </span><span style={masked(35)} /><span style={stopword}>. </span>
+                <span style={stopword}>Le </span><span style={revealed}>pays</span><span style={stopword}> est une </span><span style={masked(65)} /><span style={stopword}> de </span><span style={masked(40)} /><span style={stopword}> à </span><span style={masked(70)} /><span style={stopword}>.</span>
+              </>
+            ) : (
+              <>
+                <span style={stopword}>The </span><span style={revealed}>country</span><span style={stopword}>{' '}is a </span><span style={masked(50)} /><span style={stopword}> in </span><span style={masked(40)} /><span style={stopword}>. </span>
+                <span style={stopword}>It is the </span><span style={masked(40)} /><span style={stopword}> most </span><span style={masked(55)} /><span style={stopword}> and the </span><span style={masked(40)} /><span style={stopword}> most </span><span style={masked(60)} /><span style={stopword}>.</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Étape 3 : Victoire */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 12 }}>
+            <div style={stepNumStyle}>3</div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{t.step3title}</div>
+              <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{t.step3desc}</div>
+            </div>
+          </div>
+
+          {/* Titre trouvé */}
+          <div style={{ marginTop: 12, padding: '12px 16px', borderRadius: 8, backgroundColor: 'var(--bg)', border: '1px solid var(--accent)' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 8 }}>
+              {t.step1label}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 22 }}>
+              <span style={revealed}>{lang === 'fr' ? 'États' : 'United'}</span>
+              <span style={revealed}>{'-'}</span>
+              <span style={revealed}>{lang === 'fr' ? 'Unis' : 'States'}</span>
+            </div>
+          </div>
+
+          {/* Message victoire */}
           <div style={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            marginBottom: 12,
+            marginTop: 12, padding: '12px 16px', borderRadius: 8,
+            backgroundColor: 'var(--revealed)', border: '1px solid var(--accent)',
+            textAlign: 'center', color: 'var(--accent)', fontWeight: 600, fontSize: 15,
           }}>
-            {t.example}
+            {t.step3label}
           </div>
-          <div style={{ fontSize: 15, color: 'var(--text)', lineHeight: 2.4 }}>
-            <span>{lang === 'fr' ? 'Le ' : 'The '}</span>
-            <span style={{ backgroundColor: 'var(--masked)', borderRadius: 3, padding: '2px 12px' }}>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-            <span>{lang === 'fr' ? ' de ' : ' of '}</span>
-            <span style={{ fontWeight: 600, color: 'var(--accent)' }}>Marseille</span>
-            <span>{lang === 'fr' ? ' est une ' : ' is a '}</span>
-            <span style={{ backgroundColor: 'var(--masked)', borderRadius: 3, padding: '2px 16px' }}>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-            <span>{lang === 'fr' ? ' du ' : ' of the '}</span>
-            <span style={{ backgroundColor: 'var(--masked)', borderRadius: 3, padding: '2px 10px' }}>&nbsp;&nbsp;&nbsp;&nbsp;</span>
-            <span>{lang === 'fr' ? ' de ' : ' of '}</span>
-            <span style={{ fontWeight: 600, color: 'var(--accent)' }}>Marseille</span>
-            <span>.</span>
+
+          {/* Contenu révélé */}
+          <div style={demoBoxStyle}>
+            {lang === 'fr' ? (
+              <>
+                <span style={stopword}>Les </span><span style={revealed}>États</span><span style={stopword}>{'-'}</span><span style={revealed}>Unis</span><span style={stopword}>{' '}sont </span><span style={revealed}>officiellement</span><span style={stopword}> des </span><span style={revealed}>républiques</span><span style={stopword}> en </span><span style={revealed}>Amérique</span><span style={stopword}> du </span><span style={revealed}>Nord</span><span style={stopword}>. </span>
+                <span style={stopword}>Le </span><span style={revealed}>pays</span><span style={stopword}> est une </span><span style={revealed}>fédération</span><span style={stopword}> de </span><span style={revealed}>cinquante</span><span style={stopword}> à </span><span style={revealed}>Washington</span><span style={stopword}>.</span>
+              </>
+            ) : (
+              <>
+                <span style={stopword}>The </span><span style={revealed}>United</span><span style={stopword}>{' '}</span><span style={revealed}>States</span><span style={stopword}>{' '}is a </span><span style={revealed}>country</span><span style={stopword}> in </span><span style={revealed}>North</span><span style={stopword}>{' '}</span><span style={revealed}>America</span><span style={stopword}>. </span>
+                <span style={stopword}>It is the </span><span style={revealed}>world</span><span style={stopword}>&apos;s most </span><span style={revealed}>powerful</span><span style={stopword}> and the </span><span style={revealed}>third</span><span style={stopword}> most </span><span style={revealed}>populous</span><span style={stopword}>.</span>
+              </>
+            )}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 12, fontStyle: 'italic' }}>
-            {t.exampleCaption}
-          </div>
+        </div>
+
+        {/* Objectif */}
+        <div style={{
+          ...cardStyle,
+          textAlign: 'center',
+          border: '1px solid var(--accent)',
+        }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t.goalTitle}</div>
+          <div style={{ fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.5 }}>{t.goalDesc}</div>
         </div>
       </div>
 
       {/* Features */}
       <div style={{
-        width: '100%',
-        maxWidth: 680,
-        padding: '0 24px 40px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: 12,
+        width: '100%', maxWidth: 680, padding: '0 24px 40px',
+        display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12,
       }}>
         {t.features.map((f, i) => (
           <div key={i} style={{
-            padding: '16px',
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            backgroundColor: 'var(--surface)',
-            textAlign: 'center',
-            fontSize: 14,
-            color: 'var(--text)',
-            fontWeight: 500,
+            padding: 16, borderRadius: 10, border: '1px solid var(--border)',
+            backgroundColor: 'var(--surface)', textAlign: 'center',
+            fontSize: 14, color: 'var(--text)', fontWeight: 500,
           }}>
             <div style={{ fontSize: 24, marginBottom: 6 }}>{f.icon}</div>
             {f.label}
@@ -250,15 +335,9 @@ export default function LandingPage() {
       {/* CTA final */}
       <div style={{ padding: '0 24px 60px', textAlign: 'center' }}>
         <a href="/game" style={{
-          display: 'inline-block',
-          padding: '14px 36px',
-          borderRadius: 10,
-          backgroundColor: 'var(--accent)',
-          color: 'white',
-          fontSize: 17,
-          fontWeight: 600,
-          textDecoration: 'none',
-          fontFamily: 'var(--font-sans)',
+          display: 'inline-block', padding: '14px 36px', borderRadius: 10,
+          backgroundColor: 'var(--accent)', color: 'white', fontSize: 17,
+          fontWeight: 600, textDecoration: 'none', fontFamily: 'var(--font-sans)',
         }}>
           {t.cta}
         </a>
@@ -266,7 +345,6 @@ export default function LandingPage() {
           {t.noAccount}
         </div>
       </div>
-
     </div>
   )
 }
