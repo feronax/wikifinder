@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { DM_Sans, DM_Serif_Display } from 'next/font/google'
 import FeedbackButton from '@/components/FeedbackButton'
 import ThemeProvider from '@/components/ThemeProvider'
@@ -28,17 +28,18 @@ export const metadata: Metadata = {
   title: 'Wikifinder',
   description: 'Trouve la page Wikipédia du jour',
   manifest: '/manifest.json',
-  themeColor: '#5C7A3E',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Wikifinder',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#5C7A3E',
 }
 
 export default function RootLayout({
