@@ -13,6 +13,29 @@ type HeaderProps = {
   onLogout?: () => void
 }
 
+const headerTranslations = {
+  fr: {
+    history: 'Historique',
+    leaderboard: 'Classement',
+    login: 'Connexion',
+    loginMobile: 'Se connecter',
+    logout: 'Déconnexion',
+    myProfile: 'Mon Profil',
+    darkMode: 'Passer au mode sombre',
+    lightMode: 'Passer au mode clair',
+  },
+  en: {
+    history: 'History',
+    leaderboard: 'Leaderboard',
+    login: 'Login',
+    loginMobile: 'Login',
+    logout: 'Logout',
+    myProfile: 'My Profile',
+    darkMode: 'Switch to dark mode',
+    lightMode: 'Switch to light mode',
+  },
+}
+
 export default function Header({ lang, onLangChange, user: userProp, username: usernameProp, onLogout: onLogoutProp }: HeaderProps) {
   const { theme, toggle } = useTheme()
   const [user, setUser] = useState<any>(userProp || null)
@@ -22,6 +45,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
   const [streak, setStreak] = useState(0)
   const isMobile = useIsMobile()
   const supabase = createSupabaseBrowserClient()
+  const t = headerTranslations[lang || 'fr']
 
   useEffect(() => {
     if (userProp !== undefined) {
@@ -109,10 +133,10 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
             ) : user ? (
               <>
                 <a href="/history" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
-                  Historique
+                  {t.history}
                 </a>
                 <a href="/leaderboard" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
-                  Classement
+                  {t.leaderboard}
                 </a>
                 <a href="/profile" style={{ fontSize: 14, color: 'var(--text)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {username || user.email}
@@ -126,7 +150,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                   fontSize: 13, color: 'var(--text-muted)', background: 'none',
                   border: 'none', cursor: 'pointer', padding: 0,
                 }}>
-                  Déconnexion
+                  {t.logout}
                 </button>
               </>
             ) : (
@@ -134,7 +158,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                 fontSize: 14, color: 'var(--text)', fontWeight: 600,
                 padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', textDecoration: 'none',
               }}>
-                Connexion
+                {t.login}
               </a>
             )}
 
@@ -178,7 +202,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
           ) : user ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
               <a href="/profile" style={{ fontSize: 16, color: 'var(--text)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                Mon Profil ({username || user.email})
+                {t.myProfile} ({username || user.email})
                 {streak > 0 && (
                   <span style={{ fontSize: 14, color: 'var(--accent)', fontWeight: 700 }}>
                     {streak} 🔥
@@ -186,16 +210,16 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                 )}
               </a>
               <a href="/history" style={{ fontSize: 16, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
-                Historique
+                {t.history}
               </a>
               <a href="/leaderboard" style={{ fontSize: 16, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
-                Classement
+                {t.leaderboard}
               </a>
               <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} style={{
                 fontSize: 15, color: 'var(--accent)', background: 'none', border: 'none',
                 cursor: 'pointer', padding: '8px 0', fontWeight: 600, marginTop: 8,
               }}>
-                Déconnexion
+                {t.logout}
               </button>
             </div>
           ) : (
@@ -204,7 +228,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
               fontWeight: 600, padding: '10px 16px', borderRadius: 6,
               textDecoration: 'none', textAlign: 'center',
             }}>
-              Se connecter
+              {t.loginMobile}
             </a>
           )}
 
@@ -216,7 +240,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
             justifyContent: 'center', gap: 8, fontSize: 15, color: 'var(--text)',
             fontWeight: 500, cursor: 'pointer',
           }}>
-            {theme === 'light' ? '🌙 Passer au mode sombre' : '☀️ Passer au mode clair'}
+            {theme === 'light' ? `🌙 ${t.darkMode}` : `☀️ ${t.lightMode}`}
           </button>
         </div>
       )}

@@ -60,6 +60,11 @@ const translations = {
         score: 'Score',
         pts: 'pts',
         wordNotFound: 'Mot introuvable — aucune tentative comptée',
+        alreadyGuessed: 'Mot déjà essayé',
+        share: 'Partager',
+        copied: 'Copié !',
+        backToTop: '↑ Retour en haut',
+        backToTopMobile: '↑',
     },
     en: {
         titleLabel: 'Article title:',
@@ -77,6 +82,11 @@ const translations = {
         score: 'Score',
         pts: 'pts',
         wordNotFound: 'Word not found — attempt not counted',
+        alreadyGuessed: 'Already guessed',
+        share: 'Share',
+        copied: 'Copied!',
+        backToTop: '↑ Back to top',
+        backToTopMobile: '↑',
     }
 }
 
@@ -97,6 +107,7 @@ export default function GamePage() {
     const [inputHistoryIndex, setInputHistoryIndex] = useState<number>(-1)
     const [hintTokenIndex, setHintTokenIndex] = useState<number | null>(null)
     const [streak, setStreak] = useState<number | null>(null)
+    const [shareCopied, setShareCopied] = useState(false)
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -274,10 +285,13 @@ export default function GamePage() {
         }
 
         if (gameState.guesses.some(g => wordsMatch(g.word, word))) {
-            setInput(''); setInputError(null); inputRef.current?.focus(); return
+            setInput('')
+            setInputError(t.alreadyGuessed)
+            inputRef.current?.focus()
+            return
         }
 
-        if (gameState.won) return
+        const alreadyWon = gameState.won
 
         setSubmitting(true)
         setInputError(null)
@@ -292,8 +306,7 @@ export default function GamePage() {
                     pageId: gameState.pageData.id,
                     lang,
                     word,
-                    // Pour les anonymes : envoie les guesses précédents pour la détection de victoire
-                    ...(!gameState.gameId && { previousGuesses: gameState.guesses.map(g => g.word) }),
+                    ...(!gameState.gameId && !alreadyWon && { previousGuesses: gameState.guesses.map(g => g.word) }),
                 })
             })
 
@@ -337,12 +350,13 @@ export default function GamePage() {
                     tokens: newTokens,
                     titleWords: newTitleWords,
                     guesses: [{ word, found: isInText }, ...prev.guesses],
-                    guessCount: serverCount ?? prev.guessCount + 1,
+                    // Ne pas incrémenter le score si déjà gagné
+                    guessCount: alreadyWon ? prev.guessCount : (serverCount ?? prev.guessCount + 1),
                     won: isWon || prev.won,
                 }
             })
 
-            if (isWon) {
+            if (isWon && !alreadyWon) {
                 fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
                 // Confettis !
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
@@ -435,8 +449,6 @@ export default function GamePage() {
     const score = calculateScore(guessCount, won)
 
     // Sur mobile, on n'affiche que les 3 derniers mots essayés
-    const displayedGuesses = isMobile ? guesses.slice(0, 3) : guesses
-
     return (
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
             <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
@@ -531,6 +543,29 @@ export default function GamePage() {
                                                 {t.readArticle}
                                             </a>
                                         )}
+                                        <button onClick={() => {
+                                            const title = gameState.titleWords.filter(tw => !tw.isStopword).map(tw => tw.value).join(' ')
+                                            const text = [
+                                                `Wikifinder ${pageData?.date || ''}`,
+                                                `${title}`,
+                                                `${guessCount} ${lang === 'fr' ? 'tentatives' : 'guesses'} | Score: ${score.toLocaleString()}`,
+                                                '',
+                                                'https://wikifinder.vercel.app',
+                                            ].join('\n')
+                                            navigator.clipboard.writeText(text).then(() => {
+                                                setShareCopied(true)
+                                                setTimeout(() => setShareCopied(false), 2000)
+                                            })
+                                        }} style={{
+                                            padding: '6px 14px', borderRadius: 6,
+                                            border: '1px solid var(--accent)',
+                                            backgroundColor: shareCopied ? 'var(--accent)' : 'transparent',
+                                            color: shareCopied ? 'white' : 'var(--accent)',
+                                            fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                                            fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
+                                        }}>
+                                            {shareCopied ? t.copied : t.share}
+                                        </button>
                                     </div>
                                 </div>
                             )}
@@ -572,8 +607,16 @@ export default function GamePage() {
                                 {guesses.length === 0 ? (
                                     <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t.noWords}</div>
                                 ) : (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                                        {displayedGuesses.map((g, i) => (
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: 6,
+                                        alignItems: 'center',
+                                        overflowX: 'auto',
+                                        WebkitOverflowScrolling: 'touch',
+                                        scrollbarWidth: 'none',
+                                        paddingBottom: 2,
+                                    }}>
+                                        {guesses.map((g, i) => (
                                             <div key={i} onClick={() => g.found && scrollToOccurrence(g.word)}
                                                 style={{
                                                     backgroundColor: g.found ? 'var(--revealed)' : 'var(--surface)',
@@ -582,15 +625,12 @@ export default function GamePage() {
                                                     color: g.found ? 'var(--accent)' : 'var(--text-muted)',
                                                     fontWeight: g.found ? 600 : 400,
                                                     cursor: g.found ? 'pointer' : 'default',
+                                                    whiteSpace: 'nowrap',
+                                                    flexShrink: 0,
                                                 }}>
                                                 {g.word}
                                             </div>
                                         ))}
-                                        {guesses.length > 3 && (
-                                            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                                +{guesses.length - 3}
-                                            </div>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -629,8 +669,7 @@ export default function GamePage() {
                             )
                         })()}
 
-                        {!won && (
-                            <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
                                 <div style={{ flex: 1, position: 'relative' }}>
                                     <input ref={inputRef} value={input}
                                         onChange={e => { setInput(e.target.value); setInputError(null) }}
@@ -659,7 +698,6 @@ export default function GamePage() {
                                     {submitting ? '...' : t.validate}
                                 </button>
                             </div>
-                        )}
                     </div>
 
                     <div style={{ fontSize: 15, color: 'var(--text)', paddingTop: inputError ? 20 : 0 }}>
@@ -777,7 +815,7 @@ export default function GamePage() {
 
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40, marginBottom: 20 }}>
                         <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ padding: '8px 20px', borderRadius: 20, border: '1px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                            {isMobile ? '↑' : '↑ Retour en haut'}
+                            {isMobile ? t.backToTopMobile : t.backToTop}
                         </button>
                     </div>
 

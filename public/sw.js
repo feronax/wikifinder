@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wikifinder-v1'
+const CACHE_NAME = 'wikifinder-v2'
 const STATIC_ASSETS = [
   '/',
   '/game',

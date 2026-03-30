@@ -17,10 +17,11 @@ export async function POST(req: NextRequest) {
 
   // Si gameId fourni, vérifier la propriété et l'état
   let serverGuessCount: number | null = null
+  let bonusMode = false
   if (gameId && user) {
     const { data: game } = await supabaseAdmin
       .from('games')
-      .select('id, user_id, completed')
+      .select('id, user_id, completed, guess_count')
       .eq('id', gameId)
       .single()
 
@@ -28,19 +29,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Partie introuvable' }, { status: 403 })
     }
 
-    if (game.completed) {
-      return NextResponse.json({ error: 'already_completed' }, { status: 409 })
-    }
+    // Mode bonus : partie déjà complétée, on enregistre le guess mais on ne touche pas au score
+    bonusMode = game.completed
 
-    // Enregistre la tentative
+    // Enregistre la tentative dans tous les cas
     await supabaseAdmin.from('guesses').insert({ game_id: gameId, word })
 
-    const { count } = await supabaseAdmin
-      .from('guesses')
-      .select('*', { count: 'exact', head: true })
-      .eq('game_id', gameId)
+    if (bonusMode) {
+      // En mode bonus, on garde le guess_count original
+      serverGuessCount = game.guess_count
+    } else {
+      const { count } = await supabaseAdmin
+        .from('guesses')
+        .select('*', { count: 'exact', head: true })
+        .eq('game_id', gameId)
 
-    serverGuessCount = count || 0
+      serverGuessCount = count || 0
+    }
   }
 
   // Charge l'article depuis la base
@@ -113,17 +118,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Si victoire, mettre à jour la partie
-  if (won && gameId && user && serverGuessCount !== null) {
-    await supabaseAdmin.from('games').update({
-      guess_count: serverGuessCount,
-      completed: true,
-      completed_at: new Date().toISOString(),
-    }).eq('id', gameId)
-  } else if (gameId && user && serverGuessCount !== null) {
-    await supabaseAdmin.from('games').update({
-      guess_count: serverGuessCount,
-    }).eq('id', gameId)
+  // Met à jour la partie (sauf en mode bonus — la partie est déjà complétée)
+  if (!bonusMode && gameId && user && serverGuessCount !== null) {
+    if (won) {
+      await supabaseAdmin.from('games').update({
+        guess_count: serverGuessCount,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      }).eq('id', gameId)
+    } else {
+      await supabaseAdmin.from('games').update({
+        guess_count: serverGuessCount,
+      }).eq('id', gameId)
+    }
   }
 
   return NextResponse.json({
