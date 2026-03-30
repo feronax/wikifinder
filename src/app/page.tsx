@@ -10,13 +10,13 @@ export const metadata: Metadata = {
     url: 'https://wikifinder.vercel.app',
     siteName: 'Wikifinder',
     type: 'website',
-    images: [{ url: '/icon-512.png', width: 512, height: 512, alt: 'Wikifinder' }],
+    images: [{ url: 'https://wikifinder.vercel.app/og-image.png', width: 1200, height: 630, alt: 'Wikifinder — Le jeu quotidien Wikipedia' }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'Wikifinder — Le jeu quotidien Wikipedia',
     description: 'Devine l\'article Wikipedia du jour mot par mot !',
-    images: ['/icon-512.png'],
+    images: ['https://wikifinder.vercel.app/og-image.png'],
   },
 }
 

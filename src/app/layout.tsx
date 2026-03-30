@@ -51,6 +51,23 @@ export default function RootLayout({
       <head>
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="canonical" href="https://wikifinder.vercel.app" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'Wikifinder',
+            url: 'https://wikifinder.vercel.app',
+            description: 'Jeu quotidien de devinettes basé sur des articles Wikipedia. Devine le titre mot par mot !',
+            applicationCategory: 'GameApplication',
+            operatingSystem: 'Web',
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+            image: 'https://wikifinder.vercel.app/og-image.png',
+            author: { '@type': 'Person', name: 'Feronax' },
+            inLanguage: ['fr', 'en'],
+          }) }}
+        />
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             var t = localStorage.getItem('theme');
