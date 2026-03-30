@@ -12,14 +12,15 @@ import { GoogleTagManager } from '@next/third-parties/google'
 const dmSans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-sans',
-  weight: ['300', '400', '500', '600'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
 })
 
 const dmSerif = DM_Serif_Display({
   subsets: ['latin'],
   variable: '--font-serif',
   weight: '400',
-  style: ['normal', 'italic'],
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
@@ -48,8 +49,16 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+          })();
+        ` }} />
       </head>
       <body className={`${dmSans.variable} ${dmSerif.variable}`}>
+        <GoogleTagManager gtmId="GTM-M2QGSL7C" />
         <ThemeProvider>
           <>
             {children}
@@ -59,8 +68,6 @@ export default function RootLayout({
           </>
         </ThemeProvider>
       </body>
-      {/* Ajout du composant GTM ici avec ton ID */}
-      <GoogleTagManager gtmId="GTM-M2QGSL7C" />
     </html>
   )
 }
