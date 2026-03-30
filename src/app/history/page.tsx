@@ -21,7 +21,10 @@ type HistoryEntry = {
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [lang, setLang] = useState<'fr' | 'en'>('fr')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
@@ -30,16 +33,27 @@ export default function HistoryPage() {
         window.location.href = '/auth/login'
         return
       }
-      loadHistory()
+      loadHistory(1)
     })
   }, [])
 
-  async function loadHistory() {
-    const res = await fetch('/api/history')
-    if (!res.ok) { setLoading(false); return }
+  async function loadHistory(p: number) {
+    if (p === 1) setLoading(true)
+    else setLoadingMore(true)
+
+    const res = await fetch(`/api/history?page=${p}`)
+    if (!res.ok) { setLoading(false); setLoadingMore(false); return }
     const data = await res.json()
-    setHistory(data.history || [])
+
+    if (p === 1) {
+      setHistory(data.history || [])
+    } else {
+      setHistory(prev => [...prev, ...(data.history || [])])
+    }
+    setPage(data.page)
+    setTotalPages(data.totalPages)
     setLoading(false)
+    setLoadingMore(false)
   }
 
   const today = new Date().toISOString().split('T')[0]
@@ -123,12 +137,34 @@ export default function HistoryPage() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {completed ? '✓ Revoir →' : notStarted ? 'Jouer →' : 'Reprendre →'}
+                      {completed ? 'Revoir' : notStarted ? 'Jouer' : 'Reprendre'}
                     </a>
                   </div>
                 </div>
               )
             })}
+
+            {page < totalPages && (
+              <button
+                onClick={() => loadHistory(page + 1)}
+                disabled={loadingMore}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--surface)',
+                  color: 'var(--text-muted)',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: loadingMore ? 'default' : 'pointer',
+                  opacity: loadingMore ? 0.6 : 1,
+                  fontFamily: 'var(--font-sans)',
+                  marginTop: 8,
+                }}
+              >
+                {loadingMore ? 'Chargement...' : 'Voir plus'}
+              </button>
+            )}
           </div>
         )}
       </div>

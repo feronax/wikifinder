@@ -34,6 +34,10 @@ async function seedPage(date: string) {
       content_en: enArticle.content,
       word_count_fr: frArticle.wordCount,
       word_count_en: enArticle.wordCount,
+      tokens_fr: tokenizeContent(frArticle.content, 'fr'),
+      tokens_en: tokenizeContent(enArticle.content, 'en'),
+      title_tokens_fr: tokenizeTitle(frArticle.title, 'fr'),
+      title_tokens_en: tokenizeTitle(enArticle.title, 'en'),
     }).select().single()
 
     if (error) throw new Error(error.message)
@@ -76,9 +80,12 @@ export async function GET(req: NextRequest) {
   const title = lang === 'fr' ? page.wikipedia_title_fr : page.wikipedia_title_en
   const content = lang === 'fr' ? page.content_fr : page.content_en
 
-  // 2. Tokenization via module partagé
-  const fullTokens = tokenizeContent(content, lang)
-  const fullTitleTokens = tokenizeTitle(title, lang)
+  // 2. Utilise les tokens pré-calculés si disponibles, sinon tokenise à la volée
+  const precomputedTokens = lang === 'fr' ? page.tokens_fr : page.tokens_en
+  const precomputedTitleTokens = lang === 'fr' ? page.title_tokens_fr : page.title_tokens_en
+
+  const fullTokens = precomputedTokens || tokenizeContent(content, lang)
+  const fullTitleTokens = precomputedTitleTokens || tokenizeTitle(title, lang)
 
   // 3. Masquer les valeurs pour le client
   const tokens = maskTokensForClient(fullTokens)

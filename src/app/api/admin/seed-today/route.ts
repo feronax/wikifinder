@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
 import { fetchLinkedArticle } from '@/lib/wikipedia'
+import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
 
 export async function POST(req: NextRequest) {
   const adminPassword = req.headers.get('x-admin-password')
@@ -38,16 +39,23 @@ export async function POST(req: NextRequest) {
     const frArticle = await fetchRandomQualityArticle('fr', alreadyUsedTitles)
     const enArticle = await fetchLinkedArticle(frArticle.title, 'fr')
 
+    const enContent = enArticle?.content || ''
+    const enTitle = enArticle?.title || frArticle.title
+
     const { error } = await supabaseAdmin.from('pages').insert({
       date: targetDate,
       wikipedia_title_fr: frArticle.title,
-      wikipedia_title_en: enArticle?.title || frArticle.title,
+      wikipedia_title_en: enTitle,
       wikipedia_url_fr: frArticle.url,
       wikipedia_url_en: enArticle?.url || frArticle.url,
       content_fr: frArticle.content,
-      content_en: enArticle?.content || '',
+      content_en: enContent,
       word_count_fr: frArticle.wordCount,
       word_count_en: enArticle?.wordCount || 0,
+      tokens_fr: tokenizeContent(frArticle.content, 'fr'),
+      tokens_en: tokenizeContent(enContent, 'en'),
+      title_tokens_fr: tokenizeTitle(frArticle.title, 'fr'),
+      title_tokens_en: tokenizeTitle(enTitle, 'en'),
     })
 
     if (error) {

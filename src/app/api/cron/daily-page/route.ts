@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
 import { fetchLinkedArticle } from '@/lib/wikipedia'
+import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
 
 export async function GET(req: NextRequest) {
     const authHeader = req.headers.get('authorization')
@@ -55,6 +56,10 @@ export async function GET(req: NextRequest) {
                     word_count_en: articleEn.wordCount,
                     content_fr: articleFr.content,
                     content_en: articleEn.content,
+                    tokens_fr: tokenizeContent(articleFr.content, 'fr'),
+                    tokens_en: tokenizeContent(articleEn.content, 'en'),
+                    title_tokens_fr: tokenizeTitle(articleFr.title, 'fr'),
+                    title_tokens_en: tokenizeTitle(articleEn.title, 'en'),
                 })
                 .select()
                 .single()

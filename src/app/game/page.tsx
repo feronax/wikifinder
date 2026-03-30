@@ -7,88 +7,10 @@ import { normalize, wordsMatch } from '@/lib/matching'
 import { useIsMobile, calculateScore } from '@/lib/utils'
 import confetti from 'canvas-confetti'
 import Header from '@/components/Header'
-
-type Token = {
-    index: number
-    type: 'word' | 'space' | 'punct'
-    value: string
-    visible?: boolean
-    isStopword?: boolean
-    isTitle?: boolean
-    isHeading?: boolean
-    headingLevel?: number
-    length?: number
-}
-
-type TitleWord = {
-    index: number
-    value: string
-    isStopword: boolean
-    revealed: boolean
-    length: number
-}
-
-type Guess = {
-    word: string
-    found: boolean
-}
-
-type GameState = {
-    tokens: Token[]
-    titleWords: TitleWord[]
-    guesses: Guess[]
-    guessCount: number
-    won: boolean
-    pageData: any
-    gameId: string | null
-}
-
-const translations = {
-    fr: {
-        titleLabel: "Titre de l'article :",
-        attempts: 'Tentatives :',
-        placeholder: 'Entrez un mot...',
-        validate: 'Valider',
-        found: (n: number) => `🎉 Bravo ! Trouvé en ${n} tentatives !`,
-        history: 'Mots essayés',
-        noWords: 'Aucun mot encore',
-        login: 'Connexion',
-        logout: 'Déconnexion',
-        revealAll: "👁️ Révéler tous les mots",
-        hideAll: '🙈 Masquer les mots',
-        readArticle: "📖 Lire l'article Wikipedia",
-        score: 'Score',
-        pts: 'pts',
-        wordNotFound: 'Mot introuvable — aucune tentative comptée',
-        alreadyGuessed: 'Mot déjà essayé',
-        share: 'Partager',
-        copied: 'Copié !',
-        backToTop: '↑ Retour en haut',
-        backToTopMobile: '↑',
-    },
-    en: {
-        titleLabel: 'Article title:',
-        attempts: 'Attempts:',
-        placeholder: 'Enter a word...',
-        validate: 'Submit',
-        found: (n: number) => `🎉 Well done! Found in ${n} attempts!`,
-        history: 'Tried words',
-        noWords: 'No words yet',
-        login: 'Login',
-        logout: 'Logout',
-        revealAll: '👁️ Reveal all words',
-        hideAll: '🙈 Hide words',
-        readArticle: '📖 Read Wikipedia article',
-        score: 'Score',
-        pts: 'pts',
-        wordNotFound: 'Word not found — attempt not counted',
-        alreadyGuessed: 'Already guessed',
-        share: 'Share',
-        copied: 'Copied!',
-        backToTop: '↑ Back to top',
-        backToTopMobile: '↑',
-    }
-}
+import TokenRenderer from '@/components/game/TokenRenderer'
+import GuessInput from '@/components/game/GuessInput'
+import TitleDisplay from '@/components/game/TitleDisplay'
+import { GameState, translations } from './types'
 
 export default function GamePage() {
     const [gameState, setGameState] = useState<GameState | null>(null)
@@ -108,6 +30,7 @@ export default function GamePage() {
     const [hintTokenIndex, setHintTokenIndex] = useState<number | null>(null)
     const [streak, setStreak] = useState<number | null>(null)
     const [shareCopied, setShareCopied] = useState(false)
+    const [justRevealedTokens, setJustRevealedTokens] = useState<Set<number>>(new Set())
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -331,6 +254,11 @@ export default function GamePage() {
                 revealedTitleMap.set(rt.index, rt.value)
             }
 
+            // Animation : marquer les tokens fraîchement révélés
+            const newRevealed = new Set(revealedTokenMap.keys())
+            setJustRevealedTokens(newRevealed)
+            setTimeout(() => setJustRevealedTokens(new Set()), 700)
+
             setGameState(prev => {
                 if (!prev) return prev
                 const newTokens = prev.tokens.map(token => {
@@ -400,8 +328,8 @@ export default function GamePage() {
 
     const scoreBoxStyle = useMemo(() => {
         const baseStyle = {
-            flexShrink: 0, display: 'flex', flexDirection: 'column' as const, 
-            alignItems: 'center', justifyContent: 'center', 
+            flexShrink: 0, display: 'flex', flexDirection: 'column' as const,
+            alignItems: 'center', justifyContent: 'center',
             borderRadius: 10, border: '1px solid var(--accent)', backgroundColor: 'var(--bg)', minWidth: 110,
         };
 
@@ -447,6 +375,21 @@ export default function GamePage() {
     const { tokens, titleWords, guesses, guessCount, won, pageData } = gameState
     const wikipediaUrl = lang === 'fr' ? pageData?.wikipedia_url_fr : pageData?.wikipedia_url_en
     const score = calculateScore(guessCount, won)
+
+    function handleShare() {
+        const title = gameState!.titleWords.filter(tw => !tw.isStopword).map(tw => tw.value).join(' ')
+        const text = [
+            `Wikifinder ${pageData?.date || ''}`,
+            `${title}`,
+            `${guessCount} ${lang === 'fr' ? 'tentatives' : 'guesses'} | Score: ${score.toLocaleString()}`,
+            '',
+            'https://wikifinder.vercel.app',
+        ].join('\n')
+        navigator.clipboard.writeText(text).then(() => {
+            setShareCopied(true)
+            setTimeout(() => setShareCopied(false), 2000)
+        })
+    }
 
     // Sur mobile, on n'affiche que les 3 derniers mots essayés
     return (
@@ -498,319 +441,51 @@ export default function GamePage() {
 
                 <div style={{ flex: 1, minWidth: 0 }}>
 
-                    <div style={titleScoreStyle}>
-                        <div style={{ flex: 1, textAlign: isMobile ? 'center' : 'left' }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
-                                {t.titleLabel}
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', minHeight: 36 }}>
-                                {titleWords.map((tw, i) => {
-                                    const hintIdx = -(i + 1)
-                                    if (tw.isStopword) {
-                                        return <span key={i} style={{ fontSize: 22, color: 'var(--text-muted)', fontWeight: 300 }}>{tw.value}</span>
-                                    }
-                                    if (tw.revealed || won) {
-                                        return <span key={i} style={{ fontSize: 22, fontWeight: 600, color: 'var(--accent)' }}>{tw.value}</span>
-                                    }
-                                    const blockWidth = Math.max(20, (tw.length || 3) * 13)
-                                    const showHintNow = hintTokenIndex === hintIdx
-                                    return (
-                                        <span key={i} onClick={() => showHint(hintIdx)} style={{
-                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                            backgroundColor: 'var(--masked)', borderRadius: 4,
-                                            width: blockWidth, height: '1.4em', verticalAlign: 'middle',
-                                            cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                                            color: showHintNow ? 'var(--text)' : 'transparent',
-                                            transition: 'color 0.15s', userSelect: 'none',
-                                        }}>
-                                            {tw.length}
-                                        </span>
-                                    )
-                                })}
-                            </div>
+                    <TitleDisplay
+                        titleWords={titleWords}
+                        won={won}
+                        guessCount={guessCount}
+                        score={score}
+                        streak={streak}
+                        lang={lang}
+                        revealAll={revealAll}
+                        setRevealAll={setRevealAll}
+                        wikipediaUrl={wikipediaUrl}
+                        shareCopied={shareCopied}
+                        onShare={handleShare}
+                        hintTokenIndex={hintTokenIndex}
+                        showHint={showHint}
+                        isMobile={isMobile}
+                        titleScoreStyle={titleScoreStyle}
+                        scoreBoxStyle={scoreBoxStyle}
+                        t={t}
+                    />
 
-                            {won && (
-                                <div style={{ marginTop: 14 }}>
-                                    <div style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>
-                                        {t.found(guessCount)}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-                                        <button onClick={() => setRevealAll(r => !r)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--text)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                                            {revealAll ? t.hideAll : t.revealAll}
-                                        </button>
-                                        {wikipediaUrl && (
-                                            <a href={wikipediaUrl} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--accent)', color: 'var(--accent)', fontSize: 13, textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                                {t.readArticle}
-                                            </a>
-                                        )}
-                                        <button onClick={() => {
-                                            const title = gameState.titleWords.filter(tw => !tw.isStopword).map(tw => tw.value).join(' ')
-                                            const text = [
-                                                `Wikifinder ${pageData?.date || ''}`,
-                                                `${title}`,
-                                                `${guessCount} ${lang === 'fr' ? 'tentatives' : 'guesses'} | Score: ${score.toLocaleString()}`,
-                                                '',
-                                                'https://wikifinder.vercel.app',
-                                            ].join('\n')
-                                            navigator.clipboard.writeText(text).then(() => {
-                                                setShareCopied(true)
-                                                setTimeout(() => setShareCopied(false), 2000)
-                                            })
-                                        }} style={{
-                                            padding: '6px 14px', borderRadius: 6,
-                                            border: '1px solid var(--accent)',
-                                            backgroundColor: shareCopied ? 'var(--accent)' : 'transparent',
-                                            color: shareCopied ? 'white' : 'var(--accent)',
-                                            fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                                            fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
-                                        }}>
-                                            {shareCopied ? t.copied : t.share}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {won && (
-                            <div style={scoreBoxStyle}>
-                                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>{t.score}</div>
-                                <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{score.toLocaleString()}</div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{t.pts}</div>
-                            </div>
-                        )}
-                        {won && streak !== null && streak > 0 && (
-                            <div style={scoreBoxStyle}>
-                                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Streak</div>
-                                <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{streak} 🔥</div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{lang === 'fr' ? (streak === 1 ? 'jour' : 'jours') : (streak === 1 ? 'day' : 'days')}</div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Zone Saisie + Historique mobile — sticky */}
-                    <div style={{ 
-                        position: 'sticky',
-                        top: 0,
-                        zIndex: 9, 
-                        backgroundColor: 'var(--bg)', 
-                        paddingTop: 12, 
-                        paddingBottom: 16, 
-                        borderBottom: '1px solid var(--border)', 
-                        marginBottom: 24 
-                    }}>
-                        
-                        {isMobile && (
-                            <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                                    {t.history}
-                                </div>
-                                {guesses.length === 0 ? (
-                                    <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t.noWords}</div>
-                                ) : (
-                                    <div style={{
-                                        display: 'flex',
-                                        gap: 6,
-                                        alignItems: 'center',
-                                        overflowX: 'auto',
-                                        WebkitOverflowScrolling: 'touch',
-                                        scrollbarWidth: 'none',
-                                        paddingBottom: 2,
-                                    }}>
-                                        {guesses.map((g, i) => (
-                                            <div key={i} onClick={() => g.found && scrollToOccurrence(g.word)}
-                                                style={{
-                                                    backgroundColor: g.found ? 'var(--revealed)' : 'var(--surface)',
-                                                    border: '1px solid ' + (g.found ? 'var(--accent)' : 'var(--border)'),
-                                                    padding: '4px 8px', borderRadius: 4, fontSize: 13,
-                                                    color: g.found ? 'var(--accent)' : 'var(--text-muted)',
-                                                    fontWeight: g.found ? 600 : 400,
-                                                    cursor: g.found ? 'pointer' : 'default',
-                                                    whiteSpace: 'nowrap',
-                                                    flexShrink: 0,
-                                                }}>
-                                                {g.word}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {(() => {
-                            const wordTokens = tokens.filter(t => t.type === 'word' && !t.isStopword)
-                            const revealed = wordTokens.filter(t => t.visible).length
-                            const total = wordTokens.length
-                            const pct = total > 0 ? Math.round((revealed / total) * 100) : 0
-                            return (
-                                <div style={{ marginBottom: 10 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                        <div style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>
-                                            {t.attempts} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{guessCount}</span>
-                                        </div>
-                                        <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
-                                            {pct}%
-                                        </div>
-                                    </div>
-                                    <div style={{
-                                        height: 6,
-                                        borderRadius: 3,
-                                        backgroundColor: 'var(--border)',
-                                        overflow: 'hidden',
-                                    }}>
-                                        <div style={{
-                                            height: '100%',
-                                            width: `${pct}%`,
-                                            backgroundColor: 'var(--accent)',
-                                            borderRadius: 3,
-                                            transition: 'width 0.4s ease',
-                                        }} />
-                                    </div>
-                                </div>
-                            )
-                        })()}
-
-                        <div style={{ display: 'flex', gap: 8 }}>
-                                <div style={{ flex: 1, position: 'relative' }}>
-                                    <input ref={inputRef} value={input}
-                                        onChange={e => { setInput(e.target.value); setInputError(null) }}
-                                        onKeyDown={handleKeyDown}
-                                        placeholder={t.placeholder}
-                                        style={{
-                                            width: '100%', padding: '12px 16px', fontSize: 16, borderRadius: 8,
-                                            border: '1px solid ' + (inputError ? '#e53e3e' : 'var(--border)'),
-                                            backgroundColor: 'var(--surface)', color: 'var(--text)',
-                                            outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box',
-                                        }}
-                                    />
-                                    {inputError && (
-                                        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, fontSize: 12, color: '#e53e3e', fontWeight: 500 }}>
-                                            {inputError}
-                                        </div>
-                                    )}
-                                </div>
-                                <button onClick={handleGuess} disabled={!input.trim() || submitting} style={{
-                                    padding: '12px 24px', fontSize: 15, fontWeight: 600, borderRadius: 8, border: 'none',
-                                    backgroundColor: 'var(--accent)', color: 'white',
-                                    cursor: (!input.trim() || submitting) ? 'default' : 'pointer',
-                                    opacity: (!input.trim() || submitting) ? 0.6 : 1,
-                                    transition: 'background-color 0.2s', whiteSpace: 'nowrap',
-                                }}>
-                                    {submitting ? '...' : t.validate}
-                                </button>
-                            </div>
-                    </div>
+                    <GuessInput
+                        inputRef={inputRef}
+                        input={input}
+                        setInput={setInput}
+                        inputError={inputError}
+                        setInputError={setInputError}
+                        handleKeyDown={handleKeyDown}
+                        handleGuess={handleGuess}
+                        submitting={submitting}
+                        tokens={tokens}
+                        guesses={guesses}
+                        guessCount={guessCount}
+                        isMobile={isMobile}
+                        scrollToOccurrence={scrollToOccurrence}
+                        t={t}
+                    />
 
                     <div style={{ fontSize: 15, color: 'var(--text)', paddingTop: inputError ? 20 : 0 }}>
-                        {(() => {
-                            const elements: React.ReactNode[] = []
-                            let i = 0
-
-                            while (i < tokens.length) {
-                                const token = tokens[i]
-
-                                if (token.type === 'word' && token.isHeading) {
-                                    const headingTokens: React.ReactNode[] = []
-                                    const level = token.headingLevel || 2
-
-                                    while (i < tokens.length && (
-                                        (tokens[i].type === 'word' && tokens[i].isHeading) ||
-                                        (tokens[i].type === 'space' && !tokens[i].value.includes('\n'))
-                                    )) {
-                                        const tk = tokens[i]
-                                        if (tk.type === 'space') {
-                                            headingTokens.push(<span key={i}>{tk.value}</span>)
-                                        } else if (tk.visible) {
-                                            headingTokens.push(
-                                                <span key={i} data-word={tk.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '').toLowerCase()}
-                                                    style={{ color: tk.isTitle ? 'var(--accent)' : 'var(--text)' }}>
-                                                    {tk.value}
-                                                </span>
-                                            )
-                                        } else if (revealAll) {
-                                            headingTokens.push(
-                                                <span key={i} style={{ color: tk.isTitle ? 'var(--accent)' : 'var(--text-muted)', fontStyle: 'italic' }}>
-                                                    {tk.value}
-                                                </span>
-                                            )
-                                        } else {
-                                            const idx = i
-                                            const showHintNow = hintTokenIndex === idx
-                                            headingTokens.push(
-                                                <span key={i} onClick={() => showHint(idx)} style={{
-                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                    backgroundColor: 'var(--masked)', borderRadius: 3,
-                                                    minWidth: `${(tk.length || 3) * 8}px`, height: '1.2em',
-                                                    verticalAlign: 'middle', margin: '0 1px',
-                                                    cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                                                    color: showHintNow ? 'var(--text)' : 'transparent',
-                                                    transition: 'color 0.15s', userSelect: 'none',
-                                                }}>
-                                                    {tk.length}
-                                                </span>
-                                            )
-                                        }
-                                        i++
-                                    }
-
-                                    elements.push(
-                                        <div key={`heading-${i}`} style={{ fontWeight: 700, fontSize: level === 2 ? '1.2em' : '1.05em', marginTop: '1.5em', marginBottom: '0.5em', paddingBottom: '0.3em', borderBottom: '1px solid var(--border)', lineHeight: 1.4, textAlign: 'left' }}>
-                                            {headingTokens}
-                                        </div>
-                                    )
-                                    continue
-                                }
-
-                                if (token.type === 'space' && token.value.includes('\n')) { i++; continue }
-
-                                const lineTokens: React.ReactNode[] = []
-                                while (i < tokens.length &&
-                                    !(tokens[i].type === 'space' && tokens[i].value.includes('\n')) &&
-                                    !(tokens[i].type === 'word' && tokens[i].isHeading)
-                                ) {
-                                    const tk = tokens[i]
-                                    if (tk.type === 'space' || tk.type === 'punct') {
-                                        lineTokens.push(<span key={i}>{tk.value}</span>)
-                                    } else if (tk.visible) {
-                                        lineTokens.push(
-                                            <span key={i} data-word={tk.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '').toLowerCase()}
-                                                style={{ fontWeight: tk.isTitle ? 700 : 400, color: tk.isTitle ? 'var(--accent)' : 'var(--text)' }}>
-                                                {tk.value}
-                                            </span>
-                                        )
-                                    } else if (revealAll) {
-                                        lineTokens.push(
-                                            <span key={i} style={{ color: tk.isTitle ? 'var(--accent)' : 'var(--text-muted)', fontStyle: 'italic' }}>
-                                                {tk.value}
-                                            </span>
-                                        )
-                                    } else {
-                                        const idx = i
-                                        const showHintNow = hintTokenIndex === idx
-                                        lineTokens.push(
-                                            <span key={i} onClick={() => showHint(idx)} style={{
-                                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                backgroundColor: 'var(--masked)', borderRadius: 3,
-                                                minWidth: `${(tk.length || 3) * 8}px`, height: '1.5em',
-                                                verticalAlign: 'middle', margin: '0 1px',
-                                                cursor: 'pointer', fontSize: 10, fontWeight: 700,
-                                                color: showHintNow ? 'var(--text)' : 'transparent',
-                                                transition: 'color 0.15s', userSelect: 'none',
-                                            }}>
-                                                {tk.length}
-                                            </span>
-                                        )
-                                    }
-                                    i++
-                                }
-
-                                if (lineTokens.length > 0) {
-                                    elements.push(<span key={`line-${i}`} style={{ lineHeight: 2.6, textAlign: 'left' }}>{lineTokens}</span>)
-                                }
-                                i++
-                            }
-
-                            return elements
-                        })()}
+                        <TokenRenderer
+                            tokens={tokens}
+                            revealAll={revealAll}
+                            hintTokenIndex={hintTokenIndex}
+                            justRevealedTokens={justRevealedTokens}
+                            showHint={showHint}
+                        />
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40, marginBottom: 20 }}>
