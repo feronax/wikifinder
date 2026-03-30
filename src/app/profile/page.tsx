@@ -4,6 +4,18 @@ import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import Header from '@/components/Header'
 
+type Stats = {
+  totalGames: number
+  totalWins: number
+  winRate: number
+  avgGuesses: number
+  bestScore: number
+  avgScore: number
+  streak: number
+  bestStreak: number
+  distribution: Record<string, number>
+}
+
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
   const [username, setUsername] = useState('')
@@ -13,8 +25,7 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [isEmailUser, setIsEmailUser] = useState(false)
-  const [streak, setStreak] = useState(0)
-  const [bestStreak, setBestStreak] = useState(0)
+  const [stats, setStats] = useState<Stats | null>(null)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
@@ -35,10 +46,7 @@ export default function ProfilePage() {
 
       if (profile) setUsername(profile.username || '')
 
-      fetch('/api/game/streak').then(r => r.json()).then(d => {
-        setStreak(d.streak || 0)
-        setBestStreak(d.bestStreak || 0)
-      })
+      fetch('/api/stats').then(r => r.json()).then(d => setStats(d))
     })
   }, [])
 
@@ -46,9 +54,26 @@ export default function ProfilePage() {
     setLoading(true)
     setMessage('')
     setError('')
+    const trimmed = username.trim()
+    if (!trimmed) { setLoading(false); return }
+
+    // Vérifie l'unicité du pseudo côté client
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', trimmed)
+      .neq('id', user.id)
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      setError('Ce pseudo est déjà pris.')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .update({ username })
+      .update({ username: trimmed })
       .eq('id', user.id)
     if (error) setError(error.message)
     else setMessage('Pseudo mis à jour !')
@@ -100,6 +125,20 @@ export default function ProfilePage() {
     backgroundColor: 'var(--surface)',
   }
 
+  const statValueStyle = {
+    fontSize: 26,
+    fontWeight: 700,
+    color: 'var(--accent)',
+    lineHeight: 1,
+  }
+
+  const statLabelStyle = {
+    fontSize: 12,
+    color: 'var(--text-muted)',
+    marginTop: 6,
+    fontWeight: 500,
+  }
+
   if (!user) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
       <Header />
@@ -108,6 +147,8 @@ export default function ProfilePage() {
       </div>
     </div>
   )
+
+  const maxDistribution = stats ? Math.max(...Object.values(stats.distribution), 1) : 1
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
@@ -118,12 +159,12 @@ export default function ProfilePage() {
 
         {message && (
           <div style={{ padding: 12, borderRadius: 6, backgroundColor: 'var(--revealed)', border: '1px solid var(--accent)', color: 'var(--accent)', marginBottom: 16, fontSize: 14 }}>
-            ✓ {message}
+            {message}
           </div>
         )}
         {error && (
           <div style={{ padding: 12, borderRadius: 6, backgroundColor: 'var(--bg-secondary)', border: '1px solid #c62828', color: '#c62828', marginBottom: 16, fontSize: 14 }}>
-            ✗ {error}
+            {error}
           </div>
         )}
 
@@ -158,25 +199,100 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Streak */}
-        <div style={cardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, color: 'var(--text)' }}>Streak</h2>
-          <div style={{ display: 'flex', gap: 24 }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>
-                {streak > 0 ? `${streak} 🔥` : '0'}
+        {/* Statistiques */}
+        {stats && stats.totalGames > 0 && (
+          <>
+            <div style={cardStyle}>
+              <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Statistiques</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={statValueStyle}>{stats.totalGames}</div>
+                  <div style={statLabelStyle}>Parties jouées</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={statValueStyle}>{stats.winRate}%</div>
+                  <div style={statLabelStyle}>Taux de victoire</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={statValueStyle}>{stats.avgGuesses}</div>
+                  <div style={statLabelStyle}>Moy. tentatives</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={statValueStyle}>{stats.bestScore.toLocaleString()}</div>
+                  <div style={statLabelStyle}>Meilleur score</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={statValueStyle}>{stats.avgScore.toLocaleString()}</div>
+                  <div style={statLabelStyle}>Score moyen</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={statValueStyle}>{stats.totalWins}</div>
+                  <div style={statLabelStyle}>Victoires</div>
+                </div>
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Streak actuel</div>
             </div>
-            <div style={{ width: 1, backgroundColor: 'var(--border)' }} />
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>
-                {bestStreak > 0 ? `${bestStreak} ⭐` : '0'}
+
+            {/* Streak */}
+            <div style={cardStyle}>
+              <h2 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, color: 'var(--text)' }}>Streak</h2>
+              <div style={{ display: 'flex', gap: 24 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>
+                    {stats.streak > 0 ? `${stats.streak} 🔥` : '0'}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Streak actuel</div>
+                </div>
+                <div style={{ width: 1, backgroundColor: 'var(--border)' }} />
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>
+                    {stats.bestStreak > 0 ? `${stats.bestStreak} ⭐` : '0'}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Meilleur streak</div>
+                </div>
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Meilleur streak</div>
             </div>
-          </div>
-        </div>
+
+            {/* Distribution */}
+            <div style={cardStyle}>
+              <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Distribution des tentatives</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {Object.entries(stats.distribution).map(([range, count]) => (
+                  <div key={range} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                      width: 55,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-muted)',
+                      textAlign: 'right',
+                      flexShrink: 0,
+                    }}>
+                      {range}
+                    </div>
+                    <div style={{ flex: 1, position: 'relative', height: 28 }}>
+                      <div style={{
+                        height: '100%',
+                        borderRadius: 4,
+                        backgroundColor: count > 0 ? 'var(--accent)' : 'var(--border)',
+                        width: `${Math.max((count / maxDistribution) * 100, count > 0 ? 8 : 2)}%`,
+                        transition: 'width 0.5s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                        paddingRight: 8,
+                      }}>
+                        {count > 0 && (
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>
+                            {count}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Mot de passe */}
         {isEmailUser && (
