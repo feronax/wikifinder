@@ -58,7 +58,7 @@ export default function RootLayout({
           })();
         ` }} />
       </head>
-      <body className={`${dmSans.variable} ${dmSerif.variable}`}>
+      <body className={`${dmSans.variable} ${dmSerif.variable}`} suppressHydrationWarning>
         <GoogleTagManager gtmId="GTM-M2QGSL7C" />
         <ThemeProvider>
           <>
