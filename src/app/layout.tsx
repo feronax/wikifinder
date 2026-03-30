@@ -5,6 +5,7 @@ import ThemeProvider from '@/components/ThemeProvider'
 import './globals.css'
 import ScrollToTop from '@/components/ScrollToTop'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
+import Footer from '@/components/Footer'
 
 // Import de Google Tag Manager
 import { GoogleTagManager } from '@next/third-parties/google'
@@ -61,12 +62,15 @@ export default function RootLayout({
       <body className={`${dmSans.variable} ${dmSerif.variable}`} suppressHydrationWarning>
         <GoogleTagManager gtmId="GTM-M2QGSL7C" />
         <ThemeProvider>
-          <>
-            {children}
-            <ScrollToTop />
-            <FeedbackButton />
-            <ServiceWorkerRegistrar />
-          </>
+          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <div style={{ flex: 1 }}>
+              {children}
+            </div>
+            <Footer />
+          </div>
+          <ScrollToTop />
+          <FeedbackButton />
+          <ServiceWorkerRegistrar />
         </ThemeProvider>
       </body>
     </html>

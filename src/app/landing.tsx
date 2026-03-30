@@ -266,6 +266,7 @@ export default function LandingPage() {
           {t.noAccount}
         </div>
       </div>
+
     </div>
   )
 }
