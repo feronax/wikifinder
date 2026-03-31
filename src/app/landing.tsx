@@ -46,6 +46,15 @@ const translations = {
       { icon: '📊', label: 'Statistiques perso' },
       { icon: '🌍', label: 'Français & Anglais' },
     ],
+    faq: 'Questions fréquentes',
+    faqs: [
+      { q: 'C\'est quoi Wikifinder ?', a: 'Wikifinder est un jeu quotidien gratuit où tu dois deviner un article Wikipedia mot par mot. Chaque jour, un nouvel article est sélectionné — les mots sont masqués et tu dois les révéler en proposant des mots.' },
+      { q: 'Comment on joue ?', a: 'Tu tapes un mot dans le champ de saisie. Si ce mot apparaît dans l\'article, il se révèle partout dans le texte. Ton objectif est de trouver tous les mots du titre de l\'article en un minimum de tentatives.' },
+      { q: 'Est-ce que je dois créer un compte ?', a: 'Non, tu peux jouer sans compte. Mais en créant un compte gratuit, tu peux sauvegarder ta progression, suivre tes streaks, apparaître dans le classement et accéder à tes statistiques.' },
+      { q: 'À quelle heure le nouvel article est disponible ?', a: 'Un nouvel article est disponible chaque jour à minuit (heure de Paris). Tu reçois une notification si tu les as activées.' },
+      { q: 'Le jeu est disponible en anglais ?', a: 'Oui ! Tu peux jouer en français ou en anglais. Chaque article existe dans les deux langues avec un contenu différent.' },
+      { q: 'Comment le score est-il calculé ?', a: 'Le score dépend du nombre de tentatives. Moins tu fais de tentatives, plus ton score est élevé. Le score maximum est de 5 000 points.' },
+    ],
     cta: 'Commencer la partie du jour',
     noAccount: 'Gratuit, pas besoin de compte',
   },
@@ -71,6 +80,15 @@ const translations = {
       { icon: '🏆', label: 'Global leaderboard' },
       { icon: '📊', label: 'Personal stats' },
       { icon: '🌍', label: 'French & English' },
+    ],
+    faq: 'Frequently Asked Questions',
+    faqs: [
+      { q: 'What is Wikifinder?', a: 'Wikifinder is a free daily game where you guess a Wikipedia article word by word. Every day, a new article is selected — words are hidden and you must reveal them by guessing.' },
+      { q: 'How do I play?', a: 'Type a word in the input field. If it appears in the article, it gets revealed everywhere in the text. Your goal is to find all the words in the article\'s title in as few guesses as possible.' },
+      { q: 'Do I need to create an account?', a: 'No, you can play without an account. But by creating a free account, you can save your progress, track streaks, appear on the leaderboard, and access your stats.' },
+      { q: 'When is the new article available?', a: 'A new article is available every day at midnight (Paris time). You\'ll get a notification if you\'ve enabled them.' },
+      { q: 'Is the game available in French?', a: 'Yes! You can play in French or English. Each article exists in both languages with different content.' },
+      { q: 'How is the score calculated?', a: 'The score depends on the number of guesses. Fewer guesses means a higher score. The maximum score is 5,000 points.' },
     ],
     cta: 'Start today\'s game',
     noAccount: 'Free, no account needed',
@@ -331,6 +349,48 @@ export default function LandingPage() {
           </div>
         ))}
       </div>
+
+      {/* FAQ */}
+      <div id="faq" style={{ width: '100%', maxWidth: 680, padding: '0 24px 40px' }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', textAlign: 'center', marginBottom: 20 }}>
+          {t.faq}
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {t.faqs.map((faq, i) => (
+            <details key={i} style={{
+              padding: '16px 20px',
+              borderRadius: 10,
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--surface)',
+              cursor: 'pointer',
+            }}>
+              <summary style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', lineHeight: 1.4 }}>
+                {faq.q}
+              </summary>
+              <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.6 }}>
+                {faq.a}
+              </div>
+            </details>
+          ))}
+        </div>
+      </div>
+
+      {/* FAQ JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: t.faqs.map(faq => ({
+            '@type': 'Question',
+            name: faq.q,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: faq.a,
+            },
+          })),
+        }) }}
+      />
 
       {/* CTA final */}
       <div style={{ padding: '0 24px 60px', textAlign: 'center' }}>

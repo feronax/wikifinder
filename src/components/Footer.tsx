@@ -23,7 +23,10 @@ export default function Footer() {
         <div>
           Wikifinder
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: 20 }}>
+          <a href="/faq" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
+            FAQ
+          </a>
           <a href="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
             Politique de confidentialité
           </a>

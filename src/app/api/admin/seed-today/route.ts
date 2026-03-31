@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       word_count_fr: frArticle.wordCount,
     })
   } catch (err) {
+    console.error('Seed error:', err)
     const errorMessage = err instanceof Error ? err.message : 'Une erreur inconnue est survenue'
     return NextResponse.json({ error: errorMessage }, { status: 500 })
   }

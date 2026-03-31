@@ -1,3 +1,5 @@
+const WIKI_HEADERS = { 'User-Agent': 'Wikifinder/1.0 (https://wikifinder.vercel.app)' }
+
 const STOPWORDS_FR = new Set([
   'le', 'la', 'les', 'de', 'du', 'des', 'un', 'une', 'et', 'en',
   'au', 'aux', 'ce', 'se', 'sa', 'son', 'ses', 'mon', 'ma', 'mes',
@@ -30,12 +32,12 @@ export function extractWords(text: string): string[] {
 // CETTE FONCTION MANQUAIT DANS TON FICHIER
 export async function fetchRandomQualityArticle(lang: 'fr' | 'en') {
   const randomUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`
-  const randomRes = await fetch(randomUrl)
+  const randomRes = await fetch(randomUrl, { headers: WIKI_HEADERS })
   const randomData = await randomRes.json()
   const title = randomData.query.random[0].title
 
   const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|info&explaintext=true&inprop=url&format=json&origin=*`
-  const contentRes = await fetch(contentUrl)
+  const contentRes = await fetch(contentUrl, { headers: WIKI_HEADERS })
   const contentData = await contentRes.json()
   
   const page = Object.values(contentData.query.pages)[0] as any
@@ -54,8 +56,10 @@ export async function fetchLinkedArticle(title: string, fromLang: 'fr' | 'en') {
   const toLang = fromLang === 'fr' ? 'en' : 'fr'
   const url = `https://${fromLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=langlinks&lllang=${toLang}&format=json&origin=*`
 
-  const res = await fetch(url)
-  const data = await res.json()
+  const res = await fetch(url, { headers: WIKI_HEADERS })
+  if (!res.ok) return null
+  let data
+  try { data = await res.json() } catch { return null }
   const pages = data.query.pages
   const page = Object.values(pages)[0] as any
   const langlinks = page.langlinks
@@ -64,8 +68,10 @@ export async function fetchLinkedArticle(title: string, fromLang: 'fr' | 'en') {
 
   const linkedTitle = langlinks[0]['*']
   const contentUrl = `https://${toLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(linkedTitle)}&prop=extracts&explaintext=true&format=json&origin=*`
-  const contentRes = await fetch(contentUrl)
-  const contentData = await contentRes.json()
+  const contentRes = await fetch(contentUrl, { headers: WIKI_HEADERS })
+  if (!contentRes.ok) return null
+  let contentData
+  try { contentData = await contentRes.json() } catch { return null }
   const linkedPages = contentData.query.pages
   const linkedPage = Object.values(linkedPages)[0] as any
 
