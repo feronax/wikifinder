@@ -6,6 +6,7 @@
   "start_url": "/game",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#1a1a2e",
   "theme_color": "#7C3AED",
   "orientation": "portrait",
@@ -13,6 +14,9 @@
   "lang": "fr",
   "categories": ["games", "entertainment"],
   "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "/icon-192.png",
@@ -77,5 +81,14 @@
       "text": "text",
       "url": "url"
     }
-  }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+wikifinder",
+      "url": "/game?source=%s"
+    }
+  ],
+  "scope_extensions": [
+    { "origin": "https://wikifinder.vercel.app" }
+  ]
 }
