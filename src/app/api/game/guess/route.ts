@@ -33,20 +33,10 @@ export async function POST(req: NextRequest) {
     // Mode bonus : partie déjà complétée, on enregistre le guess mais on ne touche pas au score
     bonusMode = game.completed
 
-    // Enregistre la tentative dans tous les cas
-    await supabaseAdmin.from('guesses').insert({ game_id: gameId, word })
-
     if (bonusMode) {
-      // En mode bonus, on garde le guess_count original
       serverGuessCount = game.guess_count
-    } else {
-      const { count } = await supabaseAdmin
-        .from('guesses')
-        .select('*', { count: 'exact', head: true })
-        .eq('game_id', gameId)
-
-      serverGuessCount = count || 0
     }
+    // Note: le guess est inséré plus bas, après la vérification Wiktionary
   }
 
   // Charge l'article depuis la base
@@ -79,6 +69,44 @@ export async function POST(req: NextRequest) {
       revealedTokens.push({ index: token.index, value: token.value })
       isInText = true
     }
+  }
+
+  // Si le mot n'est pas dans le texte, vérifier s'il existe dans le dictionnaire
+  if (!isInText) {
+    try {
+      const wiktUrl = `https://${lang}.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word.toLowerCase())}&format=json&origin=*`
+      const wiktRes = await fetch(wiktUrl, { headers: { 'User-Agent': 'Wikifinder/1.0' } })
+      if (wiktRes.ok) {
+        const wiktData = await wiktRes.json()
+        const pages = wiktData.query.pages
+        if ('-1' in pages) {
+          // Mot inexistant — ne pas compter la tentative
+          return NextResponse.json({
+            isInText: false,
+            revealedTokens: [],
+            revealedTitleIndices: [],
+            won: false,
+            guessCount: serverGuessCount,
+            proximityHints: [],
+            wordNotFound: true,
+          })
+        }
+      }
+    } catch {
+      // En cas d'erreur Wiktionary, on laisse passer
+    }
+  }
+
+  // Enregistre le guess en base (après vérification Wiktionary)
+  if (gameId && user && !bonusMode) {
+    await supabaseAdmin.from('guesses').insert({ game_id: gameId, word })
+    const { count } = await supabaseAdmin
+      .from('guesses')
+      .select('*', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+    serverGuessCount = count || 0
+  } else if (gameId && user && bonusMode) {
+    await supabaseAdmin.from('guesses').insert({ game_id: gameId, word })
   }
 
   // Trouve les mots du titre révélés par ce mot

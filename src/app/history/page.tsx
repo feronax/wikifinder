@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { calculateScore } from '@/lib/utils'
 import Header from '@/components/Header'
+import Loader from '@/components/Loader'
 
 type HistoryEntry = {
   page_id: string
@@ -61,8 +62,8 @@ export default function HistoryPage() {
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
       <Header />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
-        Chargement...
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <Loader />
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import { normalize, wordsMatch } from '@/lib/matching'
 import { useIsMobile, calculateScore } from '@/lib/utils'
 import confetti from 'canvas-confetti'
 import Header from '@/components/Header'
+import Loader from '@/components/Loader'
 import TokenRenderer from '@/components/game/TokenRenderer'
 import GuessInput from '@/components/game/GuessInput'
 import TitleDisplay from '@/components/game/TitleDisplay'
@@ -267,6 +268,14 @@ export default function GamePage() {
                 return
             }
 
+            // Mot inexistant — ne pas compter la tentative
+            if (data.wordNotFound) {
+                setInputError(t.wordNotFound)
+                setSubmitting(false)
+                inputRef.current?.focus()
+                return
+            }
+
             const { isInText, revealedTokens, revealedTitleIndices, won: isWon, guessCount: serverCount, proximityHints: newHints } = data
 
             // Proximity hints : on accumule les hints (les anciens + les nouveaux)
@@ -415,7 +424,7 @@ export default function GamePage() {
                             </button>
                         </>
                     ) : (
-                        'Chargement...'
+                        <Loader />
                     )}
                 </div>
             </div>

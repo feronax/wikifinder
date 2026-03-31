@@ -64,13 +64,12 @@ export default function GuessInput({
                     {guesses.length === 0 ? (
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t.noWords}</div>
                     ) : (
-                        <div style={{
+                        <div className="no-scrollbar" style={{
                             display: 'flex',
                             gap: 6,
                             alignItems: 'center',
                             overflowX: 'auto',
                             WebkitOverflowScrolling: 'touch',
-                            scrollbarWidth: 'none',
                             paddingBottom: 2,
                         }}>
                             {guesses.map((g, i) => (
@@ -122,7 +121,7 @@ export default function GuessInput({
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{ flex: 1, position: 'relative' }}>
+                <div style={{ flex: 1, position: 'relative' }} className={inputError ? 'input-shake' : ''}>
                     <input ref={inputRef} value={input}
                         onChange={e => { setInput(e.target.value); setInputError(null) }}
                         onKeyDown={handleKeyDown}
