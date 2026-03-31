@@ -4,6 +4,7 @@ import { fetchLinkedArticle } from '@/lib/wikipedia'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
 import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
 import { tokenizeContent, tokenizeTitle, maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
+import { findProximityHints } from '@/lib/proximity'
 
 async function seedPage(date: string) {
   const { data: usedPages } = await supabaseAdmin
@@ -126,13 +127,47 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 5. Renvoi des données au format attendu par le jeu
+  // 5. Calcule les proximity hints pour la restauration
+  let restoredProximityHints: { index: number; score: number; word: string }[] = []
+  if (gameId) {
+    const revealedIndices = new Set(
+      tokens.filter((t: any) => t.type === 'word' && t.visible && !t.isStopword).map((t: any) => t.index)
+    )
+    const unrevealed = fullTokens.filter((t: any) =>
+      t.type === 'word' && !t.isStopword && !revealedIndices.has(t.index)
+    )
+
+    const { data: guessRows } = await supabaseAdmin
+      .from('guesses')
+      .select('word')
+      .eq('game_id', gameId)
+      .order('guessed_at', { ascending: true })
+
+    const previousWords = (guessRows || []).map((g: any) => g.word)
+    const hintsMap = new Map<number, { score: number; word: string }>()
+
+    for (const w of previousWords) {
+      const hints = findProximityHints(w, unrevealed)
+      for (const h of hints) {
+        if (!hintsMap.has(h.index) || hintsMap.get(h.index)!.score < h.score) {
+          hintsMap.set(h.index, { score: h.score, word: w })
+        }
+      }
+    }
+
+    restoredProximityHints = Array.from(hintsMap.entries()).map(([index, { score, word }]) => ({
+      index, score, word,
+    }))
+  }
+
+  // 6. Renvoi des données au format attendu par le jeu
   return NextResponse.json({
     id: page.id,
     date: page.date,
     titleWords,
     tokens,
     wikipedia_url_fr: page.wikipedia_url_fr,
-    wikipedia_url_en: page.wikipedia_url_en
+    wikipedia_url_en: page.wikipedia_url_en,
+    proximityHints: restoredProximityHints,
   })
 }

@@ -124,7 +124,7 @@ export default function GuessInput({
                         }}
                     />
                     {inputError && (
-                        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, fontSize: 12, color: '#e53e3e', fontWeight: 500 }}>
+                        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, fontSize: 12, color: '#e53e3e', fontWeight: 500, zIndex: 10, backgroundColor: 'var(--bg)', padding: '2px 4px', borderRadius: 4 }}>
                             {inputError}
                         </div>
                     )}

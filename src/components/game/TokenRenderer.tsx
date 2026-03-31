@@ -8,10 +8,53 @@ interface TokenRendererProps {
     revealAll: boolean
     hintTokenIndex: number | null
     justRevealedTokens: Set<number>
+    proximityHints: Map<number, { score: number; word: string }>
     showHint: (index: number) => void
 }
 
-export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justRevealedTokens, showHint }: TokenRendererProps) {
+function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, showHint, isHeading }: {
+    tk: Token
+    idx: number
+    hintTokenIndex: number | null
+    proximityHint: { score: number; word: string } | undefined
+    showHint: (index: number) => void
+    isHeading?: boolean
+}) {
+    const showHintNow = hintTokenIndex === idx
+    const hasProximity = proximityHint !== undefined
+    const minW = `${(tk.length || 3) * 8}px`
+    const h = isHeading ? '1.2em' : '1.5em'
+
+    // Couleur du texte basée sur la proximité : plus c'est proche, plus c'est visible
+    let textColor = showHintNow ? 'var(--text)' : 'transparent'
+    let textOpacity = 1
+    let fontSize = isHeading ? 9 : 10
+    if (hasProximity && !showHintNow) {
+        textColor = 'var(--accent)'
+        textOpacity = 0.25 + proximityHint.score * 0.55
+        fontSize = 12
+    }
+
+    return (
+        <span onClick={() => showHint(idx)} style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: 'var(--masked)',
+            borderRadius: 3,
+            minWidth: minW, height: h,
+            verticalAlign: 'middle', margin: '0 1px',
+            cursor: 'pointer', fontSize, fontWeight: 700,
+            color: textColor,
+            opacity: hasProximity && !showHintNow ? textOpacity : 1,
+            transition: 'all 0.3s', userSelect: 'none',
+            overflow: 'hidden',
+            padding: hasProximity ? '0 4px' : 0,
+        }}>
+            {hasProximity ? proximityHint.word : tk.length}
+        </span>
+    )
+}
+
+export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justRevealedTokens, proximityHints, showHint }: TokenRendererProps) {
     const elements: React.ReactNode[] = []
     let i = 0
 
@@ -44,20 +87,9 @@ export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justR
                         </span>
                     )
                 } else {
-                    const idx = i
-                    const showHintNow = hintTokenIndex === idx
                     headingTokens.push(
-                        <span key={i} onClick={() => showHint(idx)} style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: 'var(--masked)', borderRadius: 3,
-                            minWidth: `${(tk.length || 3) * 8}px`, height: '1.2em',
-                            verticalAlign: 'middle', margin: '0 1px',
-                            cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                            color: showHintNow ? 'var(--text)' : 'transparent',
-                            transition: 'color 0.15s', userSelect: 'none',
-                        }}>
-                            {tk.length}
-                        </span>
+                        <MaskedToken key={i} tk={tk} idx={i} hintTokenIndex={hintTokenIndex}
+                            proximityHint={proximityHints.get(tk.index)} showHint={showHint} isHeading />
                     )
                 }
                 i++
@@ -96,20 +128,9 @@ export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justR
                     </span>
                 )
             } else {
-                const idx = i
-                const showHintNow = hintTokenIndex === idx
                 lineTokens.push(
-                    <span key={i} onClick={() => showHint(idx)} style={{
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        backgroundColor: 'var(--masked)', borderRadius: 3,
-                        minWidth: `${(tk.length || 3) * 8}px`, height: '1.5em',
-                        verticalAlign: 'middle', margin: '0 1px',
-                        cursor: 'pointer', fontSize: 10, fontWeight: 700,
-                        color: showHintNow ? 'var(--text)' : 'transparent',
-                        transition: 'color 0.15s', userSelect: 'none',
-                    }}>
-                        {tk.length}
-                    </span>
+                    <MaskedToken key={i} tk={tk} idx={i} hintTokenIndex={hintTokenIndex}
+                        proximityHint={proximityHints.get(tk.index)} showHint={showHint} />
                 )
             }
             i++

@@ -32,6 +32,7 @@ export default function GamePage() {
     const [shareCopied, setShareCopied] = useState(false)
     const [challengeCopied, setChallengeCopied] = useState(false)
     const [justRevealedTokens, setJustRevealedTokens] = useState<Set<number>>(new Set())
+    const [proximityHints, setProximityHints] = useState<Map<number, { score: number; word: string }>>(new Map())
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -128,6 +129,16 @@ export default function GamePage() {
             }
 
             setGameState(finalState)
+
+            // Restaure les proximity hints
+            if (finalData.proximityHints && finalData.proximityHints.length > 0) {
+                const restored = new Map<number, { score: number; word: string }>()
+                for (const h of finalData.proximityHints) {
+                    restored.set(h.index, { score: h.score, word: h.word })
+                }
+                setProximityHints(restored)
+            }
+
             if (finalState.won) {
                 fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
             }
@@ -243,7 +254,25 @@ export default function GamePage() {
                 return
             }
 
-            const { isInText, revealedTokens, revealedTitleIndices, won: isWon, guessCount: serverCount } = data
+            const { isInText, revealedTokens, revealedTitleIndices, won: isWon, guessCount: serverCount, proximityHints: newHints } = data
+
+            // Proximity hints : on accumule les hints (les anciens + les nouveaux)
+            if (newHints && newHints.length > 0) {
+                setProximityHints(prev => {
+                    const next = new Map(prev)
+                    for (const h of newHints) {
+                        // Ne garde que le meilleur score par index
+                        if (!next.has(h.index) || next.get(h.index)!.score < h.score) {
+                            next.set(h.index, { score: h.score, word })
+                        }
+                    }
+                    // Retire les hints pour les tokens qui viennent d'être révélés
+                    for (const rt of revealedTokens) {
+                        next.delete(rt.index)
+                    }
+                    return next
+                })
+            }
 
             // Construit un map des tokens révélés pour un accès rapide
             const revealedTokenMap = new Map<number, string>()
@@ -506,6 +535,7 @@ export default function GamePage() {
                             revealAll={revealAll}
                             hintTokenIndex={hintTokenIndex}
                             justRevealedTokens={justRevealedTokens}
+                            proximityHints={proximityHints}
                             showHint={showHint}
                         />
                     </div>

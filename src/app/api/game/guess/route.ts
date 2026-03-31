@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
 import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
+import { findProximityHints } from '@/lib/proximity'
 
 export async function POST(req: NextRequest) {
   const { gameId, pageId, lang, word, previousGuesses: clientPreviousGuesses } = await req.json()
@@ -133,11 +134,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Calcule les hints de proximité pour les mots non trouvés
+  const revealedIndices = new Set(revealedTokens.map((rt: { index: number }) => rt.index))
+  const unrevealed = tokens.filter(t =>
+    t.type === 'word' && !t.isStopword && !revealedIndices.has(t.index)
+  )
+  const proximityHints = findProximityHints(word, unrevealed)
+
   return NextResponse.json({
     isInText,
     revealedTokens,
     revealedTitleIndices,
     won,
     guessCount: serverGuessCount,
+    proximityHints,
   })
 }
