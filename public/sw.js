@@ -1,4 +1,5 @@
-const CACHE_NAME = 'wikifinder-v3'
+const CACHE_VERSION = '4'
+const CACHE_NAME = 'wikifinder-v' + CACHE_VERSION
 const STATIC_ASSETS = [
   '/',
   '/game',
@@ -46,24 +47,32 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Static assets: cache-first
+  // Navigations (HTML pages): network-first to avoid hydration mismatches
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+          return response
+        })
+        .catch(() => caches.match(event.request) || caches.match('/game'))
+    )
+    return
+  }
+
+  // Static assets (JS, CSS, images, fonts): cache-first
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached
       return fetch(event.request).then((response) => {
-        // Cache navigations and static files
-        if (response.ok && (event.request.mode === 'navigate' || url.pathname.match(/\.(js|css|png|svg|woff2?)$/))) {
+        if (response.ok && url.pathname.match(/\.(js|css|png|svg|woff2?)$/)) {
           const clone = response.clone()
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
         }
         return response
       })
-    }).catch(() => {
-      // Offline fallback for navigation
-      if (event.request.mode === 'navigate') {
-        return caches.match('/game')
-      }
-    })
+    }).catch(() => undefined)
   )
 })
 
