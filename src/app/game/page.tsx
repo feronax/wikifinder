@@ -30,6 +30,7 @@ export default function GamePage() {
     const [hintTokenIndex, setHintTokenIndex] = useState<number | null>(null)
     const [streak, setStreak] = useState<number | null>(null)
     const [shareCopied, setShareCopied] = useState(false)
+    const [challengeCopied, setChallengeCopied] = useState(false)
     const [justRevealedTokens, setJustRevealedTokens] = useState<Set<number>>(new Set())
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -377,13 +378,21 @@ export default function GamePage() {
     const score = calculateScore(guessCount, won)
 
     function handleShare() {
-        const title = gameState!.titleWords.filter(tw => !tw.isStopword).map(tw => tw.value).join(' ')
+        // Génère une grille sans spoiler : 🟩 = mot du titre, nombre de lettres masqué
+        const titleHint = gameState!.titleWords
+            .map(tw => tw.isStopword ? tw.value : '🟩')
+            .join(' ')
+
+        const wordTokens = gameState!.tokens.filter(t => t.type === 'word' && !t.isStopword)
+        const revealedCount = wordTokens.filter(t => t.visible).length
+        const pct = wordTokens.length > 0 ? Math.round((revealedCount / wordTokens.length) * 100) : 0
+
         const text = [
-            `Wikifinder ${pageData?.date || ''}`,
-            `${title}`,
+            `Wikifinder — ${pageData?.date || ''}`,
             `${guessCount} ${lang === 'fr' ? 'tentatives' : 'guesses'} | Score: ${score.toLocaleString()}`,
+            `${pct}% ${lang === 'fr' ? 'de l\'article révélé' : 'of article revealed'}`,
             '',
-            'https://wikifinder.vercel.app',
+            'https://wikifinder.vercel.app/game',
         ].join('\n')
         navigator.clipboard.writeText(text).then(() => {
             setShareCopied(true)
@@ -391,7 +400,18 @@ export default function GamePage() {
         })
     }
 
-    // Sur mobile, on n'affiche que les 3 derniers mots essayés
+    function handleChallenge() {
+        const date = pageData?.date || new Date().toISOString().split('T')[0]
+        const challengeUrl = `https://wikifinder.vercel.app/game?date=${date}&lang=${lang}`
+        const text = lang === 'fr'
+            ? `Je te défie sur Wikifinder ! Arriveras-tu à battre mon score de ${score.toLocaleString()} pts ?\n\n${challengeUrl}`
+            : `I challenge you on Wikifinder! Can you beat my score of ${score.toLocaleString()} pts?\n\n${challengeUrl}`
+        navigator.clipboard.writeText(text).then(() => {
+            setChallengeCopied(true)
+            setTimeout(() => setChallengeCopied(false), 2000)
+        })
+    }
+
     return (
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
             <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
@@ -453,6 +473,8 @@ export default function GamePage() {
                         wikipediaUrl={wikipediaUrl}
                         shareCopied={shareCopied}
                         onShare={handleShare}
+                        challengeCopied={challengeCopied}
+                        onChallenge={handleChallenge}
                         hintTokenIndex={hintTokenIndex}
                         showHint={showHint}
                         isMobile={isMobile}

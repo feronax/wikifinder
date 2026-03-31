@@ -53,6 +53,8 @@ export const translations = {
         alreadyGuessed: 'Mot déjà essayé',
         share: 'Partager',
         copied: 'Copié !',
+        challenge: 'Défier un ami',
+        challengeCopied: 'Lien copié !',
         backToTop: '↑ Retour en haut',
         backToTopMobile: '↑',
     },
@@ -75,6 +77,8 @@ export const translations = {
         alreadyGuessed: 'Already guessed',
         share: 'Share',
         copied: 'Copied!',
+        challenge: 'Challenge a friend',
+        challengeCopied: 'Link copied!',
         backToTop: '↑ Back to top',
         backToTopMobile: '↑',
     }

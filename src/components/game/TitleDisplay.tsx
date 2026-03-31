@@ -15,6 +15,8 @@ interface TitleDisplayProps {
     wikipediaUrl: string | null | undefined
     shareCopied: boolean
     onShare: () => void
+    challengeCopied: boolean
+    onChallenge: () => void
     hintTokenIndex: number | null
     showHint: (index: number) => void
     isMobile: boolean
@@ -28,6 +30,8 @@ interface TitleDisplayProps {
         readArticle: string
         share: string
         copied: string
+        challenge: string
+        challengeCopied: string
         score: string
         pts: string
     }
@@ -36,6 +40,7 @@ interface TitleDisplayProps {
 export default function TitleDisplay({
     titleWords, won, guessCount, score, streak, lang,
     revealAll, setRevealAll, wikipediaUrl, shareCopied, onShare,
+    challengeCopied, onChallenge,
     hintTokenIndex, showHint, isMobile, titleScoreStyle, scoreBoxStyle, t,
 }: TitleDisplayProps) {
     return (
@@ -93,6 +98,16 @@ export default function TitleDisplay({
                                 fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
                             }}>
                                 {shareCopied ? t.copied : t.share}
+                            </button>
+                            <button onClick={onChallenge} style={{
+                                padding: '6px 14px', borderRadius: 6,
+                                border: '1px solid var(--border)',
+                                backgroundColor: challengeCopied ? 'var(--accent)' : 'var(--surface)',
+                                color: challengeCopied ? 'white' : 'var(--text)',
+                                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                                fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
+                            }}>
+                                {challengeCopied ? t.challengeCopied : t.challenge}
                             </button>
                         </div>
                     </div>
