@@ -93,14 +93,18 @@ export async function GET(req: NextRequest) {
   const titleWords = maskTitleForClient(fullTitleTokens)
 
   // 4. Si un gameId est fourni, révéler les mots déjà devinés
+  let firstGuessAt: string | null = null
   if (gameId) {
     const { data: guesses } = await supabaseAdmin
       .from('guesses')
-      .select('word')
+      .select('word, guessed_at')
       .eq('game_id', gameId)
       .order('guessed_at', { ascending: true })
 
     const previousWords = (guesses || []).map((g: any) => g.word)
+    if (guesses && guesses.length > 0) {
+      firstGuessAt = (guesses[0] as any).guessed_at
+    }
     const allVariants = previousWords.flatMap(splitOnApostrophe)
 
     // Révèle les tokens du contenu qui matchent
@@ -169,5 +173,6 @@ export async function GET(req: NextRequest) {
     wikipedia_url_fr: page.wikipedia_url_fr,
     wikipedia_url_en: page.wikipedia_url_en,
     proximityHints: restoredProximityHints,
+    firstGuessAt,
   })
 }

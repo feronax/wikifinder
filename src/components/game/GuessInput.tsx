@@ -17,6 +17,8 @@ interface GuessInputProps {
     guessCount: number
     isMobile: boolean
     scrollToOccurrence: (word: string) => void
+    elapsed: number
+    won: boolean
     t: {
         history: string
         noWords: string
@@ -26,10 +28,16 @@ interface GuessInputProps {
     }
 }
 
+function formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+}
+
 export default function GuessInput({
     inputRef, input, setInput, inputError, setInputError,
     handleKeyDown, handleGuess, submitting,
-    tokens, guesses, guessCount, isMobile, scrollToOccurrence, t,
+    tokens, guesses, guessCount, isMobile, scrollToOccurrence, elapsed, won, t,
 }: GuessInputProps) {
     const wordTokens = tokens.filter(t => t.type === 'word' && !t.isStopword)
     const revealed = wordTokens.filter(t => t.visible).length
@@ -89,6 +97,9 @@ export default function GuessInput({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <div style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>
                         {t.attempts} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{guessCount}</span>
+                        <span style={{ marginLeft: 14, fontSize: 13, color: 'var(--text)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                            ⏱ {formatTime(elapsed)}
+                        </span>
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
                         {pct}%

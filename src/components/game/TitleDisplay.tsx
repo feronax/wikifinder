@@ -18,6 +18,7 @@ interface TitleDisplayProps {
     challengeCopied: boolean
     onChallenge: () => void
     hintTokenIndex: number | null
+    justRevealedTitle: Set<number>
     showHint: (index: number) => void
     isMobile: boolean
     titleScoreStyle: React.CSSProperties
@@ -41,7 +42,7 @@ export default function TitleDisplay({
     titleWords, won, guessCount, score, streak, lang,
     revealAll, setRevealAll, wikipediaUrl, shareCopied, onShare,
     challengeCopied, onChallenge,
-    hintTokenIndex, showHint, isMobile, titleScoreStyle, scoreBoxStyle, t,
+    hintTokenIndex, justRevealedTitle, showHint, isMobile, titleScoreStyle, scoreBoxStyle, t,
 }: TitleDisplayProps) {
     return (
         <div style={titleScoreStyle}>
@@ -56,7 +57,9 @@ export default function TitleDisplay({
                             return <span key={i} style={{ fontSize: 22, color: 'var(--text-muted)', fontWeight: 300 }}>{tw.value}</span>
                         }
                         if (tw.revealed || won) {
-                            return <span key={i} style={{ fontSize: 22, fontWeight: 600, color: 'var(--accent)' }}>{tw.value}</span>
+                            return <span key={i}
+                                className={justRevealedTitle.has(tw.index) ? 'title-just-revealed' : ''}
+                                style={{ fontSize: 22, fontWeight: 600, color: 'var(--accent)' }}>{tw.value}</span>
                         }
                         const blockWidth = Math.max(20, (tw.length || 3) * 13)
                         const showHintNow = hintTokenIndex === hintIdx

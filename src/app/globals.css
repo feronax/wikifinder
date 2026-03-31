@@ -118,6 +118,30 @@ textarea {
     animation: revealWord 0.6s ease forwards;
 }
 
+@keyframes titleReveal {
+    0% {
+        transform: scale(1);
+        text-shadow: none;
+    }
+    20% {
+        transform: scale(1.25);
+        text-shadow: 0 0 12px var(--accent);
+    }
+    50% {
+        transform: scale(1.15);
+        text-shadow: 0 0 8px var(--accent);
+    }
+    100% {
+        transform: scale(1);
+        text-shadow: none;
+    }
+}
+
+.title-just-revealed {
+    animation: titleReveal 0.8s ease forwards;
+    display: inline-block;
+}
+
 .reveal-animation {
     animation: fadeSlideIn 0.3s ease forwards;
 }

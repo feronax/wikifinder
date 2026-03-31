@@ -7,6 +7,7 @@ import ScrollToTop from '@/components/ScrollToTop'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import Footer from '@/components/Footer'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import InstallBanner from '@/components/InstallBanner'
 
 // Import de Google Tag Manager
 import { GoogleTagManager } from '@next/third-parties/google'
@@ -54,6 +55,9 @@ export default function RootLayout({
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="canonical" href="https://wikifinder.vercel.app" />
+        <link rel="alternate" hrefLang="fr" href="https://wikifinder.vercel.app/game?lang=fr" />
+        <link rel="alternate" hrefLang="en" href="https://wikifinder.vercel.app/game?lang=en" />
+        <link rel="alternate" hrefLang="x-default" href="https://wikifinder.vercel.app" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify({
@@ -91,6 +95,7 @@ export default function RootLayout({
           </ErrorBoundary>
           <ScrollToTop />
           <FeedbackButton />
+          <InstallBanner />
           <ServiceWorkerRegistrar />
         </ThemeProvider>
       </body>

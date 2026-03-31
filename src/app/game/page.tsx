@@ -22,6 +22,7 @@ export default function GamePage() {
     const [inputError, setInputError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
     const [startedAt, setStartedAt] = useState<Date | null>(null)
+    const [elapsed, setElapsed] = useState(0)
     const [user, setUser] = useState<any>(null)
     const [username, setUsername] = useState<string | null>(null)
     const [clickedWord, setClickedWord] = useState<{ word: string, index: number } | null>(null)
@@ -32,9 +33,19 @@ export default function GamePage() {
     const [shareCopied, setShareCopied] = useState(false)
     const [challengeCopied, setChallengeCopied] = useState(false)
     const [justRevealedTokens, setJustRevealedTokens] = useState<Set<number>>(new Set())
+    const [justRevealedTitle, setJustRevealedTitle] = useState<Set<number>>(new Set())
     const [proximityHints, setProximityHints] = useState<Map<number, { score: number; word: string }>>(new Map())
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // Timer
+    useEffect(() => {
+        if (!startedAt || gameState?.won) return
+        const interval = setInterval(() => {
+            setElapsed(Math.floor((Date.now() - startedAt.getTime()) / 1000))
+        }, 1000)
+        return () => clearInterval(interval)
+    }, [startedAt, gameState?.won])
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
     const isMobile = useIsMobile()
@@ -154,8 +165,10 @@ export default function GamePage() {
             })
         }
 
-        const gameCreatedAt = game?.created_at
-        setStartedAt(gameCreatedAt ? new Date(gameCreatedAt) : new Date())
+        const timerStart = finalData.firstGuessAt || game?.created_at
+        const start = timerStart ? new Date(timerStart) : new Date()
+        setStartedAt(start)
+        setElapsed(Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000)))
         setLoading(false)
         setTimeout(() => inputRef.current?.focus(), 100)
     }
@@ -288,6 +301,13 @@ export default function GamePage() {
             const newRevealed = new Set(revealedTokenMap.keys())
             setJustRevealedTokens(newRevealed)
             setTimeout(() => setJustRevealedTokens(new Set()), 700)
+
+            // Animation titre
+            if (revealedTitleIndices.length > 0) {
+                const newTitleRevealed = new Set<number>(revealedTitleIndices.map((rt: { index: number }) => rt.index))
+                setJustRevealedTitle(newTitleRevealed)
+                setTimeout(() => setJustRevealedTitle(new Set()), 900)
+            }
 
             setGameState(prev => {
                 if (!prev) return prev
@@ -505,6 +525,7 @@ export default function GamePage() {
                         challengeCopied={challengeCopied}
                         onChallenge={handleChallenge}
                         hintTokenIndex={hintTokenIndex}
+                        justRevealedTitle={justRevealedTitle}
                         showHint={showHint}
                         isMobile={isMobile}
                         titleScoreStyle={titleScoreStyle}
@@ -526,6 +547,8 @@ export default function GamePage() {
                         guessCount={guessCount}
                         isMobile={isMobile}
                         scrollToOccurrence={scrollToOccurrence}
+                        elapsed={elapsed}
+                        won={won}
                         t={t}
                     />
 
