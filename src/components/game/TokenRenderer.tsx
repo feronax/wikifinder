@@ -23,7 +23,7 @@ function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, showHint, isHeadi
     const showHintNow = hintTokenIndex === idx
     const hasProximity = proximityHint !== undefined
     const minW = `${(tk.length || 3) * 8}px`
-    const h = isHeading ? '1.2em' : '1.5em'
+    const h = isHeading ? '1.4em' : '1.5em'
 
     // Couleur du texte basée sur la proximité : plus c'est proche, plus c'est visible
     let textColor = showHintNow ? 'var(--text)' : 'transparent'
@@ -67,10 +67,13 @@ export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justR
 
             while (i < tokens.length && (
                 (tokens[i].type === 'word' && tokens[i].isHeading) ||
-                (tokens[i].type === 'space' && !tokens[i].value.includes('\n'))
+                (tokens[i].type === 'space' && !tokens[i].value.includes('\n')) ||
+                (tokens[i].type === 'punct')
             )) {
                 const tk = tokens[i]
                 if (tk.type === 'space') {
+                    headingTokens.push(<span key={i}>{tk.value}</span>)
+                } else if (tk.type === 'punct') {
                     headingTokens.push(<span key={i}>{tk.value}</span>)
                 } else if (tk.visible) {
                     headingTokens.push(
