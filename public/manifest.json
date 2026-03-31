@@ -1,14 +1,18 @@
 {
+  "id": "/game",
   "name": "Wikifinder",
   "short_name": "Wikifinder",
-  "description": "Le jeu quotidien de devinettes Wikipedia",
+  "description": "Le jeu quotidien de devinettes Wikipedia. Devine l'article du jour mot par mot !",
   "start_url": "/game",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",
   "theme_color": "#7C3AED",
   "orientation": "portrait",
-  "categories": ["games", "entertainment"],
+  "dir": "ltr",
   "lang": "fr",
+  "categories": ["games", "entertainment"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
@@ -35,6 +39,43 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [],
-  "prefer_related_applications": false
+  "screenshots": [
+    {
+      "src": "/screenshot-game.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Le jeu Wikifinder - devine l'article Wikipedia"
+    },
+    {
+      "src": "/screenshot-features.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Fonctionnalités - streaks, classement, statistiques"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Jouer",
+      "short_name": "Jouer",
+      "url": "/game",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Classement",
+      "short_name": "Classement",
+      "url": "/leaderboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/game",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
