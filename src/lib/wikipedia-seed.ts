@@ -2,7 +2,7 @@ import { extractWords } from '@/lib/wikipedia'
 
 const MIN_WORD_COUNT = 2000
 const MIN_PAGEVIEWS = 1000
-const MAX_ATTEMPTS = 10
+const MAX_ATTEMPTS = 25
 const WIKI_HEADERS = { 'User-Agent': 'Wikifinder/1.0 (https://wikifinder.vercel.app)' }
 
 type ArticleResult = {
@@ -99,5 +99,27 @@ export async function fetchRandomQualityArticle(
         } catch { continue }
     }
 
-    throw new Error(`Impossible de trouver un article ${lang} valide après ${MAX_ATTEMPTS * 2} tentatives`)
+    // Ultime fallback : accepte des articles plus courts (800 mots min)
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        try {
+            const randomUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`
+            const randomRes = await fetch(randomUrl, { headers: WIKI_HEADERS })
+            if (!randomRes.ok) continue
+            const randomText = await randomRes.text()
+            let randomData
+            try { randomData = JSON.parse(randomText) } catch { continue }
+            const title = randomData.query.random[0].title
+
+            if (alreadyUsedTitles.includes(title)) continue
+
+            const { title: cleanTitle, url, content } = await fetchArticleContent(title, lang)
+            const wordCount = extractWords(content).length
+            if (wordCount < 800) continue
+
+            const pageviews = await getPageviews(cleanTitle, lang)
+            return { title: cleanTitle, url, content, wordCount, pageviews, usedFallback: true }
+        } catch { continue }
+    }
+
+    throw new Error(`Impossible de trouver un article ${lang} valide après ${MAX_ATTEMPTS * 3} tentatives`)
 }

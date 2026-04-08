@@ -20,7 +20,7 @@ async function seedPage(date: string) {
     const frArticle = await fetchRandomQualityArticle('fr', alreadyUsedTitles)
     const enArticle = await fetchLinkedArticle(frArticle.title, 'fr')
 
-    if (!enArticle || enArticle.wordCount < 1500) {
+    if (!enArticle || enArticle.wordCount < 800) {
       alreadyUsedTitles.push(frArticle.title)
       continue
     }

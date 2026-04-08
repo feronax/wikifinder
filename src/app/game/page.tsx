@@ -247,7 +247,8 @@ export default function GamePage() {
         setInput('')
 
         try {
-            const res = await fetch('/api/game/guess', {
+            // Lance les deux requêtes en parallèle : guess (principal) et proximity (hints)
+            const guessPromise = fetch('/api/game/guess', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -259,6 +260,19 @@ export default function GamePage() {
                 })
             })
 
+            const proximityPromise = fetch('/api/game/proximity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    gameId: gameState.gameId,
+                    pageId: gameState.pageData.id,
+                    lang,
+                    word,
+                })
+            }).then(r => r.ok ? r.json() : { proximityHints: [] })
+              .catch(() => ({ proximityHints: [] }))
+
+            const res = await guessPromise
             const data = await res.json()
 
             if (!res.ok) {
@@ -276,14 +290,15 @@ export default function GamePage() {
                 return
             }
 
-            const { isInText, revealedTokens, revealedTitleIndices, won: isWon, guessCount: serverCount, proximityHints: newHints } = data
+            const { isInText, revealedTokens, revealedTitleIndices, won: isWon, guessCount: serverCount } = data
 
-            // Proximity hints : on accumule les hints (les anciens + les nouveaux)
-            if (newHints && newHints.length > 0) {
+            // Proximity hints arrivent en parallèle — on les applique dès qu'ils sont prêts
+            proximityPromise.then((proxData: { proximityHints?: { index: number; score: number }[] }) => {
+                const newHints = proxData.proximityHints
+                if (!newHints || newHints.length === 0) return
                 setProximityHints(prev => {
                     const next = new Map(prev)
                     for (const h of newHints) {
-                        // Ne garde que le meilleur score par index
                         if (!next.has(h.index) || next.get(h.index)!.score < h.score) {
                             next.set(h.index, { score: h.score, word })
                         }
@@ -294,7 +309,7 @@ export default function GamePage() {
                     }
                     return next
                 })
-            }
+            })
 
             // Construit un map des tokens révélés pour un accès rapide
             const revealedTokenMap = new Map<number, string>()

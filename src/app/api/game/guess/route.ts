@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
 import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
-import { findProximityHints } from '@/lib/proximity'
+import { checkWordExists } from '@/lib/wiktionary-cache'
 
 export async function POST(req: NextRequest) {
   const { gameId, pageId, lang, word, previousGuesses: clientPreviousGuesses } = await req.json()
@@ -71,29 +71,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Si le mot n'est pas dans le texte, vérifier s'il existe dans le dictionnaire
+  // Si le mot n'est pas dans le texte, vérifier s'il existe dans le dictionnaire (avec cache)
   if (!isInText) {
-    try {
-      const wiktUrl = `https://${lang}.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word.toLowerCase())}&format=json&origin=*`
-      const wiktRes = await fetch(wiktUrl, { headers: { 'User-Agent': 'Wikifinder/1.0' } })
-      if (wiktRes.ok) {
-        const wiktData = await wiktRes.json()
-        const pages = wiktData.query.pages
-        if ('-1' in pages) {
-          // Mot inexistant — ne pas compter la tentative
-          return NextResponse.json({
-            isInText: false,
-            revealedTokens: [],
-            revealedTitleIndices: [],
-            won: false,
-            guessCount: serverGuessCount,
-            proximityHints: [],
-            wordNotFound: true,
-          })
-        }
-      }
-    } catch {
-      // En cas d'erreur Wiktionary, on laisse passer
+    const exists = await checkWordExists(word, lang)
+    if (!exists) {
+      return NextResponse.json({
+        isInText: false,
+        revealedTokens: [],
+        revealedTitleIndices: [],
+        won: false,
+        guessCount: serverGuessCount,
+        proximityHints: [],
+        wordNotFound: true,
+      })
     }
   }
 
@@ -162,12 +152,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Calcule les hints de proximité pour les mots non trouvés
-  const revealedIndices = new Set(revealedTokens.map((rt: { index: number }) => rt.index))
-  const unrevealed = tokens.filter(t =>
-    t.type === 'word' && !t.isStopword && !revealedIndices.has(t.index)
-  )
-  const proximityHints = findProximityHints(word, unrevealed)
+  // Note: les proximity hints sont maintenant calculés dans /api/game/proximity
+  // (appelé en parallèle par le client pour ne pas bloquer la réponse principale)
 
   return NextResponse.json({
     isInText,
@@ -175,6 +161,5 @@ export async function POST(req: NextRequest) {
     revealedTitleIndices,
     won,
     guessCount: serverGuessCount,
-    proximityHints,
   })
 }

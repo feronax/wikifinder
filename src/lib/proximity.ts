@@ -39,23 +39,47 @@ export function findProximityHints(
   guess: string,
   tokens: { index: number; value: string; type: string; isStopword: boolean }[]
 ): ProximityHint[] {
-  const hints: ProximityHint[] = []
+  // Déduplique les mots uniques et calcule la similarité une seule fois par mot
+  const uniqueWords = new Map<string, number>() // normalized value -> score
+  const tokensByValue = new Map<string, { index: number; length: number }[]>()
 
   for (const token of tokens) {
     if (token.type !== 'word' || token.isStopword) continue
+    const key = normalize(token.value)
+    if (!tokensByValue.has(key)) {
+      tokensByValue.set(key, [])
+    }
+    tokensByValue.get(key)!.push({ index: token.index, length: token.value.length })
 
-    const score = computeSimilarity(guess, token.value)
+    if (!uniqueWords.has(key)) {
+      uniqueWords.set(key, computeSimilarity(guess, token.value))
+    }
+  }
+
+  // Collecte les hints (en gardant seulement les meilleurs mots uniques)
+  const wordScores: { key: string; score: number }[] = []
+  for (const [key, score] of uniqueWords.entries()) {
     if (score >= PROXIMITY_THRESHOLD && score < 1) {
+      wordScores.push({ key, score })
+    }
+  }
+
+  // Trie par score et prend les top N mots uniques
+  wordScores.sort((a, b) => b.score - a.score)
+  const topWords = wordScores.slice(0, MAX_PROXIMITY_HINTS)
+
+  // Pour chaque mot unique top, applique à tous ses tokens
+  const hints: ProximityHint[] = []
+  for (const { key, score } of topWords) {
+    const occurrences = tokensByValue.get(key) || []
+    for (const occ of occurrences) {
       hints.push({
-        index: token.index,
+        index: occ.index,
         score: Math.round(score * 100) / 100,
-        length: token.value.length,
+        length: occ.length,
       })
     }
   }
 
-  // Retourne les meilleurs hints, triés par score décroissant
   return hints
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_PROXIMITY_HINTS)
 }

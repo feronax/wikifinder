@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
             const articleFr = await fetchRandomQualityArticle('fr', alreadyUsedTitles)
             const articleEn = await fetchLinkedArticle(articleFr.title, 'fr')
 
-            if (!articleEn || articleEn.wordCount < 1500) {
+            if (!articleEn || articleEn.wordCount < 800) {
                 alreadyUsedTitles.push(articleFr.title)
                 continue
             }
