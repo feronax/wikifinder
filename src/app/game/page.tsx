@@ -248,97 +248,125 @@ export default function GamePage() {
 
         const alreadyWon = gameState.won
 
-        // Vérification instantanée côté client via le hash set
+        // ========== RÉVÉLATION OPTIMISTE ==========
+        // 1. Check instantané côté client via hash set (~1ms)
         const inArticle = await isWordInArticle(word)
-        if (!inArticle) {
-            // Le mot n'est pas dans l'article — on ne lance PAS de proximity, juste le guess
-            // pour la vérification Wiktionary + sauvegarde
-            setSubmitting(true)
-            setInputError(null)
-            setInput('')
-            try {
-                const res = await fetch('/api/game/guess', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        gameId: gameState.gameId,
-                        pageId: gameState.pageData.id,
-                        lang,
-                        word,
-                        ...(!gameState.gameId && !alreadyWon && { previousGuesses: gameState.guesses.map(g => g.word) }),
-                    })
-                })
-                const data = await res.json()
-                if (data.wordNotFound) {
-                    setInputError(t.wordNotFound)
-                } else {
-                    // Mot existe mais pas dans l'article
-                    setGameState(prev => prev ? {
-                        ...prev,
-                        guesses: [{ word, found: false }, ...prev.guesses],
-                        guessCount: data.guessCount ?? prev.guessCount + 1,
-                    } : prev)
-                }
-            } catch {
-                setInputError(lang === 'fr' ? 'Erreur réseau, réessayez.' : 'Network error, try again.')
-            }
-            setSubmitting(false)
-            inputRef.current?.focus()
-            return
+        setInput('')
+        setInputError(null)
+
+        // 2. Affichage IMMÉDIAT du résultat — pas d'attente serveur
+        if (inArticle) {
+            // Le mot est dans l'article — on update le guess count optimistiquement
+            setGameState(prev => prev ? {
+                ...prev,
+                guesses: [{ word, found: true }, ...prev.guesses],
+                guessCount: alreadyWon ? prev.guessCount : prev.guessCount + 1,
+            } : prev)
+        } else {
+            // Le mot n'est pas dans l'article — ajouté à l'historique (en attente Wiktionary)
+            setGameState(prev => prev ? {
+                ...prev,
+                guesses: [{ word, found: false }, ...prev.guesses],
+                guessCount: alreadyWon ? prev.guessCount : prev.guessCount + 1,
+            } : prev)
         }
 
-        setSubmitting(true)
-        setInputError(null)
-        setInput('')
+        inputRef.current?.focus()
 
-        try {
-            // Mot dans l'article — lance guess + proximity en parallèle
-            const guessPromise = fetch('/api/game/guess', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    gameId: gameState.gameId,
-                    pageId: gameState.pageData.id,
-                    lang,
-                    word,
-                    ...(!gameState.gameId && !alreadyWon && { previousGuesses: gameState.guesses.map(g => g.word) }),
-                })
-            })
+        // 3. Sync avec le serveur en BACKGROUND — transparent pour le joueur
+        const guessBody = {
+            gameId: gameState.gameId,
+            pageId: gameState.pageData.id,
+            lang,
+            word,
+            ...(!gameState.gameId && !alreadyWon && { previousGuesses: gameState.guesses.map(g => g.word) }),
+        }
 
-            const proximityPromise = fetch('/api/game/proximity', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    gameId: gameState.gameId,
-                    pageId: gameState.pageData.id,
-                    lang,
-                    word,
-                })
-            }).then(r => r.ok ? r.json() : { proximityHints: [] })
-              .catch(() => ({ proximityHints: [] }))
-
-            const res = await guessPromise
+        fetch('/api/game/guess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(guessBody),
+        }).then(async res => {
             const data = await res.json()
 
-            if (!res.ok) {
-                setInputError(data.error || t.wordNotFound)
-                setSubmitting(false)
-                inputRef.current?.focus()
-                return
-            }
-
-            // Mot inexistant — ne pas compter la tentative
+            // Si le mot n'existe pas (Wiktionary), rollback le guess
             if (data.wordNotFound) {
                 setInputError(t.wordNotFound)
-                setSubmitting(false)
-                inputRef.current?.focus()
+                setGameState(prev => prev ? {
+                    ...prev,
+                    guesses: prev.guesses.filter(g => g.word !== word),
+                    guessCount: alreadyWon ? prev.guessCount : prev.guessCount - 1,
+                } : prev)
                 return
             }
 
-            const { isInText, revealedTokens, revealedTitleIndices, won: isWon, guessCount: serverCount } = data
+            // Sync le guess count serveur si différent
+            if (data.guessCount !== null && data.guessCount !== undefined) {
+                setGameState(prev => prev ? {
+                    ...prev,
+                    guessCount: alreadyWon ? prev.guessCount : data.guessCount,
+                } : prev)
+            }
 
-            // Proximity hints arrivent en parallèle — on les applique dès qu'ils sont prêts
-            proximityPromise.then((proxData: { proximityHints?: { index: number; score: number }[] }) => {
+            // Applique les tokens révélés par le serveur (valeurs réelles)
+            const { revealedTokens, revealedTitleIndices, won: isWon } = data
+
+            if (revealedTokens && revealedTokens.length > 0) {
+                const revealedTokenMap = new Map<number, string>()
+                for (const rt of revealedTokens) revealedTokenMap.set(rt.index, rt.value)
+                const revealedTitleMap = new Map<number, string>()
+                for (const rt of (revealedTitleIndices || [])) revealedTitleMap.set(rt.index, rt.value)
+
+                // Animations
+                setJustRevealedTokens(new Set(revealedTokenMap.keys()))
+                setTimeout(() => setJustRevealedTokens(new Set()), 700)
+                if (revealedTitleIndices && revealedTitleIndices.length > 0) {
+                    setJustRevealedTitle(new Set<number>(revealedTitleIndices.map((rt: { index: number }) => rt.index)))
+                    setTimeout(() => setJustRevealedTitle(new Set()), 900)
+                }
+
+                setGameState(prev => {
+                    if (!prev) return prev
+                    return {
+                        ...prev,
+                        tokens: prev.tokens.map(token =>
+                            revealedTokenMap.has(token.index)
+                                ? { ...token, value: revealedTokenMap.get(token.index)!, visible: true }
+                                : token
+                        ),
+                        titleWords: prev.titleWords.map(tw =>
+                            revealedTitleMap.has(tw.index)
+                                ? { ...tw, value: revealedTitleMap.get(tw.index)!, revealed: true }
+                                : tw
+                        ),
+                        won: isWon || prev.won,
+                    }
+                })
+            }
+
+            if (isWon && !alreadyWon) {
+                fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
+                setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
+                setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
+            }
+        }).catch(() => {
+            // Erreur réseau silencieuse — le guess est déjà affiché localement
+        })
+
+        // Proximity hints en background (uniquement si mot dans l'article)
+        if (inArticle) {
+            fetch('/api/game/proximity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    gameId: gameState.gameId,
+                    pageId: gameState.pageData.id,
+                    lang,
+                    word,
+                }),
+            }).then(r => r.ok ? r.json() : { proximityHints: [] })
+              .then((proxData: { proximityHints?: { index: number; score: number }[] }) => {
                 const newHints = proxData.proximityHints
                 if (!newHints || newHints.length === 0) return
                 setProximityHints(prev => {
@@ -348,74 +376,10 @@ export default function GamePage() {
                             next.set(h.index, { score: h.score, word })
                         }
                     }
-                    // Retire les hints pour les tokens qui viennent d'être révélés
-                    for (const rt of revealedTokens) {
-                        next.delete(rt.index)
-                    }
                     return next
                 })
-            })
-
-            // Construit un map des tokens révélés pour un accès rapide
-            const revealedTokenMap = new Map<number, string>()
-            for (const rt of revealedTokens) {
-                revealedTokenMap.set(rt.index, rt.value)
-            }
-            const revealedTitleMap = new Map<number, string>()
-            for (const rt of revealedTitleIndices) {
-                revealedTitleMap.set(rt.index, rt.value)
-            }
-
-            // Animation : marquer les tokens fraîchement révélés
-            const newRevealed = new Set(revealedTokenMap.keys())
-            setJustRevealedTokens(newRevealed)
-            setTimeout(() => setJustRevealedTokens(new Set()), 700)
-
-            // Animation titre
-            if (revealedTitleIndices.length > 0) {
-                const newTitleRevealed = new Set<number>(revealedTitleIndices.map((rt: { index: number }) => rt.index))
-                setJustRevealedTitle(newTitleRevealed)
-                setTimeout(() => setJustRevealedTitle(new Set()), 900)
-            }
-
-            setGameState(prev => {
-                if (!prev) return prev
-                const newTokens = prev.tokens.map(token => {
-                    if (revealedTokenMap.has(token.index)) {
-                        return { ...token, value: revealedTokenMap.get(token.index)!, visible: true }
-                    }
-                    return token
-                })
-                const newTitleWords = prev.titleWords.map(tw => {
-                    if (revealedTitleMap.has(tw.index)) {
-                        return { ...tw, value: revealedTitleMap.get(tw.index)!, revealed: true }
-                    }
-                    return tw
-                })
-                return {
-                    ...prev,
-                    tokens: newTokens,
-                    titleWords: newTitleWords,
-                    guesses: [{ word, found: isInText }, ...prev.guesses],
-                    // Ne pas incrémenter le score si déjà gagné
-                    guessCount: alreadyWon ? prev.guessCount : (serverCount ?? prev.guessCount + 1),
-                    won: isWon || prev.won,
-                }
-            })
-
-            if (isWon && !alreadyWon) {
-                fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
-                // Confettis !
-                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
-                setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
-                setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
-            }
-        } catch {
-            setInputError(lang === 'fr' ? 'Erreur réseau, réessayez.' : 'Network error, try again.')
+            }).catch(() => {})
         }
-
-        setSubmitting(false)
-        inputRef.current?.focus()
     }
 
     const titleScoreStyle = useMemo(() => {
