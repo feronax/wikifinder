@@ -30,6 +30,9 @@ export default function ProfilePage() {
   const [pushSupported, setPushSupported] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
@@ -419,6 +422,100 @@ export default function ProfilePage() {
             <div><span style={{ color: 'var(--text)', fontWeight: 500 }}>Membre depuis :</span> {new Date(user.created_at).toLocaleDateString('fr-FR')}</div>
           </div>
         </div>
+
+        {/* Supprimer le compte */}
+        <div style={{ marginTop: 20, marginBottom: 40, textAlign: 'center' }}>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            style={{
+              background: 'none', border: 'none', color: '#e53e3e',
+              fontSize: 13, cursor: 'pointer', textDecoration: 'underline',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            Supprimer mon compte
+          </button>
+        </div>
+
+        {/* Modal de confirmation */}
+        {showDeleteModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+            padding: 20,
+          }}
+            onClick={() => { setShowDeleteModal(false); setDeleteConfirm('') }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                backgroundColor: 'var(--surface)', borderRadius: 12,
+                padding: 28, maxWidth: 420, width: '100%',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <h3 style={{ margin: '0 0 8px', fontSize: 18, color: '#e53e3e' }}>
+                Supprimer mon compte
+              </h3>
+              <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 16 }}>
+                Cette action est irréversible. Toutes tes données seront supprimées :
+                parties, scores, streaks, statistiques et profil.
+              </p>
+              <p style={{ fontSize: 14, color: 'var(--text)', marginBottom: 12, fontWeight: 500 }}>
+                Tape <strong>Supprimer</strong> pour confirmer :
+              </p>
+              <input
+                value={deleteConfirm}
+                onChange={e => setDeleteConfirm(e.target.value)}
+                placeholder="Supprimer"
+                style={{
+                  ...inputStyle,
+                  border: '1px solid #e53e3e',
+                  marginBottom: 16,
+                }}
+              />
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => { setShowDeleteModal(false); setDeleteConfirm('') }}
+                  style={{
+                    padding: '9px 20px', borderRadius: 6, border: '1px solid var(--border)',
+                    backgroundColor: 'var(--surface)', color: 'var(--text)',
+                    fontSize: 14, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={async () => {
+                    if (deleteConfirm !== 'Supprimer') return
+                    setDeleting(true)
+                    const res = await fetch('/api/account/delete', { method: 'DELETE' })
+                    if (res.ok) {
+                      await supabase.auth.signOut()
+                      window.location.href = '/'
+                    } else {
+                      setError('Erreur lors de la suppression du compte.')
+                      setShowDeleteModal(false)
+                      setDeleting(false)
+                    }
+                  }}
+                  disabled={deleteConfirm !== 'Supprimer' || deleting}
+                  style={{
+                    padding: '9px 20px', borderRadius: 6, border: 'none',
+                    backgroundColor: deleteConfirm === 'Supprimer' ? '#e53e3e' : 'var(--border)',
+                    color: 'white', fontSize: 14, fontWeight: 600,
+                    cursor: deleteConfirm === 'Supprimer' && !deleting ? 'pointer' : 'default',
+                    opacity: deleteConfirm === 'Supprimer' && !deleting ? 1 : 0.5,
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  {deleting ? 'Suppression...' : 'Supprimer définitivement'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
