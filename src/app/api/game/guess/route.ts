@@ -12,9 +12,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
   }
 
-  // Authentification (optionnelle — les anonymes peuvent jouer)
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Authentification + chargement article en parallèle
+  const [authResult, pageResult] = await Promise.all([
+    (async () => {
+      const supabase = await createSupabaseServerClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      return user
+    })(),
+    supabaseAdmin
+      .from('pages')
+      .select('wikipedia_title_fr, wikipedia_title_en, content_fr, content_en, tokens_fr, tokens_en, title_tokens_fr, title_tokens_en')
+      .eq('id', pageId)
+      .single(),
+  ])
+
+  const user = authResult
+  const page = pageResult.data
 
   // Si gameId fourni, vérifier la propriété et l'état
   let serverGuessCount: number | null = null
@@ -30,21 +43,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Partie introuvable' }, { status: 403 })
     }
 
-    // Mode bonus : partie déjà complétée, on enregistre le guess mais on ne touche pas au score
     bonusMode = game.completed
 
     if (bonusMode) {
       serverGuessCount = game.guess_count
     }
-    // Note: le guess est inséré plus bas, après la vérification Wiktionary
   }
-
-  // Charge l'article depuis la base
-  const { data: page } = await supabaseAdmin
-    .from('pages')
-    .select('wikipedia_title_fr, wikipedia_title_en, content_fr, content_en')
-    .eq('id', pageId)
-    .single()
 
   if (!page) {
     return NextResponse.json({ error: 'Page introuvable' }, { status: 404 })
@@ -53,10 +57,12 @@ export async function POST(req: NextRequest) {
   const title = lang === 'fr' ? page.wikipedia_title_fr : page.wikipedia_title_en
   const content = lang === 'fr' ? page.content_fr : page.content_en
 
-  // Matching côté serveur
+  // Matching côté serveur (utilise les tokens pré-calculés si disponibles)
   const variants = splitOnApostrophe(word)
-  const tokens = tokenizeContent(content, lang)
-  const titleTokens = tokenizeTitle(title, lang)
+  const preTokens = lang === 'fr' ? page.tokens_fr : page.tokens_en
+  const preTitleTokens = lang === 'fr' ? page.title_tokens_fr : page.title_tokens_en
+  const tokens: any[] = preTokens || tokenizeContent(content, lang)
+  const titleTokens: any[] = preTitleTokens || tokenizeTitle(title, lang)
 
   // Trouve les tokens du contenu révélés par ce mot
   const revealedTokens: { index: number; value: string }[] = []
