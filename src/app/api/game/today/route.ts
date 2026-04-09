@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchLinkedArticle } from '@/lib/wikipedia'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
-import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
+import { wordsMatch, splitOnApostrophe, cleanTokenValue, normalize } from '@/lib/matching'
 import { tokenizeContent, tokenizeTitle, maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
 import { findProximityHints } from '@/lib/proximity'
+import { createHash } from 'crypto'
 
 async function seedPage(date: string) {
   const { data: usedPages } = await supabaseAdmin
@@ -88,7 +89,29 @@ export async function GET(req: NextRequest) {
   const fullTokens = precomputedTokens || tokenizeContent(content, lang)
   const fullTitleTokens = precomputedTitleTokens || tokenizeTitle(title, lang)
 
-  // 3. Masquer les valeurs pour le client
+  // 3. Génère un hash set des mots de l'article pour vérification instantanée côté client
+  const wordHashSet: string[] = []
+  const seenHashes = new Set<string>()
+  for (const token of fullTokens) {
+    if (token.type !== 'word' || token.isStopword) continue
+    const norm = normalize(cleanTokenValue(token.value))
+    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 12)
+    if (!seenHashes.has(hash)) {
+      seenHashes.add(hash)
+      wordHashSet.push(hash)
+    }
+  }
+  for (const tw of fullTitleTokens) {
+    if (!tw.isWord || tw.isStopword) continue
+    const norm = normalize(tw.value)
+    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 12)
+    if (!seenHashes.has(hash)) {
+      seenHashes.add(hash)
+      wordHashSet.push(hash)
+    }
+  }
+
+  // 4. Masquer les valeurs pour le client
   const tokens = maskTokensForClient(fullTokens)
   const titleWords = maskTitleForClient(fullTitleTokens)
 
@@ -174,5 +197,6 @@ export async function GET(req: NextRequest) {
     wikipedia_url_en: page.wikipedia_url_en,
     proximityHints: restoredProximityHints,
     firstGuessAt,
+    wordHashSet,
   })
 }

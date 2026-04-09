@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { isStopword } from '@/lib/wikipedia'
 import { normalize, wordsMatch } from '@/lib/matching'
+import { setWordHashSet, isWordInArticle } from '@/lib/client-hash'
 import { useIsMobile, calculateScore } from '@/lib/utils'
 import confetti from 'canvas-confetti'
 import Header from '@/components/Header'
@@ -166,6 +167,11 @@ export default function GamePage() {
             })
         }
 
+        // Charge le hash set pour la vérification instantanée côté client
+        if (finalData.wordHashSet) {
+            setWordHashSet(finalData.wordHashSet)
+        }
+
         const timerStart = finalData.firstGuessAt || game?.created_at
         const start = timerStart ? new Date(timerStart) : new Date()
         setStartedAt(start)
@@ -242,12 +248,51 @@ export default function GamePage() {
 
         const alreadyWon = gameState.won
 
+        // Vérification instantanée côté client via le hash set
+        const inArticle = await isWordInArticle(word)
+        if (!inArticle) {
+            // Le mot n'est pas dans l'article — on ne lance PAS de proximity, juste le guess
+            // pour la vérification Wiktionary + sauvegarde
+            setSubmitting(true)
+            setInputError(null)
+            setInput('')
+            try {
+                const res = await fetch('/api/game/guess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        gameId: gameState.gameId,
+                        pageId: gameState.pageData.id,
+                        lang,
+                        word,
+                        ...(!gameState.gameId && !alreadyWon && { previousGuesses: gameState.guesses.map(g => g.word) }),
+                    })
+                })
+                const data = await res.json()
+                if (data.wordNotFound) {
+                    setInputError(t.wordNotFound)
+                } else {
+                    // Mot existe mais pas dans l'article
+                    setGameState(prev => prev ? {
+                        ...prev,
+                        guesses: [{ word, found: false }, ...prev.guesses],
+                        guessCount: data.guessCount ?? prev.guessCount + 1,
+                    } : prev)
+                }
+            } catch {
+                setInputError(lang === 'fr' ? 'Erreur réseau, réessayez.' : 'Network error, try again.')
+            }
+            setSubmitting(false)
+            inputRef.current?.focus()
+            return
+        }
+
         setSubmitting(true)
         setInputError(null)
         setInput('')
 
         try {
-            // Lance les deux requêtes en parallèle : guess (principal) et proximity (hints)
+            // Mot dans l'article — lance guess + proximity en parallèle
             const guessPromise = fetch('/api/game/guess', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
