@@ -167,15 +167,23 @@ export async function POST(req: NextRequest) {
   if (won && user && !bonusMode) {
     newBadges = await evaluateBadges(user.id)
 
-    // Score classé saisonnier
-    const rankedScore = calculateRankedScore(
-      serverGuessCount || 0,
-      true,
-      elapsed || null,
-    )
-    const result = await updateSeasonScore(user.id, rankedScore, elapsed || null)
-    if (result) {
-      seasonUpdate = { ...result, rankedScore }
+    // Score classé saisonnier — uniquement pour les parties classées (ranked_pages)
+    const { data: rankedPage } = await supabaseAdmin
+      .from('ranked_pages')
+      .select('id')
+      .eq('id', pageId)
+      .single()
+
+    if (rankedPage) {
+      const rankedScore = calculateRankedScore(
+        serverGuessCount || 0,
+        true,
+        elapsed || null,
+      )
+      const result = await updateSeasonScore(user.id, rankedScore, elapsed || null)
+      if (result) {
+        seasonUpdate = { ...result, rankedScore }
+      }
     }
   }
 

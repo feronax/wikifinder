@@ -15,6 +15,7 @@ type HeaderProps = {
 
 const headerTranslations = {
   fr: {
+    ranked: 'Classé',
     history: 'Historique',
     leaderboard: 'Classement',
     login: 'Connexion',
@@ -25,6 +26,7 @@ const headerTranslations = {
     lightMode: 'Passer au mode clair',
   },
   en: {
+    ranked: 'Ranked',
     history: 'History',
     leaderboard: 'Leaderboard',
     login: 'Login',
@@ -132,6 +134,9 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
               <div style={{ width: 120, height: 20, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.4 }} />
             ) : user ? (
               <>
+                <a href="/ranked" style={{ fontSize: 14, color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+                  {t.ranked}
+                </a>
                 <a href="/history" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
                   {t.history}
                 </a>
@@ -208,6 +213,9 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                     {streak} 🔥
                   </span>
                 )}
+              </a>
+              <a href="/ranked" style={{ fontSize: 16, color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+                {t.ranked}
               </a>
               <a href="/history" style={{ fontSize: 16, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
                 {t.history}
