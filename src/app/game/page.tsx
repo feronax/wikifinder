@@ -282,6 +282,7 @@ export default function GamePage() {
             pageId: gameState.pageData.id,
             lang,
             word,
+            elapsed,
             ...(!gameState.gameId && !alreadyWon && { previousGuesses: gameState.guesses.map(g => g.word) }),
         }
 

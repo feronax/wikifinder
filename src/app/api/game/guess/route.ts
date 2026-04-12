@@ -7,7 +7,7 @@ import { checkWordExists } from '@/lib/wiktionary-cache'
 import { evaluateBadges } from '@/lib/badges'
 
 export async function POST(req: NextRequest) {
-  const { gameId, pageId, lang, word, previousGuesses: clientPreviousGuesses } = await req.json()
+  const { gameId, pageId, lang, word, elapsed, previousGuesses: clientPreviousGuesses } = await req.json()
 
   if (!pageId || !lang || !word) {
     return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
         guess_count: serverGuessCount,
         completed: true,
         completed_at: new Date().toISOString(),
+        duration_seconds: elapsed || null,
       }).eq('id', gameId)
     } else {
       await supabaseAdmin.from('games').update({
