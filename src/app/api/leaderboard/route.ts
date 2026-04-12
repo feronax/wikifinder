@@ -5,26 +5,45 @@ export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get('type') || 'daily'
   const date = req.nextUrl.searchParams.get('date') || new Date().toISOString().split('T')[0]
 
+  let data: any[] = []
+
   if (type === 'daily') {
-    const { data, error } = await supabaseAdmin
+    const { data: rows, error } = await supabaseAdmin
       .from('leaderboard_daily')
       .select('*')
       .eq('date', date)
       .limit(20)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ leaderboard: data || [] })
-  }
-
-  if (type === 'global') {
-    const { data, error } = await supabaseAdmin
+    data = rows || []
+  } else if (type === 'global') {
+    const { data: rows, error } = await supabaseAdmin
       .from('leaderboard_global')
       .select('*')
       .limit(20)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ leaderboard: data || [] })
+    data = rows || []
+  } else {
+    return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
   }
 
-  return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
+  // Enrichit avec les badges favoris
+  if (data.length > 0) {
+    const usernames = data.map((d: any) => d.username)
+    const { data: profiles } = await supabaseAdmin
+      .from('profiles')
+      .select('username, favorite_badge')
+      .in('username', usernames)
+
+    if (profiles) {
+      const badgeMap = new Map(profiles.map((p: any) => [p.username, p.favorite_badge]))
+      data = data.map((entry: any) => ({
+        ...entry,
+        favorite_badge: badgeMap.get(entry.username) || null,
+      }))
+    }
+  }
+
+  return NextResponse.json({ leaderboard: data })
 }

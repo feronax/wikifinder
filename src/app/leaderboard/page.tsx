@@ -135,7 +135,7 @@ export default function LeaderboardPage() {
                   </div>
 
                   {/* Nom du joueur */}
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>
+                  <div style={{ fontWeight: 600, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <a
                       href={`/player/${encodeURIComponent(entry.username)}`}
                       style={{
@@ -148,6 +148,15 @@ export default function LeaderboardPage() {
                     >
                       {entry.username}
                     </a>
+                    {entry.favorite_badge && (() => {
+                      const badgeIcons: Record<string, string> = {
+                        first_win: '👣', word_master: '💬', bilingual: '🌐', explorer: '🔍',
+                        scholar: '📚', challenger: '⚔️', streak_3: '🔥', sherlock: '🕵️',
+                        streak_7: '🔥', veteran: '🎖️', speedrunner: '⚡', genius: '🧠',
+                        streak_30: '🌋', legend: '👑',
+                      }
+                      return <span title={entry.favorite_badge} style={{ fontSize: 16 }}>{badgeIcons[entry.favorite_badge] || ''}</span>
+                    })()}
                   </div>
 
                   {/* Statistiques adaptatives */}
