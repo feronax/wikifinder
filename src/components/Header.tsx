@@ -134,7 +134,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
               <div style={{ width: 120, height: 20, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.4 }} />
             ) : user ? (
               <>
-                <a href="/ranked" style={{ fontSize: 14, color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+                <a href="/ranked" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
                   {t.ranked}
                 </a>
                 <a href="/history" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
@@ -214,7 +214,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                   </span>
                 )}
               </a>
-              <a href="/ranked" style={{ fontSize: 16, color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+              <a href="/ranked" style={{ fontSize: 16, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
                 {t.ranked}
               </a>
               <a href="/history" style={{ fontSize: 16, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>

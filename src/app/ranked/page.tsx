@@ -441,11 +441,11 @@ export default function RankedPage() {
                         maxWidth: 480, width: '100%', textAlign: 'center',
                     }}>
                         <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-                            Mode classe
+                            {lang === 'fr' ? 'Mode classé' : 'Ranked Mode'}
                         </div>
                         <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 28 }}>
                             {lang === 'fr'
-                                ? 'Articles adaptes a ton rang. Gagne des points et monte en classement !'
+                                ? 'Articles adaptés à ton rang. Gagne des points et monte en classement !'
                                 : 'Articles matched to your rank. Earn points and climb the leaderboard!'}
                         </div>
 
@@ -565,7 +565,7 @@ export default function RankedPage() {
         const pct = wordTokens.length > 0 ? Math.round((revealedCount / wordTokens.length) * 100) : 0
 
         const text = [
-            `Wikifinder — Mode classe`,
+            `Wikifinder — Mode classé`,
             `${guessCount} ${lang === 'fr' ? 'tentatives' : 'guesses'} | Score: ${score.toLocaleString()}`,
             `${pct}% ${lang === 'fr' ? "de l'article revele" : 'of article revealed'}`,
             `Difficulte: ${diffLabels[difficulty] || difficulty}`,

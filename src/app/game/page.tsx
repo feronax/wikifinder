@@ -179,7 +179,15 @@ export default function GamePage() {
         const timerStart = finalData.firstGuessAt || game?.created_at
         const start = timerStart ? new Date(timerStart) : new Date()
         setStartedAt(start)
-        setElapsed(Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000)))
+        const initialElapsed = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000))
+        setElapsed(initialElapsed)
+
+        // Si la partie est déjà gagnée, figer le timer
+        if (game?.completed && game?.duration_seconds) {
+            setFrozenElapsed(game.duration_seconds)
+        } else if (game?.completed) {
+            setFrozenElapsed(initialElapsed)
+        }
         setLoading(false)
         setTimeout(() => inputRef.current?.focus(), 100)
     }
