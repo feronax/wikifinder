@@ -135,8 +135,19 @@ export default function LeaderboardPage() {
                   </div>
 
                   {/* Nom du joueur */}
-                  <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 15 }}>
-                    {entry.username}
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>
+                    <a
+                      href={`/player/${encodeURIComponent(entry.username)}`}
+                      style={{
+                        color: 'var(--text)',
+                        textDecoration: 'none',
+                        transition: 'color 0.15s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}
+                    >
+                      {entry.username}
+                    </a>
                   </div>
 
                   {/* Statistiques adaptatives */}

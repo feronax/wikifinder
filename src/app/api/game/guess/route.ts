@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
 import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
 import { checkWordExists } from '@/lib/wiktionary-cache'
+import { evaluateBadges } from '@/lib/badges'
 
 export async function POST(req: NextRequest) {
   const { gameId, pageId, lang, word, previousGuesses: clientPreviousGuesses } = await req.json()
@@ -158,14 +159,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Note: les proximity hints sont maintenant calculés dans /api/game/proximity
-  // (appelé en parallèle par le client pour ne pas bloquer la réponse principale)
+  // Évalue les badges en background après une victoire
+  let newBadges: any[] = []
+  if (won && user) {
+    newBadges = await evaluateBadges(user.id)
+  }
 
   return NextResponse.json({
     isInText,
     revealedTokens,
     revealedTitleIndices,
     won,
+    newBadges: newBadges.map(b => ({ key: b.key, name: b.name, nameEn: b.nameEn, icon: b.icon, rarity: b.rarity })),
     guessCount: serverGuessCount,
   })
 }

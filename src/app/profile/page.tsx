@@ -33,6 +33,8 @@ export default function ProfilePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [badges, setBadges] = useState<any[]>([])
+  const [favoriteBadge, setFavoriteBadge] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
@@ -54,6 +56,17 @@ export default function ProfilePage() {
       if (profile) setUsername(profile.username || '')
 
       fetch('/api/stats').then(r => r.json()).then(d => setStats(d))
+
+      // Fetch badges
+      fetch(`/api/badges?userId=${data.user!.id}`).then(r => r.json()).then(d => setBadges(d.badges || []))
+
+      // Fetch favorite badge
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('favorite_badge')
+        .eq('id', data.user!.id)
+        .single()
+      if (profileData?.favorite_badge) setFavoriteBadge(profileData.favorite_badge)
 
       // Check push notification support and current state
       if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -150,6 +163,21 @@ export default function ProfilePage() {
       setError('Impossible d\'activer les notifications. Vérifie les permissions de ton navigateur.')
     }
     setPushLoading(false)
+  }
+
+  const RARITY_COLORS: Record<string, string> = {
+    bronze: '#CD7F32',
+    silver: '#C0C0C0',
+    gold: '#FFD700',
+  }
+
+  async function setFavorite(badgeKey: string) {
+    const newFav = favoriteBadge === badgeKey ? null : badgeKey
+    setFavoriteBadge(newFav)
+    await supabase
+      .from('profiles')
+      .update({ favorite_badge: newFav })
+      .eq('id', user.id)
   }
 
   const inputStyle = {
@@ -373,6 +401,51 @@ export default function ProfilePage() {
               </div>
             </div>
           </>
+        )}
+
+        {/* Badges */}
+        {badges.length > 0 && (
+          <div style={cardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 6, fontSize: 17, color: 'var(--text)' }}>Badges</h2>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
+              Clique sur un badge débloqué pour le mettre en favori
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 12,
+            }}>
+              {badges.map((badge: any) => {
+                const unlocked = badge.unlocked
+                const isFav = favoriteBadge === badge.key
+                const borderColor = unlocked ? RARITY_COLORS[badge.rarity] || 'var(--border)' : 'var(--border)'
+                return (
+                  <div
+                    key={badge.key}
+                    onClick={() => unlocked && setFavorite(badge.key)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      padding: 12,
+                      borderRadius: 10,
+                      border: `2px solid ${isFav ? 'var(--accent)' : borderColor}`,
+                      backgroundColor: isFav ? 'var(--revealed)' : 'var(--bg)',
+                      opacity: unlocked ? 1 : 0.3,
+                      cursor: unlocked ? 'pointer' : 'default',
+                      transition: 'all 0.2s',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: 28 }}>{unlocked ? badge.icon : '🔒'}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginTop: 6 }}>{badge.name}</div>
+                    <div style={{ fontSize: 10, color: borderColor, fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>{badge.rarity}</div>
+                    {isFav && <div style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 700, marginTop: 4 }}>Favori</div>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         {/* Mot de passe */}

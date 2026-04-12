@@ -1,9 +1,47 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { calculateScore } from '@/lib/scoring'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const usernameParam = req.nextUrl.searchParams.get('username')
+
+  let userId: string
+
+  if (usernameParam) {
+    // Public profile lookup by username
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, username, favorite_badge, created_at')
+      .eq('username', usernameParam)
+      .single()
+
+    if (!profile) {
+      return NextResponse.json({ error: 'Joueur introuvable' }, { status: 404 })
+    }
+    userId = profile.id
+
+    // Récupère toutes les parties du joueur
+    const { data: games, error } = await supabaseAdmin
+      .from('games')
+      .select('id, guess_count, completed, completed_at, pages(date)')
+      .eq('user_id', userId)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    const result = computeStats(games || [])
+    return NextResponse.json({
+      ...result,
+      userId,
+      username: profile.username,
+      favoriteBadge: profile.favorite_badge || null,
+      memberSince: profile.created_at,
+    })
+  }
+
+  // Authenticated user stats (original behavior)
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -21,8 +59,12 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  return NextResponse.json(computeStats(games || []))
+}
+
+function computeStats(games: any[]) {
   if (!games || games.length === 0) {
-    return NextResponse.json({
+    return {
       totalGames: 0,
       totalWins: 0,
       winRate: 0,
@@ -32,7 +74,7 @@ export async function GET() {
       streak: 0,
       bestStreak: 0,
       distribution: {},
-    })
+    }
   }
 
   const completedGames = games.filter((g: any) => g.completed)
@@ -40,7 +82,6 @@ export async function GET() {
   const totalWins = completedGames.length
   const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0
 
-  // Moyenne de tentatives et scores
   const guessCountsWins = completedGames.map((g: any) => g.guess_count)
   const avgGuesses = guessCountsWins.length > 0
     ? Math.round(guessCountsWins.reduce((a: number, b: number) => a + b, 0) / guessCountsWins.length)
@@ -52,7 +93,6 @@ export async function GET() {
     ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length)
     : 0
 
-  // Distribution des tentatives (par tranches)
   const distribution: Record<string, number> = {
     '1-50': 0,
     '51-100': 0,
@@ -71,7 +111,6 @@ export async function GET() {
     else distribution['300+']++
   }
 
-  // Streak — réutilise la logique existante
   const dates = [...new Set(
     completedGames
       .map((g: any) => g.pages?.date)
@@ -107,7 +146,7 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({
+  return {
     totalGames,
     totalWins,
     winRate,
@@ -117,5 +156,5 @@ export async function GET() {
     streak,
     bestStreak: bestStreakVal,
     distribution,
-  })
+  }
 }

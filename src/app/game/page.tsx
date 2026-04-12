@@ -39,6 +39,7 @@ export default function GamePage() {
     const [justRevealedTokens, setJustRevealedTokens] = useState<Set<number>>(new Set())
     const [justRevealedTitle, setJustRevealedTitle] = useState<Set<number>>(new Set())
     const [proximityHints, setProximityHints] = useState<Map<number, { score: number; word: string }>>(new Map())
+    const [badgeNotifications, setBadgeNotifications] = useState<{ key: string; name: string; icon: string; rarity: string }[]>([])
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -353,6 +354,18 @@ export default function GamePage() {
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
                 setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
                 setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
+
+                // Badge unlock notifications
+                if (data.newBadges && data.newBadges.length > 0) {
+                    data.newBadges.forEach((badge: { key: string; name: string; icon: string; rarity: string }, idx: number) => {
+                        setTimeout(() => {
+                            setBadgeNotifications(prev => [...prev, badge])
+                            setTimeout(() => {
+                                setBadgeNotifications(prev => prev.filter(b => b.key !== badge.key))
+                            }, 3200)
+                        }, idx * 800)
+                    })
+                }
             }
         }).catch(() => {
             // Erreur réseau silencieuse — le guess est déjà affiché localement
@@ -500,6 +513,39 @@ export default function GamePage() {
 
     return (
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
+            {/* Badge unlock notifications */}
+            {badgeNotifications.length > 0 && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                    padding: '12px 16px', pointerEvents: 'none',
+                }}>
+                    {badgeNotifications.map(badge => {
+                        const rarityColors: Record<string, string> = { bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFD700' }
+                        const borderColor = rarityColors[badge.rarity] || 'var(--border)'
+                        return (
+                            <div key={badge.key} className="badge-notification" style={{
+                                display: 'flex', alignItems: 'center', gap: 12,
+                                padding: '12px 20px', borderRadius: 12,
+                                backgroundColor: 'var(--surface)',
+                                border: `2px solid ${borderColor}`,
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                pointerEvents: 'auto',
+                            }}>
+                                <span style={{ fontSize: 28 }}>{badge.icon}</span>
+                                <div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                                        {lang === 'fr' ? 'Badge debloque !' : 'Badge unlocked!'}
+                                    </div>
+                                    <div style={{ fontSize: 13, color: borderColor, fontWeight: 600 }}>
+                                        {badge.name}
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
             <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
 
             <div style={{

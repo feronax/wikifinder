@@ -220,6 +220,18 @@ button, a {
   animation: highlight-pulse 1.2s ease forwards;
 }
 
+/* Badge unlock notification */
+@keyframes badgeSlideDown {
+  0% { transform: translateY(-100%); opacity: 0; }
+  15% { transform: translateY(0); opacity: 1; }
+  85% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-100%); opacity: 0; }
+}
+
+.badge-notification {
+  animation: badgeSlideDown 3s ease forwards;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
