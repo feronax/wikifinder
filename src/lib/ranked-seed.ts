@@ -6,11 +6,11 @@ const WIKI_HEADERS = { 'User-Agent': 'Wikifinder/1.0 (https://wikifinder.vercel.
 
 // Seuils de pageviews par difficulté
 const DIFFICULTY_THRESHOLDS: Record<string, { min: number; max: number; minWords: number }> = {
-  bronze:   { min: 500000, max: Infinity, minWords: 1500 },
-  silver:   { min: 100000, max: 500000, minWords: 1500 },
-  gold:     { min: 50000, max: 100000, minWords: 1200 },
-  platinum: { min: 20000, max: 50000, minWords: 1000 },
-  diamond:  { min: 5000, max: 20000, minWords: 800 },
+  bronze:   { min: 50000, max: Infinity, minWords: 1500 },
+  silver:   { min: 20000, max: Infinity, minWords: 1500 },
+  gold:     { min: 10000, max: Infinity, minWords: 1200 },
+  platinum: { min: 3000, max: 20000, minWords: 1000 },
+  diamond:  { min: 1000, max: 10000, minWords: 800 },
 }
 
 async function getPageviews(title: string, lang: string): Promise<number> {

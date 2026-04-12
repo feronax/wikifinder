@@ -476,7 +476,7 @@ export default function RankedPage() {
                                     backgroundColor: 'var(--surface)', padding: '6px 14px',
                                     borderRadius: 20, border: '1px solid var(--border)',
                                 }}>
-                                    {lang === 'fr' ? 'Difficulte : ' : 'Difficulty: '}
+                                    {lang === 'fr' ? 'Difficulté :' : 'Difficulty: '}
                                     <span style={{ fontWeight: 600, color: RANK_COLORS[currentRank] || 'var(--accent)' }}>
                                         {diffLabels[currentRank] || 'Easy'}
                                     </span>
@@ -500,7 +500,7 @@ export default function RankedPage() {
                                 color: 'var(--text-muted)', fontSize: 13,
                             }}>
                                 {lang === 'fr'
-                                    ? 'Connecte-toi pour jouer en mode classe.'
+                                    ? 'Connecte-toi pour jouer en mode classé.'
                                     : 'Log in to play ranked mode.'}
                             </div>
                         )}
@@ -548,7 +548,7 @@ export default function RankedPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)', gap: 16 }}>
                     <Loader />
                     <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                        {lang === 'fr' ? 'Chargement de la partie classee...' : 'Loading ranked game...'}
+                        {lang === 'fr' ? 'Chargement de la partie classée...' : 'Loading ranked game...'}
                     </div>
                 </div>
             </div>
@@ -568,7 +568,7 @@ export default function RankedPage() {
             `Wikifinder — Mode classé`,
             `${guessCount} ${lang === 'fr' ? 'tentatives' : 'guesses'} | Score: ${score.toLocaleString()}`,
             `${pct}% ${lang === 'fr' ? "de l'article revele" : 'of article revealed'}`,
-            `Difficulte: ${diffLabels[difficulty] || difficulty}`,
+            `Difficulté : ${diffLabels[difficulty] || difficulty}`,
             '',
             'https://wikifinder.vercel.app/ranked',
         ].join('\n')
@@ -804,7 +804,7 @@ export default function RankedPage() {
                                     cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'opacity 0.2s',
                                 }}
                             >
-                                {lang === 'fr' ? 'Nouvelle partie classee' : 'New ranked game'}
+                                {lang === 'fr' ? 'Nouvelle partie classée' : 'New ranked game'}
                             </button>
                         </div>
                     )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { useIsMobile } from '@/lib/utils'
@@ -40,6 +41,7 @@ const headerTranslations = {
 
 export default function Header({ lang, onLangChange, user: userProp, username: usernameProp, onLogout: onLogoutProp }: HeaderProps) {
   const { theme, toggle } = useTheme()
+  const pathname = usePathname()
   const [user, setUser] = useState<any>(userProp || null)
   const [username, setUsername] = useState<string | null>(usernameProp || null)
   const [ready, setReady] = useState(false)
@@ -134,13 +136,13 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
               <div style={{ width: 120, height: 20, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.4 }} />
             ) : user ? (
               <>
-                <a href="/ranked" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
+                <a href="/ranked" style={{ fontSize: 14, color: pathname === '/ranked' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/ranked' ? 600 : 500 }}>
                   {t.ranked}
                 </a>
-                <a href="/history" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
+                <a href="/history" style={{ fontSize: 14, color: pathname === '/history' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/history' ? 600 : 500 }}>
                   {t.history}
                 </a>
-                <a href="/leaderboard" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
+                <a href="/leaderboard" style={{ fontSize: 14, color: pathname === '/leaderboard' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/leaderboard' ? 600 : 500 }}>
                   {t.leaderboard}
                 </a>
                 <a href="/profile" style={{ fontSize: 14, color: 'var(--text)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -214,13 +216,13 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                   </span>
                 )}
               </a>
-              <a href="/ranked" style={{ fontSize: 16, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
+              <a href="/ranked" style={{ fontSize: 16, color: pathname === '/ranked' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/ranked' ? 600 : 500 }}>
                 {t.ranked}
               </a>
-              <a href="/history" style={{ fontSize: 16, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
+              <a href="/history" style={{ fontSize: 16, color: pathname === '/history' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/history' ? 600 : 500 }}>
                 {t.history}
               </a>
-              <a href="/leaderboard" style={{ fontSize: 16, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500 }}>
+              <a href="/leaderboard" style={{ fontSize: 16, color: pathname === '/leaderboard' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/leaderboard' ? 600 : 500 }}>
                 {t.leaderboard}
               </a>
               <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} style={{

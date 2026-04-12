@@ -3,7 +3,7 @@
   "name": "Wikifinder",
   "short_name": "Wikifinder",
   "description": "Le jeu quotidien de devinettes Wikipedia. Devine l'article du jour mot par mot !",
-  "start_url": "/game",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
