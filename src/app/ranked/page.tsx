@@ -467,10 +467,10 @@ export default function RankedPage() {
                                 backgroundColor: 'var(--bg)', borderRadius: 12,
                                 border: '1px solid var(--border)',
                             }}>
-                                <div style={{ width: 80, height: 12, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.4 }} />
-                                <div style={{ width: 120, height: 28, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.3 }} />
-                                <div style={{ width: 60, height: 13, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.3 }} />
-                                <div style={{ width: 100, height: 20, backgroundColor: 'var(--border)', borderRadius: 10, opacity: 0.3 }} />
+                                <div className="skeleton" style={{ width: 80, height: 12 }} />
+                                <div className="skeleton" style={{ width: 120, height: 28 }} />
+                                <div className="skeleton" style={{ width: 60, height: 13 }} />
+                                <div className="skeleton" style={{ width: 100, height: 20, borderRadius: 10 }} />
                             </div>
                         ) : (
                             <div style={{
