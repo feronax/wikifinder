@@ -17,6 +17,8 @@ import { GameState, translations } from './types'
 export default function GamePage() {
     const [gameState, setGameState] = useState<GameState | null>(null)
     const [revealAll, setRevealAll] = useState(false)
+    const [allWordsCache, setAllWordsCache] = useState<Map<number, string> | null>(null)
+    const [frozenElapsed, setFrozenElapsed] = useState<number | null>(null)
     const [lang, setLang] = useState<'fr' | 'en'>('fr')
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
@@ -345,6 +347,8 @@ export default function GamePage() {
             }
 
             if (isWon && !alreadyWon) {
+                // Fige le chrono au moment de la victoire
+                setFrozenElapsed(elapsed)
                 fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
                 setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
@@ -551,7 +555,59 @@ export default function GamePage() {
                         streak={streak}
                         lang={lang}
                         revealAll={revealAll}
-                        setRevealAll={setRevealAll}
+                        setRevealAll={async (fn) => {
+                            const newVal = fn(revealAll)
+                            if (newVal && gameState) {
+                                // Révéler : fetch les valeurs si pas encore en cache
+                                let wordsMap = allWordsCache
+                                if (!wordsMap) {
+                                    try {
+                                        const res = await fetch('/api/game/reveal', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ pageId: gameState.pageData.id, lang }),
+                                        })
+                                        if (res.ok) {
+                                            const data = await res.json()
+                                            wordsMap = new Map<number, string>()
+                                            for (const t of data.revealedAll) wordsMap.set(t.index, t.value)
+                                            setAllWordsCache(wordsMap)
+                                        }
+                                    } catch {}
+                                }
+                                if (wordsMap) {
+                                    setGameState(prev => prev ? {
+                                        ...prev,
+                                        tokens: prev.tokens.map(token =>
+                                            wordsMap!.has(token.index)
+                                                ? { ...token, value: wordsMap!.get(token.index)!, visible: true }
+                                                : token
+                                        ),
+                                    } : prev)
+                                }
+                            } else if (!newVal && gameState && allWordsCache) {
+                                // Masquer : remet les mots non devinés en masqué
+                                // On garde les mots qui étaient déjà trouvés par le joueur
+                                setGameState(prev => {
+                                    if (!prev) return prev
+                                    // Les mots trouvés sont ceux dans l'historique des guesses
+                                    return {
+                                        ...prev,
+                                        tokens: prev.tokens.map(token => {
+                                            if (token.type !== 'word' || token.isStopword) return token
+                                            // Si le mot a été deviné par le joueur, le garder visible
+                                            const wasGuessed = prev.guesses.some(g =>
+                                                g.found && wordsMatch(g.word, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
+                                            )
+                                            if (wasGuessed) return token
+                                            // Sinon, re-masquer
+                                            return { ...token, value: '', visible: false }
+                                        }),
+                                    }
+                                })
+                            }
+                            setRevealAll(newVal)
+                        }}
                         wikipediaUrl={wikipediaUrl}
                         shareCopied={shareCopied}
                         onShare={handleShare}
@@ -580,7 +636,7 @@ export default function GamePage() {
                         guessCount={guessCount}
                         isMobile={isMobile}
                         scrollToOccurrence={scrollToOccurrence}
-                        elapsed={elapsed}
+                        elapsed={frozenElapsed ?? elapsed}
                         won={won}
                         t={t}
                     />
