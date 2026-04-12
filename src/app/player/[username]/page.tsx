@@ -216,7 +216,8 @@ export default function PlayerProfilePage() {
                   >
                     <div style={{ fontSize: 28 }}>{unlocked ? badge.icon : '🔒'}</div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginTop: 6 }}>{badge.name}</div>
-                    <div style={{ fontSize: 10, color: borderColor, fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>{badge.rarity}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.3 }}>{badge.description}</div>
+                    <div style={{ fontSize: 10, color: borderColor, fontWeight: 600, textTransform: 'uppercase', marginTop: 4 }}>{badge.rarity}</div>
                   </div>
                 )
               })}
