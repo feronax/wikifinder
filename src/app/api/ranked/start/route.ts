@@ -92,7 +92,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (!page) {
-    return NextResponse.json({ error: 'Aucun article disponible. Réessaie plus tard.' }, { status: 404 })
+    return NextResponse.json({
+      error: lang === 'fr'
+        ? 'Aucun article disponible. Réessaie plus tard.'
+        : 'No article available. Try again later.',
+    }, { status: 404 })
   }
 
   // Incrémente le compteur d'utilisation

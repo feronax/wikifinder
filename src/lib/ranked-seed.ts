@@ -6,11 +6,11 @@ const WIKI_HEADERS = { 'User-Agent': 'Wikifinder/1.0 (https://wikifinder.vercel.
 
 // Seuils de pageviews par difficulté
 const DIFFICULTY_THRESHOLDS: Record<string, { min: number; max: number; minWords: number }> = {
-  bronze:   { min: 50000, max: Infinity, minWords: 1500 },
-  silver:   { min: 20000, max: Infinity, minWords: 1500 },
-  gold:     { min: 10000, max: Infinity, minWords: 1200 },
-  platinum: { min: 3000, max: 20000, minWords: 1000 },
-  diamond:  { min: 1000, max: 10000, minWords: 800 },
+  bronze:   { min: 5000, max: Infinity, minWords: 1500 },
+  silver:   { min: 3000, max: Infinity, minWords: 1500 },
+  gold:     { min: 1500, max: Infinity, minWords: 1200 },
+  platinum: { min: 500, max: 5000, minWords: 1000 },
+  diamond:  { min: 100, max: 2000, minWords: 800 },
 }
 
 async function getPageviews(title: string, lang: string): Promise<number> {
@@ -105,6 +105,50 @@ export async function seedRankedArticle(
       if (error) continue
 
       return { title: page.title, pageviews }
+    } catch { continue }
+  }
+
+  // Fallback : accepte n'importe quel article assez long sans filtre pageviews
+  for (let attempt = 0; attempt < 15; attempt++) {
+    try {
+      const randomUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`
+      const randomRes = await fetch(randomUrl, { headers: WIKI_HEADERS })
+      if (!randomRes.ok) continue
+      const randomText = await randomRes.text()
+      let randomData
+      try { randomData = JSON.parse(randomText) } catch { continue }
+      const title = randomData.query.random[0].title
+
+      if (usedTitles.has(title) || dailyTitles.has(title)) continue
+
+      const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|info&explaintext=true&inprop=url&format=json&origin=*`
+      const contentRes = await fetch(contentUrl, { headers: WIKI_HEADERS })
+      if (!contentRes.ok) continue
+      let contentData
+      try { contentData = await contentRes.json() } catch { continue }
+      const page = Object.values(contentData.query.pages)[0] as any
+      const content = page.extract || ''
+      const wordCount = extractWords(content).length
+
+      if (wordCount < 800) continue
+
+      const tokens = tokenizeContent(content, lang)
+      const titleTokens = tokenizeTitle(page.title, lang)
+
+      const { error } = await supabaseAdmin.from('ranked_pages').insert({
+        lang,
+        difficulty,
+        wikipedia_title: page.title,
+        wikipedia_url: page.fullurl,
+        content,
+        word_count: wordCount,
+        pageviews: 0,
+        tokens,
+        title_tokens: titleTokens,
+      })
+
+      if (error) continue
+      return { title: page.title, pageviews: 0 }
     } catch { continue }
   }
 
