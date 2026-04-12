@@ -461,7 +461,17 @@ export default function RankedPage() {
 
                         {/* Current rank display */}
                         {seasonLoading ? (
-                            <div style={{ marginBottom: 24 }}><Loader /></div>
+                            <div style={{
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                                marginBottom: 28, padding: '16px 20px',
+                                backgroundColor: 'var(--bg)', borderRadius: 12,
+                                border: '1px solid var(--border)',
+                            }}>
+                                <div style={{ width: 80, height: 12, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.4 }} />
+                                <div style={{ width: 120, height: 28, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.3 }} />
+                                <div style={{ width: 60, height: 13, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.3 }} />
+                                <div style={{ width: 100, height: 20, backgroundColor: 'var(--border)', borderRadius: 10, opacity: 0.3 }} />
+                            </div>
                         ) : (
                             <div style={{
                                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
