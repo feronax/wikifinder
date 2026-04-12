@@ -62,8 +62,11 @@ export default function HistoryPage() {
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
       <Header />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <Loader />
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
+        <div className="skeleton" style={{ width: 180, height: 28, marginBottom: 24 }} />
+        {[1,2,3,4].map(i => (
+          <div key={i} className="skeleton" style={{ width: '100%', height: 72, borderRadius: 10, marginBottom: 10 }} />
+        ))}
       </div>
     </div>
   )

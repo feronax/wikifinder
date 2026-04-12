@@ -480,7 +480,18 @@ export default function GamePage() {
                             </button>
                         </>
                     ) : (
-                        <Loader />
+                        <div style={{ width: '100%', maxWidth: 700, padding: '0 20px' }}>
+                            <div className="skeleton" style={{ width: '100%', height: 120, borderRadius: 12, marginBottom: 20 }} />
+                            <div className="skeleton" style={{ width: '60%', height: 16, marginBottom: 12 }} />
+                            <div className="skeleton" style={{ width: '100%', height: 44, borderRadius: 8, marginBottom: 20 }} />
+                            <div className="skeleton" style={{ width: '100%', height: 6, borderRadius: 3, marginBottom: 24 }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                <div className="skeleton" style={{ width: '90%', height: 18 }} />
+                                <div className="skeleton" style={{ width: '75%', height: 18 }} />
+                                <div className="skeleton" style={{ width: '85%', height: 18 }} />
+                                <div className="skeleton" style={{ width: '70%', height: 18 }} />
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>

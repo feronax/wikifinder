@@ -218,8 +218,11 @@ export default function ProfilePage() {
   if (!user) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
       <Header />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <Loader />
+      <div style={{ maxWidth: 520, margin: '0 auto', padding: '32px 20px' }}>
+        <div className="skeleton" style={{ width: 180, height: 28, marginBottom: 24 }} />
+        <div className="skeleton" style={{ width: '100%', height: 140, borderRadius: 10, marginBottom: 20 }} />
+        <div className="skeleton" style={{ width: '100%', height: 100, borderRadius: 10, marginBottom: 20 }} />
+        <div className="skeleton" style={{ width: '100%', height: 80, borderRadius: 10 }} />
       </div>
     </div>
   )

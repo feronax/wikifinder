@@ -133,7 +133,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
             )}
 
             {!ready ? (
-              <div style={{ width: 120, height: 20, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.4 }} />
+              <div className="skeleton" style={{ width: 120, height: 20 }} />
             ) : user ? (
               <>
                 <a href="/ranked" style={{ fontSize: 14, color: pathname === '/ranked' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/ranked' ? 600 : 500 }}>
@@ -205,7 +205,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
           <div style={{ height: 1, backgroundColor: 'var(--border)', width: '100%' }} />
 
           {!ready ? (
-            <div style={{ width: '100%', height: 20, backgroundColor: 'var(--border)', borderRadius: 4, opacity: 0.4 }} />
+            <div className="skeleton" style={{ width: '100%', height: 20 }} />
           ) : user ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
               <a href="/profile" style={{ fontSize: 16, color: 'var(--text)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>

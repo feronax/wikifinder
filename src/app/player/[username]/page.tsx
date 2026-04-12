@@ -99,8 +99,20 @@ export default function PlayerProfilePage() {
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
       <Header />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-        <Loader />
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: '32px 20px', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <div className="skeleton" style={{ width: 60, height: 60, borderRadius: '50%' }} />
+          <div>
+            <div className="skeleton" style={{ width: 150, height: 22, marginBottom: 8 }} />
+            <div className="skeleton" style={{ width: 100, height: 14 }} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
+          {[1,2,3,4].map(i => (
+            <div key={i} className="skeleton" style={{ height: 70, borderRadius: 10 }} />
+          ))}
+        </div>
+        <div className="skeleton" style={{ width: '100%', height: 200, borderRadius: 10 }} />
       </div>
       <Footer />
     </div>

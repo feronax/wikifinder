@@ -102,8 +102,16 @@ export default function LeaderboardPage() {
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
       <Header />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <Loader />
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
+        <div className="skeleton" style={{ width: 200, height: 28, marginBottom: 20 }} />
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+          <div className="skeleton" style={{ width: 100, height: 36, borderRadius: 6 }} />
+          <div className="skeleton" style={{ width: 80, height: 36, borderRadius: 6 }} />
+          <div className="skeleton" style={{ width: 80, height: 36, borderRadius: 6 }} />
+        </div>
+        {[1,2,3,4,5].map(i => (
+          <div key={i} className="skeleton" style={{ width: '100%', height: 56, borderRadius: 10, marginBottom: 10 }} />
+        ))}
       </div>
     </div>
   )
