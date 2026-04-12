@@ -476,7 +476,7 @@ export default function RankedPage() {
                                     backgroundColor: 'var(--surface)', padding: '6px 14px',
                                     borderRadius: 20, border: '1px solid var(--border)',
                                 }}>
-                                    {lang === 'fr' ? 'Difficulté :' : 'Difficulty: '}
+                                    {lang === 'fr' ? 'Difficulté : ' : 'Difficulty: '}
                                     <span style={{ fontWeight: 600, color: RANK_COLORS[currentRank] || 'var(--accent)' }}>
                                         {diffLabels[currentRank] || 'Easy'}
                                     </span>
