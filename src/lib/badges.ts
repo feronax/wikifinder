@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './supabase-admin'
 import { calculateScore } from './scoring'
 
-export type BadgeRarity = 'bronze' | 'silver' | 'gold'
+export type BadgeRarity = 'bronze' | 'silver' | 'gold' | 'legendary'
 
 export type BadgeDefinition = {
   key: string
@@ -33,6 +33,16 @@ export const BADGES: BadgeDefinition[] = [
   { key: 'genius', name: 'Génie', nameEn: 'Genius', description: 'Score parfait (5000 pts)', descriptionEn: 'Perfect score (5000 pts)', rarity: 'gold', icon: '🧠' },
   { key: 'streak_30', name: 'Inferno', nameEn: 'Inferno', description: 'Streak de 30 jours', descriptionEn: '30-day streak', rarity: 'gold', icon: '🌋' },
   { key: 'legend', name: 'Légende', nameEn: 'Legend', description: 'Jouer 100 parties', descriptionEn: 'Play 100 games', rarity: 'gold', icon: '👑' },
+
+  // Legendary
+  { key: 'founder', name: 'Fondateur', nameEn: 'Founder', description: 'A joué pendant la bêta', descriptionEn: 'Played during the beta', rarity: 'legendary', icon: '🏛️' },
+
+  // Season badges (dynamically named, but defined here for icon/rarity mapping)
+  { key: 'season_bronze', name: 'Bronze saisonnier', nameEn: 'Season Bronze', description: 'Terminer une saison au rang Bronze', descriptionEn: 'Finish a season at Bronze rank', rarity: 'bronze', icon: '🟤' },
+  { key: 'season_silver', name: 'Argent saisonnier', nameEn: 'Season Silver', description: 'Terminer une saison au rang Argent', descriptionEn: 'Finish a season at Silver rank', rarity: 'silver', icon: '⚪' },
+  { key: 'season_gold', name: 'Or saisonnier', nameEn: 'Season Gold', description: 'Terminer une saison au rang Or', descriptionEn: 'Finish a season at Gold rank', rarity: 'gold', icon: '🟡' },
+  { key: 'season_platinum', name: 'Platine saisonnier', nameEn: 'Season Platinum', description: 'Terminer une saison au rang Platine', descriptionEn: 'Finish a season at Platinum rank', rarity: 'gold', icon: '💎' },
+  { key: 'season_diamond', name: 'Diamant saisonnier', nameEn: 'Season Diamond', description: 'Terminer une saison au rang Diamant', descriptionEn: 'Finish a season at Diamond rank', rarity: 'legendary', icon: '💠' },
 ]
 
 export const BADGE_MAP = new Map(BADGES.map(b => [b.key, b]))
@@ -41,6 +51,24 @@ export const RARITY_COLORS: Record<BadgeRarity, string> = {
   bronze: '#CD7F32',
   silver: '#C0C0C0',
   gold: '#FFD700',
+  legendary: '#FF6B6B',
+}
+
+export type RankKey = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond'
+
+export const RANKS: { key: RankKey; name: string; nameEn: string; minScore: number; color: string }[] = [
+  { key: 'bronze', name: 'Bronze', nameEn: 'Bronze', minScore: 0, color: '#CD7F32' },
+  { key: 'silver', name: 'Argent', nameEn: 'Silver', minScore: 5000, color: '#C0C0C0' },
+  { key: 'gold', name: 'Or', nameEn: 'Gold', minScore: 15000, color: '#FFD700' },
+  { key: 'platinum', name: 'Platine', nameEn: 'Platinum', minScore: 30000, color: '#40E0D0' },
+  { key: 'diamond', name: 'Diamant', nameEn: 'Diamond', minScore: 50000, color: '#B9F2FF' },
+]
+
+export function getRankFromScore(score: number): typeof RANKS[number] {
+  for (let i = RANKS.length - 1; i >= 0; i--) {
+    if (score >= RANKS[i].minScore) return RANKS[i]
+  }
+  return RANKS[0]
 }
 
 /**
@@ -77,6 +105,9 @@ export async function evaluateBadges(userId: string): Promise<BadgeDefinition[]>
     owned.add(key)
     newBadges.push(badge)
   }
+
+  // founder: badge bêta (attribué à tous les joueurs actuels — sera désactivé à la release)
+  await tryGrant('founder')
 
   // first_win: première partie complétée
   if (completedGames.length >= 1) await tryGrant('first_win')

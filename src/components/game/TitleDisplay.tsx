@@ -3,6 +3,29 @@
 import React from 'react'
 import { TitleWord } from '@/app/game/types'
 
+type SeasonUpdateData = {
+    seasonName: string
+    totalScore: number
+    rank: string
+    rankedScore: number
+} | null
+
+const RANK_COLORS: Record<string, string> = {
+    bronze: '#CD7F32',
+    silver: '#C0C0C0',
+    gold: '#FFD700',
+    platinum: '#40E0D0',
+    diamond: '#B9F2FF',
+}
+
+const RANK_NAMES: Record<string, string> = {
+    bronze: 'Bronze',
+    silver: 'Argent',
+    gold: 'Or',
+    platinum: 'Platine',
+    diamond: 'Diamant',
+}
+
 interface TitleDisplayProps {
     titleWords: TitleWord[]
     won: boolean
@@ -23,6 +46,7 @@ interface TitleDisplayProps {
     isMobile: boolean
     titleScoreStyle: React.CSSProperties
     scoreBoxStyle: React.CSSProperties
+    seasonUpdate?: SeasonUpdateData
     t: {
         titleLabel: string
         found: (n: number) => string
@@ -42,7 +66,7 @@ export default function TitleDisplay({
     titleWords, won, guessCount, score, streak, lang,
     revealAll, setRevealAll, wikipediaUrl, shareCopied, onShare,
     challengeCopied, onChallenge,
-    hintTokenIndex, justRevealedTitle, showHint, isMobile, titleScoreStyle, scoreBoxStyle, t,
+    hintTokenIndex, justRevealedTitle, showHint, isMobile, titleScoreStyle, scoreBoxStyle, seasonUpdate, t,
 }: TitleDisplayProps) {
     return (
         <div style={titleScoreStyle}>
@@ -129,6 +153,24 @@ export default function TitleDisplay({
                     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Streak</div>
                     <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{streak} 🔥</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{lang === 'fr' ? (streak === 1 ? 'jour' : 'jours') : (streak === 1 ? 'day' : 'days')}</div>
+                </div>
+            )}
+            {won && seasonUpdate && (
+                <div style={scoreBoxStyle}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>
+                        {lang === 'fr' ? 'Score classe' : 'Ranked'}
+                    </div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: RANK_COLORS[seasonUpdate.rank] || 'var(--accent)', lineHeight: 1 }}>
+                        +{seasonUpdate.rankedScore.toLocaleString()}
+                    </div>
+                    <div style={{
+                        fontSize: 12,
+                        color: RANK_COLORS[seasonUpdate.rank] || 'var(--text-muted)',
+                        marginTop: 4,
+                        fontWeight: 600,
+                    }}>
+                        {RANK_NAMES[seasonUpdate.rank] || seasonUpdate.rank} — {seasonUpdate.totalScore.toLocaleString()} pts
+                    </div>
                 </div>
             )}
         </div>

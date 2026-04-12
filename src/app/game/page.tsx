@@ -40,6 +40,7 @@ export default function GamePage() {
     const [justRevealedTitle, setJustRevealedTitle] = useState<Set<number>>(new Set())
     const [proximityHints, setProximityHints] = useState<Map<number, { score: number; word: string }>>(new Map())
     const [badgeNotifications, setBadgeNotifications] = useState<{ key: string; name: string; icon: string; rarity: string }[]>([])
+    const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -367,6 +368,11 @@ export default function GamePage() {
                         }, idx * 800)
                     })
                 }
+
+                // Season ranked score
+                if (data.seasonUpdate) {
+                    setSeasonUpdate(data.seasonUpdate)
+                }
             }
         }).catch(() => {
             // Erreur réseau silencieuse — le guess est déjà affiché localement
@@ -666,6 +672,7 @@ export default function GamePage() {
                         isMobile={isMobile}
                         titleScoreStyle={titleScoreStyle}
                         scoreBoxStyle={scoreBoxStyle}
+                        seasonUpdate={seasonUpdate}
                         t={t}
                     />
 

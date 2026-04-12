@@ -5,6 +5,7 @@ import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
 import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
 import { checkWordExists } from '@/lib/wiktionary-cache'
 import { evaluateBadges } from '@/lib/badges'
+import { calculateRankedScore, updateSeasonScore } from '@/lib/seasons'
 
 export async function POST(req: NextRequest) {
   const { gameId, pageId, lang, word, elapsed, previousGuesses: clientPreviousGuesses } = await req.json()
@@ -160,10 +161,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Évalue les badges en background après une victoire
+  // Évalue les badges et le score saisonnier après une victoire
   let newBadges: any[] = []
-  if (won && user) {
+  let seasonUpdate: { seasonName: string; totalScore: number; rank: string; rankedScore: number } | null = null
+  if (won && user && !bonusMode) {
     newBadges = await evaluateBadges(user.id)
+
+    // Score classé saisonnier
+    const rankedScore = calculateRankedScore(
+      serverGuessCount || 0,
+      true,
+      elapsed || null,
+    )
+    const result = await updateSeasonScore(user.id, rankedScore, elapsed || null)
+    if (result) {
+      seasonUpdate = { ...result, rankedScore }
+    }
   }
 
   return NextResponse.json({
@@ -172,6 +185,7 @@ export async function POST(req: NextRequest) {
     revealedTitleIndices,
     won,
     newBadges: newBadges.map(b => ({ key: b.key, name: b.name, nameEn: b.nameEn, icon: b.icon, rarity: b.rarity })),
+    seasonUpdate,
     guessCount: serverGuessCount,
   })
 }
