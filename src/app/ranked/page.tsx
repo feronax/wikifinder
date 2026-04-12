@@ -154,8 +154,18 @@ export default function RankedPage() {
             })
 
             if (!res.ok) {
-                const err = await res.json()
-                setLoadError(err.error || (selectedLang === 'fr' ? 'Erreur lors du chargement.' : 'Failed to load game.'))
+                const err = await res.json().catch(() => ({}))
+                // Ne jamais afficher d'erreur technique à l'utilisateur
+                const safeMessages = [
+                    'Aucun article disponible',
+                    'No article available',
+                    'Connexion requise',
+                    'Login required',
+                ]
+                const isSafe = safeMessages.some(m => err.error?.includes(m))
+                setLoadError(isSafe
+                    ? err.error
+                    : (selectedLang === 'fr' ? 'Erreur lors du chargement. Réessaie plus tard.' : 'Failed to load game. Try again later.'))
                 setPhase('select')
                 return
             }
