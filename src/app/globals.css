@@ -148,6 +148,17 @@ textarea {
     100% { transform: scale(1); opacity: 0.7; }
 }
 
+/* Pending reveal pulse — blocs qui pourraient correspondre au mot tapé */
+@keyframes pendingReveal {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; background-color: var(--accent); }
+    100% { opacity: 1; }
+}
+
+.pending-reveal {
+    animation: pendingReveal 0.6s ease infinite;
+}
+
 /* Skeleton shimmer effect */
 @keyframes shimmer {
     0% { background-position: -200% 0; }

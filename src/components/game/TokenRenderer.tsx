@@ -9,14 +9,16 @@ interface TokenRendererProps {
     hintTokenIndex: number | null
     justRevealedTokens: Set<number>
     proximityHints: Map<number, { score: number; word: string }>
+    pendingRevealLength: number | null
     showHint: (index: number) => void
 }
 
-function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, showHint, isHeading }: {
+function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, isPending, showHint, isHeading }: {
     tk: Token
     idx: number
     hintTokenIndex: number | null
     proximityHint: { score: number; word: string } | undefined
+    isPending: boolean
     showHint: (index: number) => void
     isHeading?: boolean
 }) {
@@ -36,7 +38,9 @@ function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, showHint, isHeadi
     }
 
     return (
-        <span onClick={() => showHint(idx)} style={{
+        <span onClick={() => showHint(idx)}
+            className={isPending ? 'pending-reveal' : ''}
+            style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             backgroundColor: 'var(--masked)',
             borderRadius: 3,
@@ -54,7 +58,7 @@ function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, showHint, isHeadi
     )
 }
 
-export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justRevealedTokens, proximityHints, showHint }: TokenRendererProps) {
+export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justRevealedTokens, proximityHints, pendingRevealLength, showHint }: TokenRendererProps) {
     const elements: React.ReactNode[] = []
     let i = 0
 
@@ -92,7 +96,7 @@ export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justR
                 } else {
                     headingTokens.push(
                         <MaskedToken key={i} tk={tk} idx={i} hintTokenIndex={hintTokenIndex}
-                            proximityHint={proximityHints.get(tk.index)} showHint={showHint} isHeading />
+                            proximityHint={proximityHints.get(tk.index)} isPending={pendingRevealLength !== null && tk.length === pendingRevealLength} showHint={showHint} isHeading />
                     )
                 }
                 i++
@@ -133,7 +137,7 @@ export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justR
             } else {
                 lineTokens.push(
                     <MaskedToken key={i} tk={tk} idx={i} hintTokenIndex={hintTokenIndex}
-                        proximityHint={proximityHints.get(tk.index)} showHint={showHint} />
+                        proximityHint={proximityHints.get(tk.index)} isPending={pendingRevealLength !== null && tk.length === pendingRevealLength} showHint={showHint} />
                 )
             }
             i++

@@ -39,6 +39,7 @@ export default function GamePage() {
     const [justRevealedTokens, setJustRevealedTokens] = useState<Set<number>>(new Set())
     const [justRevealedTitle, setJustRevealedTitle] = useState<Set<number>>(new Set())
     const [proximityHints, setProximityHints] = useState<Map<number, { score: number; word: string }>>(new Map())
+    const [pendingRevealLength, setPendingRevealLength] = useState<number | null>(null)
     const [badgeNotifications, setBadgeNotifications] = useState<{ key: string; name: string; icon: string; rarity: string }[]>([])
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
 
@@ -268,6 +269,9 @@ export default function GamePage() {
 
         // 2. Affichage IMMÉDIAT du résultat — pas d'attente serveur
         if (inArticle) {
+            // Anime les blocs de même longueur pendant l'attente serveur
+            setPendingRevealLength(word.length)
+
             // Le mot est dans l'article — on update le guess count optimistiquement
             setGameState(prev => prev ? {
                 ...prev,
@@ -323,6 +327,9 @@ export default function GamePage() {
 
             // Applique les tokens révélés par le serveur (valeurs réelles)
             const { revealedTokens, revealedTitleIndices, won: isWon } = data
+
+            // Arrête l'animation pending
+            setPendingRevealLength(null)
 
             // Rollback si le client pensait que le mot était dans l'article mais le serveur dit non
             if ((!revealedTokens || revealedTokens.length === 0) && !data.isInText) {
@@ -729,6 +736,7 @@ export default function GamePage() {
                             hintTokenIndex={hintTokenIndex}
                             justRevealedTokens={justRevealedTokens}
                             proximityHints={proximityHints}
+                            pendingRevealLength={pendingRevealLength}
                             showHint={showHint}
                         />
                     </div>

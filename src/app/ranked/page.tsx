@@ -801,6 +801,7 @@ export default function RankedPage() {
                             hintTokenIndex={hintTokenIndex}
                             justRevealedTokens={justRevealedTokens}
                             proximityHints={proximityHints}
+                            pendingRevealLength={null}
                             showHint={showHint}
                         />
                     </div>
