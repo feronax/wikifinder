@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Message trop court (30 caractères minimum)' }, { status: 400 })
   }
 
-  const { error } = await supabaseAdmin
+  const { data: feedback, error } = await supabaseAdmin
     .from('feedbacks')
     .insert({
       user_id: user.id,
@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
       type: 'autre',
       message: message.trim(),
     })
+    .select('id')
+    .single()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -58,5 +60,5 @@ export async function POST(req: NextRequest) {
     `
   })
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, feedbackId: feedback?.id })
 }

@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
   for (const token of fullTokens) {
     if (token.type !== 'word' || token.isStopword) continue
     const norm = normalize(cleanTokenValue(token.value))
-    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 12)
+    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 16)
     if (!seenHashes.has(hash)) {
       seenHashes.add(hash)
       wordHashSet.push(hash)
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
   for (const tw of fullTitleTokens) {
     if (!tw.isWord || tw.isStopword) continue
     const norm = normalize(tw.value)
-    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 12)
+    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 16)
     if (!seenHashes.has(hash)) {
       seenHashes.add(hash)
       wordHashSet.push(hash)

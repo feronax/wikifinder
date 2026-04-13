@@ -324,6 +324,14 @@ export default function RankedPage() {
 
             const { revealedTokens, revealedTitleIndices, won: isWon } = data
 
+            // Rollback si faux positif du hash check
+            if ((!revealedTokens || revealedTokens.length === 0) && !data.isInText) {
+                setGameState(prev => prev ? {
+                    ...prev,
+                    guesses: prev.guesses.map(g => g.word === word ? { ...g, found: false } : g),
+                } : prev)
+            }
+
             if (revealedTokens && revealedTokens.length > 0) {
                 const revealedTokenMap = new Map<number, string>()
                 for (const rt of revealedTokens) revealedTokenMap.set(rt.index, rt.value)

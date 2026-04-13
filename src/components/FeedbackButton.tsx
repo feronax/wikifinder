@@ -8,6 +8,7 @@ export default function FeedbackButton() {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [message, setMessage] = useState('')
+  const [includeScreenshot, setIncludeScreenshot] = useState(false)
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -20,9 +21,33 @@ export default function FeedbackButton() {
 
   if (!user) return null
 
+  async function captureScreenshot(): Promise<string | null> {
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(document.body, {
+        scale: 0.5,
+        logging: false,
+        useCORS: true,
+        ignoreElements: (el) => {
+          // Ignore le panel feedback lui-même
+          return el.closest?.('[data-feedback-panel]') !== null
+        },
+      })
+      return canvas.toDataURL('image/png', 0.7)
+    } catch {
+      return null
+    }
+  }
+
   async function handleSubmit() {
     if (!message.trim() || message.trim().length < 30) return
     setLoading(true)
+
+    // Capture screenshot avant d'envoyer si activé
+    let screenshotData: string | null = null
+    if (includeScreenshot) {
+      screenshotData = await captureScreenshot()
+    }
 
     const res = await fetch('/api/feedback', {
       method: 'POST',
@@ -31,8 +56,23 @@ export default function FeedbackButton() {
     })
 
     if (res.ok) {
+      const feedbackResult = await res.json()
+
+      // Upload le screenshot en background si disponible
+      if (screenshotData && feedbackResult.feedbackId) {
+        fetch('/api/feedback/screenshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            screenshot: screenshotData,
+            feedbackId: feedbackResult.feedbackId,
+          }),
+        }).catch(() => {})
+      }
+
       setSent(true)
       setMessage('')
+      setIncludeScreenshot(false)
       setTimeout(() => {
         setSent(false)
         setOpen(false)
@@ -54,9 +94,9 @@ export default function FeedbackButton() {
         />
       )}
 
-      {/* Panel — s'adapte à tous les écrans */}
+      {/* Panel */}
       {open && (
-        <div style={{
+        <div data-feedback-panel style={{
           position: 'fixed',
           zIndex: 50,
           fontFamily: 'var(--font-sans)',
@@ -91,7 +131,7 @@ export default function FeedbackButton() {
 
           {sent ? (
             <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--accent)', fontWeight: 'bold' }}>
-              ✓ Merci pour ton retour !
+              Merci pour ton retour !
             </div>
           ) : (
             <>
@@ -117,12 +157,32 @@ export default function FeedbackButton() {
               />
               <div style={{
                 fontSize: 12,
-                marginBottom: 12,
+                marginBottom: 10,
                 textAlign: 'right',
                 color: isValid ? 'var(--accent)' : 'var(--text-muted)',
               }}>
                 {charCount} / 30
               </div>
+
+              {/* Checkbox screenshot */}
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 14,
+                cursor: 'pointer',
+                fontSize: 13,
+                color: 'var(--text-muted)',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={includeScreenshot}
+                  onChange={e => setIncludeScreenshot(e.target.checked)}
+                  style={{ cursor: 'pointer', accentColor: 'var(--accent)' }}
+                />
+                Joindre une capture d&apos;écran
+              </label>
+
               <button
                 onClick={handleSubmit}
                 disabled={loading || !isValid}
@@ -141,7 +201,7 @@ export default function FeedbackButton() {
                   transition: 'opacity 0.2s ease',
                 }}
               >
-                {loading ? 'Envoi...' : 'Envoyer'}
+                {loading ? (includeScreenshot ? 'Capture + envoi...' : 'Envoi...') : 'Envoyer'}
               </button>
             </>
           )}
@@ -164,7 +224,6 @@ export default function FeedbackButton() {
           gap: 8,
         }}
       >
-        {/* Languette — desktop uniquement, masquée quand panel ouvert */}
         {!isMobile && (
           <div style={{
             backgroundColor: 'var(--surface)',
@@ -186,7 +245,6 @@ export default function FeedbackButton() {
           </div>
         )}
 
-        {/* Bouton rond */}
         <div style={{
           width: 48,
           height: 48,
