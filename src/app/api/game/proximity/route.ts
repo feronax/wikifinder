@@ -11,19 +11,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
   }
 
-  // Charge la page
-  const { data: page } = await supabaseAdmin
+  // Charge la page (quotidien ou classé)
+  let { data: page } = await supabaseAdmin
     .from('pages')
     .select('content_fr, content_en, tokens_fr, tokens_en')
     .eq('id', pageId)
     .single()
 
-  if (!page) {
-    return NextResponse.json({ proximityHints: [] })
+  let content: string
+  let precomputed: any
+
+  if (page) {
+    content = lang === 'fr' ? page.content_fr : page.content_en
+    precomputed = lang === 'fr' ? page.tokens_fr : page.tokens_en
+  } else {
+    // Essaie ranked_pages
+    const { data: rankedPage } = await supabaseAdmin
+      .from('ranked_pages')
+      .select('content, tokens')
+      .eq('id', pageId)
+      .single()
+
+    if (!rankedPage) {
+      return NextResponse.json({ proximityHints: [] })
+    }
+    content = (rankedPage as any).content
+    precomputed = (rankedPage as any).tokens
   }
 
-  const content = lang === 'fr' ? page.content_fr : page.content_en
-  const precomputed = lang === 'fr' ? page.tokens_fr : page.tokens_en
   const fullTokens = precomputed || tokenizeContent(content, lang)
 
   // Trouve les tokens déjà révélés (pour ne pas les inclure dans les hints)

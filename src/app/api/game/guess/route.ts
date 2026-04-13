@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Authentification + chargement article en parallèle
-  const [authResult, pageResult] = await Promise.all([
+  const [authResult, pageResult, rankedPageResult] = await Promise.all([
     (async () => {
       const supabase = await createSupabaseServerClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -26,10 +26,32 @@ export async function POST(req: NextRequest) {
       .select('wikipedia_title_fr, wikipedia_title_en, content_fr, content_en, tokens_fr, tokens_en, title_tokens_fr, title_tokens_en')
       .eq('id', pageId)
       .single(),
+    supabaseAdmin
+      .from('ranked_pages')
+      .select('lang, wikipedia_title, content, tokens, title_tokens')
+      .eq('id', pageId)
+      .single(),
   ])
 
   const user = authResult
-  const page = pageResult.data
+  // Cherche d'abord dans pages (quotidien), sinon dans ranked_pages (classé)
+  let page = pageResult.data
+  let isRankedPage = false
+  if (!page && rankedPageResult.data) {
+    const rp = rankedPageResult.data as any
+    // Adapte le format ranked_pages pour matcher le format pages
+    page = {
+      wikipedia_title_fr: rp.lang === 'fr' ? rp.wikipedia_title : rp.wikipedia_title,
+      wikipedia_title_en: rp.lang === 'en' ? rp.wikipedia_title : rp.wikipedia_title,
+      content_fr: rp.lang === 'fr' ? rp.content : rp.content,
+      content_en: rp.lang === 'en' ? rp.content : rp.content,
+      tokens_fr: rp.lang === 'fr' ? rp.tokens : rp.tokens,
+      tokens_en: rp.lang === 'en' ? rp.tokens : rp.tokens,
+      title_tokens_fr: rp.lang === 'fr' ? rp.title_tokens : rp.title_tokens,
+      title_tokens_en: rp.lang === 'en' ? rp.title_tokens : rp.title_tokens,
+    }
+    isRankedPage = true
+  }
 
   // Si gameId fourni, vérifier la propriété et l'état
   let serverGuessCount: number | null = null
@@ -168,13 +190,7 @@ export async function POST(req: NextRequest) {
     newBadges = await evaluateBadges(user.id)
 
     // Score classé saisonnier — uniquement pour les parties classées (ranked_pages)
-    const { data: rankedPage } = await supabaseAdmin
-      .from('ranked_pages')
-      .select('id')
-      .eq('id', pageId)
-      .single()
-
-    if (rankedPage) {
+    if (isRankedPage) {
       const rankedScore = calculateRankedScore(
         serverGuessCount || 0,
         true,
