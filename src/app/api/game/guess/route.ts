@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
@@ -6,13 +7,22 @@ import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
 import { checkWordExists } from '@/lib/wiktionary-cache'
 import { evaluateBadges } from '@/lib/badges'
 import { calculateRankedScore, updateSeasonScore } from '@/lib/seasons'
+import { parseJsonBody, UuidSchema, LangSchema, GuessWordSchema } from '@/lib/validation'
+
+// Schéma plat — hot path, < 1ms à parser
+const GuessBodySchema = z.object({
+  gameId: UuidSchema.nullable().optional(),
+  pageId: UuidSchema,
+  lang: LangSchema,
+  word: GuessWordSchema,
+  elapsed: z.number().int().nonnegative().nullable().optional(),
+  previousGuesses: z.array(z.string()).optional(),
+})
 
 export async function POST(req: NextRequest) {
-  const { gameId, pageId, lang, word, elapsed, previousGuesses: clientPreviousGuesses } = await req.json()
-
-  if (!pageId || !lang || !word) {
-    return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, GuessBodySchema)
+  if ('error' in parsed) return parsed.error
+  const { gameId, pageId, lang, word, elapsed, previousGuesses: clientPreviousGuesses } = parsed.data
 
   // Authentification + chargement article en parallèle
   const [authResult, pageResult, rankedPageResult] = await Promise.all([

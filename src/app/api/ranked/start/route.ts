@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getRankFromScore } from '@/lib/badges'
@@ -7,13 +8,14 @@ import { seedRankedArticle } from '@/lib/ranked-seed'
 import { maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
 import { normalize } from '@/lib/matching'
 import { createHash } from 'crypto'
+import { parseJsonBody, LangSchema } from '@/lib/validation'
+
+const RankedStartBodySchema = z.object({ lang: LangSchema })
 
 export async function POST(req: NextRequest) {
-  const { lang } = await req.json()
-
-  if (!lang || (lang !== 'fr' && lang !== 'en')) {
-    return NextResponse.json({ error: 'Langue invalide' }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, RankedStartBodySchema)
+  if ('error' in parsed) return parsed.error
+  const { lang } = parsed.data
 
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()

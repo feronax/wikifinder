@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { tokenizeContent } from '@/lib/tokenize'
 import { findProximityHints } from '@/lib/proximity'
 import { wordsMatch, cleanTokenValue, splitOnApostrophe } from '@/lib/matching'
+import { parseJsonBody, UuidSchema, LangSchema, GuessWordSchema } from '@/lib/validation'
+
+const ProximityBodySchema = z.object({
+  pageId: UuidSchema,
+  lang: LangSchema,
+  word: GuessWordSchema,
+  gameId: UuidSchema.nullable().optional(),
+})
 
 export async function POST(req: NextRequest) {
-  const { pageId, lang, word, gameId } = await req.json()
-
-  if (!pageId || !lang || !word) {
-    return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, ProximityBodySchema)
+  if ('error' in parsed) return parsed.error
+  const { pageId, lang, word, gameId } = parsed.data
 
   // Charge la page (quotidien ou classé)
   let { data: page } = await supabaseAdmin

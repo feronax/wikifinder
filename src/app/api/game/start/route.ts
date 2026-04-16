@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createHash } from 'crypto'
+import { parseJsonBody, UuidSchema, LangSchema } from '@/lib/validation'
+
+const StartBodySchema = z.object({ lang: LangSchema, pageId: UuidSchema })
 
 export async function POST(req: NextRequest) {
-  const { lang, pageId } = await req.json()
+  const parsed = await parseJsonBody(req, StartBodySchema)
+  if ('error' in parsed) return parsed.error
+  const { lang, pageId } = parsed.data
 
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()

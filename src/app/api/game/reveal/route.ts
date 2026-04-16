@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { tokenizeContent } from '@/lib/tokenize'
+import { parseJsonBody, UuidSchema, LangSchema } from '@/lib/validation'
+
+const RevealBodySchema = z.object({ pageId: UuidSchema, lang: LangSchema })
 
 export async function POST(req: NextRequest) {
-  const { pageId, lang } = await req.json()
-
-  if (!pageId || !lang) {
-    return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, RevealBodySchema)
+  if ('error' in parsed) return parsed.error
+  const { pageId, lang } = parsed.data
 
   const { data: page } = await supabaseAdmin
     .from('pages')
