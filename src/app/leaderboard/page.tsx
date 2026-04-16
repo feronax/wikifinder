@@ -17,11 +17,7 @@ type GlobalEntry = {
   username: string
   total_games: number
   avg_guesses: number
-  // Le champ est en cours de renommage côté DB : on lit `best_guesses` si
-  // présent, sinon on retombe sur l'ancien `best_score` (tolère les deux
-  // états pendant la transition — cf. SQL de migration dans le README).
-  best_guesses?: number
-  best_score?: number
+  best_guesses: number // MIN(guess_count) — nom clarifié côté DB le 2026-04-16
 }
 
 type SeasonEntry = {
@@ -366,7 +362,7 @@ export default function LeaderboardPage() {
                             <strong>{tab === 'daily' ? 'Temps' : 'Moy'}:</strong> {tab === 'daily' ? (entry.duration_seconds ? `${Math.floor(entry.duration_seconds / 60)}m` : '-') : entry.avg_guesses}
                           </div>
                           {tab === 'global' && (
-                            <div><strong>Min ess.:</strong> {entry.best_guesses ?? entry.best_score}</div>
+                            <div><strong>Min ess.:</strong> {entry.best_guesses}</div>
                           )}
                         </div>
                       ) : (
@@ -379,7 +375,7 @@ export default function LeaderboardPage() {
                             {tab === 'daily' ? (entry.duration_seconds ? `${Math.floor(entry.duration_seconds / 60)}m${entry.duration_seconds % 60}s` : '-') : entry.avg_guesses}
                           </div>
                           <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                            {tab === 'daily' ? entry.lang.toUpperCase() : (entry.best_guesses ?? entry.best_score)}
+                            {tab === 'daily' ? entry.lang.toUpperCase() : entry.best_guesses}
                           </div>
                         </>
                       )}
