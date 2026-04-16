@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { parseSearchParams, DateSchema } from '@/lib/validation'
+
+const LeaderboardQuerySchema = z.object({
+  type: z.enum(['daily', 'global']).optional().default('daily'),
+  date: DateSchema.optional(),
+})
 
 export async function GET(req: NextRequest) {
-  const type = req.nextUrl.searchParams.get('type') || 'daily'
-  const date = req.nextUrl.searchParams.get('date') || new Date().toISOString().split('T')[0]
+  const parsed = parseSearchParams(new URL(req.url), LeaderboardQuerySchema)
+  if ('error' in parsed) return parsed.error
+  const type = parsed.data.type
+  const date = parsed.data.date || new Date().toISOString().split('T')[0]
 
   let data: any[] = []
 

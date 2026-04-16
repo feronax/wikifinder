@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { parseSearchParams, UuidSchema } from '@/lib/validation'
+
+const GuessesQuerySchema = z.object({ gameId: UuidSchema.optional() })
 
 export async function GET(req: NextRequest) {
-  const gameId = req.nextUrl.searchParams.get('gameId')
+  const parsed = parseSearchParams(new URL(req.url), GuessesQuerySchema)
+  if ('error' in parsed) return parsed.error
+  const gameId = parsed.data.gameId
   if (!gameId) return NextResponse.json({ guesses: [] })
 
   const supabase = await createSupabaseServerClient()

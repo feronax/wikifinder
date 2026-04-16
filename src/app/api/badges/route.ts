@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { BADGES, BADGE_MAP } from '@/lib/badges'
+import { parseSearchParams, UuidSchema } from '@/lib/validation'
+
+const BadgesQuerySchema = z.object({ userId: UuidSchema })
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get('userId')
-
-  if (!userId) {
-    return NextResponse.json({ error: 'userId requis' }, { status: 400 })
-  }
+  const parsed = parseSearchParams(new URL(req.url), BadgesQuerySchema)
+  if ('error' in parsed) return parsed.error
+  const { userId } = parsed.data
 
   const { data: userBadges } = await supabaseAdmin
     .from('badges')

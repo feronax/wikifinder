@@ -1,26 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { Resend } from 'resend'
+import { parseJsonBody, UuidSchema } from '@/lib/validation'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// Min 30 chars (anti-spam) + trim côté serveur.
+const FeedbackBodySchema = z.object({
+  message: z.string().trim().min(30).max(2000),
+  pageId: UuidSchema.nullable().optional(),
+})
+
 export async function POST(req: NextRequest) {
-  const { message, pageId } = await req.json()
+  const parsed = await parseJsonBody(req, FeedbackBodySchema)
+  if ('error' in parsed) return parsed.error
+  const { message, pageId } = parsed.data
 
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
-  }
-
-  if (!message?.trim()) {
-    return NextResponse.json({ error: 'Message vide' }, { status: 400 })
-  }
-
-  if (message.trim().length < 30) {
-    return NextResponse.json({ error: 'Message trop court (30 caractères minimum)' }, { status: 400 })
   }
 
   const { data: feedback, error } = await supabaseAdmin

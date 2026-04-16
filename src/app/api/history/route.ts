@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { parseSearchParams } from '@/lib/validation'
 
 const PAGE_SIZE = 20
+
+const HistoryQuerySchema = z.object({
+  page: z.coerce.number().int().positive().max(1000).optional().default(1),
+})
 
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -12,7 +18,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
   }
 
-  const page = parseInt(req.nextUrl.searchParams.get('page') || '1')
+  const parsed = parseSearchParams(new URL(req.url), HistoryQuerySchema)
+  if ('error' in parsed) return parsed.error
+  const page = parsed.data.page
   const offset = (page - 1) * PAGE_SIZE
 
   // Compte le total de pages disponibles

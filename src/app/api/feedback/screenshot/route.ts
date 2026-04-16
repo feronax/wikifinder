@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { parseJsonBody, UuidSchema, ScreenshotDataSchema } from '@/lib/validation'
+
+const ScreenshotBodySchema = z.object({
+  screenshot: ScreenshotDataSchema,
+  feedbackId: UuidSchema,
+})
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -10,11 +17,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
   }
 
-  const { screenshot, feedbackId } = await req.json()
-
-  if (!screenshot || !feedbackId) {
-    return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, ScreenshotBodySchema)
+  if ('error' in parsed) return parsed.error
+  const { screenshot, feedbackId } = parsed.data
 
   // Decode base64 et upload dans Supabase Storage
   const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, '')
