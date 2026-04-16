@@ -12,15 +12,19 @@ const RARITY_COLORS: Record<string, string> = {
   gold: '#FFD700',
 }
 
-type Stats = {
+type ModeStats = {
   totalGames: number
   totalWins: number
   winRate: number
   avgGuesses: number
   bestScore: number
   avgScore: number
-  streak: number
-  bestStreak: number
+  distribution: Record<string, number>
+}
+
+type Stats = {
+  daily: ModeStats & { streak: number; bestStreak: number }
+  ranked: ModeStats
 }
 
 type PlayerProfile = {
@@ -166,34 +170,66 @@ export default function PlayerProfilePage() {
           </div>
         </div>
 
-        {/* Stats */}
-        {stats && stats.totalGames > 0 && (
+        {/* Stats — séparées par mode (quotidien / classé) */}
+        {stats?.daily && stats.daily.totalGames > 0 && (
           <div style={cardStyle}>
-            <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Statistiques</h2>
+            <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>📅 Quotidien</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={statValueStyle}>{stats.totalGames}</div>
+                <div style={statValueStyle}>{stats.daily.totalGames}</div>
                 <div style={statLabelStyle}>Parties jouees</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={statValueStyle}>{stats.winRate}%</div>
+                <div style={statValueStyle}>{stats.daily.winRate}%</div>
                 <div style={statLabelStyle}>Taux de victoire</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={statValueStyle}>{stats.avgGuesses}</div>
+                <div style={statValueStyle}>{stats.daily.avgGuesses}</div>
                 <div style={statLabelStyle}>Moy. tentatives</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={statValueStyle}>{stats.bestScore.toLocaleString()}</div>
+                <div style={statValueStyle}>{stats.daily.bestScore.toLocaleString()}</div>
                 <div style={statLabelStyle}>Meilleur score</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={statValueStyle}>{stats.streak}</div>
+                <div style={statValueStyle}>{stats.daily.streak}</div>
                 <div style={statLabelStyle}>Streak actuel</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={statValueStyle}>{stats.bestStreak}</div>
+                <div style={statValueStyle}>{stats.daily.bestStreak}</div>
                 <div style={statLabelStyle}>Meilleur streak</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {stats?.ranked && stats.ranked.totalGames > 0 && (
+          <div style={cardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>🏆 Classé</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={statValueStyle}>{stats.ranked.totalGames}</div>
+                <div style={statLabelStyle}>Parties jouees</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={statValueStyle}>{stats.ranked.winRate}%</div>
+                <div style={statLabelStyle}>Taux de victoire</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={statValueStyle}>{stats.ranked.avgGuesses}</div>
+                <div style={statLabelStyle}>Moy. tentatives</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={statValueStyle}>{stats.ranked.bestScore.toLocaleString()}</div>
+                <div style={statLabelStyle}>Meilleur score</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={statValueStyle}>{stats.ranked.avgScore.toLocaleString()}</div>
+                <div style={statLabelStyle}>Score moyen</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={statValueStyle}>{stats.ranked.totalWins}</div>
+                <div style={statLabelStyle}>Victoires</div>
               </div>
             </div>
           </div>

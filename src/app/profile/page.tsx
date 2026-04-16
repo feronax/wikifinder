@@ -5,16 +5,19 @@ import { createSupabaseBrowserClient } from '@/lib/supabase'
 import Header from '@/components/Header'
 import Loader from '@/components/Loader'
 
-type Stats = {
+type ModeStats = {
   totalGames: number
   totalWins: number
   winRate: number
   avgGuesses: number
   bestScore: number
   avgScore: number
-  streak: number
-  bestStreak: number
   distribution: Record<string, number>
+}
+
+type Stats = {
+  daily: ModeStats & { streak: number; bestStreak: number }
+  ranked: ModeStats
 }
 
 export default function ProfilePage() {
@@ -67,7 +70,7 @@ export default function ProfilePage() {
         if (profile.favorite_badge) setFavoriteBadge(profile.favorite_badge)
       }
       // Garde contre une réponse d'erreur qui ferait crasher le render (bug fix du 2026-04-16)
-      if (statsData && statsData.distribution) setStats(statsData)
+      if (statsData && statsData.daily && statsData.ranked) setStats(statsData)
       if (badgesData?.badges) setBadges(badgesData.badges)
 
       // Push notifications (indépendant du reste — pas bloquant pour l'UI)
@@ -229,10 +232,84 @@ export default function ProfilePage() {
     </div>
   )
 
-  // Garde : même si la réponse API est malformée, on ne crashe pas le rendu.
-  const maxDistribution = stats?.distribution
-    ? Math.max(...Object.values(stats.distribution), 1)
-    : 1
+  const sectionTitleStyle = {
+    fontSize: 20,
+    fontWeight: 700 as const,
+    color: 'var(--text)',
+    margin: '28px 0 12px 0',
+  }
+
+  // Grille 6 stats réutilisée par les deux modes (quotidien / classé)
+  const renderStatsGrid = (s: ModeStats) => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={statValueStyle}>{s.totalGames}</div>
+        <div style={statLabelStyle}>Parties jouées</div>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={statValueStyle}>{s.winRate}%</div>
+        <div style={statLabelStyle}>Taux de victoire</div>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={statValueStyle}>{s.avgGuesses}</div>
+        <div style={statLabelStyle}>Moy. tentatives</div>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={statValueStyle}>{s.bestScore.toLocaleString()}</div>
+        <div style={statLabelStyle}>Meilleur score</div>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={statValueStyle}>{s.avgScore.toLocaleString()}</div>
+        <div style={statLabelStyle}>Score moyen</div>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={statValueStyle}>{s.totalWins}</div>
+        <div style={statLabelStyle}>Victoires</div>
+      </div>
+    </div>
+  )
+
+  // Barres de distribution — échelle locale à chaque mode
+  const renderDistribution = (dist: Record<string, number>) => {
+    const maxDist = Math.max(...Object.values(dist), 1)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {Object.entries(dist).map(([range, count]) => (
+          <div key={range} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 55,
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              textAlign: 'right',
+              flexShrink: 0,
+            }}>
+              {range}
+            </div>
+            <div style={{ flex: 1, position: 'relative', height: 28 }}>
+              <div style={{
+                height: '100%',
+                borderRadius: 4,
+                backgroundColor: count > 0 ? 'var(--accent)' : 'var(--border)',
+                width: `${Math.max((count / maxDist) * 100, count > 0 ? 8 : 2)}%`,
+                transition: 'width 0.5s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                paddingRight: 8,
+              }}>
+                {count > 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>
+                    {count}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
@@ -316,97 +393,50 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Statistiques */}
-        {stats && stats.totalGames > 0 && (
+        {/* Section quotidienne : stats + streak + distribution */}
+        {stats?.daily && stats.daily.totalGames > 0 && (
           <>
+            <h2 style={sectionTitleStyle}>📅 Quotidien</h2>
             <div style={cardStyle}>
-              <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Statistiques</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={statValueStyle}>{stats.totalGames}</div>
-                  <div style={statLabelStyle}>Parties jouées</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={statValueStyle}>{stats.winRate}%</div>
-                  <div style={statLabelStyle}>Taux de victoire</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={statValueStyle}>{stats.avgGuesses}</div>
-                  <div style={statLabelStyle}>Moy. tentatives</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={statValueStyle}>{stats.bestScore.toLocaleString()}</div>
-                  <div style={statLabelStyle}>Meilleur score</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={statValueStyle}>{stats.avgScore.toLocaleString()}</div>
-                  <div style={statLabelStyle}>Score moyen</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={statValueStyle}>{stats.totalWins}</div>
-                  <div style={statLabelStyle}>Victoires</div>
-                </div>
-              </div>
+              <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Statistiques</h3>
+              {renderStatsGrid(stats.daily)}
             </div>
-
-            {/* Streak */}
             <div style={cardStyle}>
-              <h2 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, color: 'var(--text)' }}>Streak</h2>
+              <h3 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, color: 'var(--text)' }}>Streak</h3>
               <div style={{ display: 'flex', gap: 24 }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>
-                    {stats.streak > 0 ? `${stats.streak} 🔥` : '0'}
+                    {stats.daily.streak > 0 ? `${stats.daily.streak} 🔥` : '0'}
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Streak actuel</div>
                 </div>
                 <div style={{ width: 1, backgroundColor: 'var(--border)' }} />
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>
-                    {stats.bestStreak > 0 ? `${stats.bestStreak} ⭐` : '0'}
+                    {stats.daily.bestStreak > 0 ? `${stats.daily.bestStreak} ⭐` : '0'}
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Meilleur streak</div>
                 </div>
               </div>
             </div>
-
-            {/* Distribution */}
             <div style={cardStyle}>
-              <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Distribution des tentatives</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {Object.entries(stats.distribution).map(([range, count]) => (
-                  <div key={range} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{
-                      width: 55,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--text-muted)',
-                      textAlign: 'right',
-                      flexShrink: 0,
-                    }}>
-                      {range}
-                    </div>
-                    <div style={{ flex: 1, position: 'relative', height: 28 }}>
-                      <div style={{
-                        height: '100%',
-                        borderRadius: 4,
-                        backgroundColor: count > 0 ? 'var(--accent)' : 'var(--border)',
-                        width: `${Math.max((count / maxDistribution) * 100, count > 0 ? 8 : 2)}%`,
-                        transition: 'width 0.5s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                        paddingRight: 8,
-                      }}>
-                        {count > 0 && (
-                          <span style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>
-                            {count}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Distribution des tentatives</h3>
+              {renderDistribution(stats.daily.distribution)}
+            </div>
+          </>
+        )}
+
+        {/* Section classée : stats + distribution (pas de streak — non applicable) */}
+        {stats?.ranked && stats.ranked.totalGames > 0 && (
+          <>
+            <h2 style={sectionTitleStyle}>🏆 Classé</h2>
+            <div style={cardStyle}>
+              <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Statistiques</h3>
+              {renderStatsGrid(stats.ranked)}
+            </div>
+            <div style={cardStyle}>
+              <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: 17, color: 'var(--text)' }}>Distribution des tentatives</h3>
+              {renderDistribution(stats.ranked.distribution)}
             </div>
           </>
         )}
