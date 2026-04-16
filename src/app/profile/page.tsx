@@ -55,10 +55,18 @@ export default function ProfilePage() {
 
       if (profile) setUsername(profile.username || '')
 
-      fetch('/api/stats').then(r => r.json()).then(d => setStats(d))
+      // Ne traite la réponse comme des stats valides que si OK ET bien formée.
+      // Sinon on laisse stats à null → la section "Statistiques" ne s'affiche pas.
+      fetch('/api/stats')
+        .then(async r => (r.ok ? r.json() : null))
+        .then(d => { if (d && d.distribution) setStats(d) })
+        .catch(() => {})
 
       // Fetch badges
-      fetch(`/api/badges?userId=${data.user!.id}`).then(r => r.json()).then(d => setBadges(d.badges || []))
+      fetch(`/api/badges?userId=${data.user!.id}`)
+        .then(async r => (r.ok ? r.json() : { badges: [] }))
+        .then(d => setBadges(d.badges || []))
+        .catch(() => {})
 
       // Fetch favorite badge
       const { data: profileData } = await supabase
@@ -227,7 +235,10 @@ export default function ProfilePage() {
     </div>
   )
 
-  const maxDistribution = stats ? Math.max(...Object.values(stats.distribution), 1) : 1
+  // Garde : même si la réponse API est malformée, on ne crashe pas le rendu.
+  const maxDistribution = stats?.distribution
+    ? Math.max(...Object.values(stats.distribution), 1)
+    : 1
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
