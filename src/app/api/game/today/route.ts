@@ -187,16 +187,28 @@ export async function GET(req: NextRequest) {
     }))
   }
 
-  // 6. Renvoi des données au format attendu par le jeu
-  return NextResponse.json({
-    id: page.id,
-    date: page.date,
-    titleWords,
-    tokens,
-    wikipedia_url_fr: page.wikipedia_url_fr,
-    wikipedia_url_en: page.wikipedia_url_en,
-    proximityHints: restoredProximityHints,
-    firstGuessAt,
-    wordHashSet,
-  })
+  // 6. Cache CDN :
+  //    - Sans gameId : réponse déterministe (lang, date, contenu de page) →
+  //      publique, 60s frais + 120s stale. Économise la seed quotidienne et
+  //      le hash-set sur les visites normales.
+  //    - Avec gameId : réponse spécifique au joueur (guesses + proximity) →
+  //      pas de cache.
+  const cacheControl = gameId
+    ? 'private, no-store'
+    : 'public, s-maxage=60, stale-while-revalidate=120'
+
+  return NextResponse.json(
+    {
+      id: page.id,
+      date: page.date,
+      titleWords,
+      tokens,
+      wikipedia_url_fr: page.wikipedia_url_fr,
+      wikipedia_url_en: page.wikipedia_url_en,
+      proximityHints: restoredProximityHints,
+      firstGuessAt,
+      wordHashSet,
+    },
+    { headers: { 'Cache-Control': cacheControl } }
+  )
 }

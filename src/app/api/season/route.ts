@@ -23,11 +23,10 @@ export async function GET() {
     .limit(50)
 
   if (!scores || scores.length === 0) {
-    return NextResponse.json({
-      season,
-      leaderboard: [],
-      ranks: RANKS,
-    })
+    return NextResponse.json(
+      { season, leaderboard: [], ranks: RANKS },
+      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
+    )
   }
 
   // Enrichit avec les usernames et badges favoris
@@ -52,9 +51,10 @@ export async function GET() {
     }
   })
 
-  return NextResponse.json({
-    season,
-    leaderboard,
-    ranks: RANKS,
-  })
+  // Cache CDN : 5min frais + 10min stale. La saison bouge lentement ;
+  // les scores bougent mais tolérer 5min de décalage est acceptable.
+  return NextResponse.json(
+    { season, leaderboard, ranks: RANKS },
+    { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
+  )
 }

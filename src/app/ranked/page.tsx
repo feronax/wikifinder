@@ -6,7 +6,6 @@ import { isStopword } from '@/lib/wikipedia'
 import { normalize, wordsMatch } from '@/lib/matching'
 import { setWordHashSet, isWordInArticle } from '@/lib/client-hash'
 import { useIsMobile, calculateScore } from '@/lib/utils'
-import confetti from 'canvas-confetti'
 import Header from '@/components/Header'
 import Loader from '@/components/Loader'
 import TokenRenderer from '@/components/game/TokenRenderer'
@@ -366,9 +365,12 @@ export default function RankedPage() {
 
             if (isWon && !alreadyWon) {
                 setFrozenElapsed(elapsed)
-                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
-                setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
-                setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
+                // Lazy-load canvas-confetti au moment de la victoire (~30KB gzip hors bundle critique)
+                import('canvas-confetti').then(({ default: confetti }) => {
+                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
+                    setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
+                    setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
+                })
 
                 if (data.newBadges && data.newBadges.length > 0) {
                     data.newBadges.forEach((badge: { key: string; name: string; icon: string; rarity: string }, idx: number) => {

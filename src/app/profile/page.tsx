@@ -44,39 +44,33 @@ export default function ProfilePage() {
         return
       }
       setUser(data.user)
-      const provider = data.user.app_metadata?.provider
-      setIsEmailUser(provider === 'email')
+      setIsEmailUser(data.user.app_metadata?.provider === 'email')
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', data.user.id)
-        .single()
+      // Profil + stats + badges en parallèle (une seule query profiles au lieu de deux)
+      const [profileRes, statsData, badgesData] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('username, favorite_badge')
+          .eq('id', data.user.id)
+          .single(),
+        fetch('/api/stats')
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null),
+        fetch(`/api/badges?userId=${data.user.id}`)
+          .then(r => r.ok ? r.json() : { badges: [] })
+          .catch(() => ({ badges: [] })),
+      ])
 
-      if (profile) setUsername(profile.username || '')
+      const profile = profileRes.data
+      if (profile) {
+        if (profile.username) setUsername(profile.username)
+        if (profile.favorite_badge) setFavoriteBadge(profile.favorite_badge)
+      }
+      // Garde contre une réponse d'erreur qui ferait crasher le render (bug fix du 2026-04-16)
+      if (statsData && statsData.distribution) setStats(statsData)
+      if (badgesData?.badges) setBadges(badgesData.badges)
 
-      // Ne traite la réponse comme des stats valides que si OK ET bien formée.
-      // Sinon on laisse stats à null → la section "Statistiques" ne s'affiche pas.
-      fetch('/api/stats')
-        .then(async r => (r.ok ? r.json() : null))
-        .then(d => { if (d && d.distribution) setStats(d) })
-        .catch(() => {})
-
-      // Fetch badges
-      fetch(`/api/badges?userId=${data.user!.id}`)
-        .then(async r => (r.ok ? r.json() : { badges: [] }))
-        .then(d => setBadges(d.badges || []))
-        .catch(() => {})
-
-      // Fetch favorite badge
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('favorite_badge')
-        .eq('id', data.user!.id)
-        .single()
-      if (profileData?.favorite_badge) setFavoriteBadge(profileData.favorite_badge)
-
-      // Check push notification support and current state
+      // Push notifications (indépendant du reste — pas bloquant pour l'UI)
       if ('serviceWorker' in navigator && 'PushManager' in window) {
         setPushSupported(true)
         const reg = await navigator.serviceWorker.ready

@@ -45,5 +45,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ leaderboard: data })
+  // Cache CDN : 60s frais + 120s stale-while-revalidate.
+  // Le leaderboard change au fil des victoires ; 60s est un bon compromis
+  // entre fraîcheur perçue et charge DB.
+  return NextResponse.json(
+    { leaderboard: data },
+    { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
+  )
 }
