@@ -3,10 +3,59 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { calculateScore } from '@/lib/scoring'
 
+/**
+ * Récupère les parties d'un joueur avec la date de la page associée.
+ *
+ * Requête en 2 étapes (plutôt qu'un join implicite `pages(date)`) car la
+ * contrainte FK `games.page_id → pages.id` a été relâchée pour accepter
+ * aussi des ids de `ranked_pages` — PostgREST ne peut plus résoudre le
+ * join implicite et renvoie une erreur 500.
+ *
+ * Les parties classées (dont le page_id pointe sur ranked_pages) auront un
+ * `pages: null` — ce qui est le comportement original (les streaks ne
+ * comptent que les parties quotidiennes).
+ */
+async function fetchPlayerGamesWithDates(userId: string) {
+  const { data: games, error: gamesErr } = await supabaseAdmin
+    .from('games')
+    .select('id, guess_count, completed, completed_at, page_id')
+    .eq('user_id', userId)
+
+  if (gamesErr) {
+    console.error('[api/stats] games query failed:', gamesErr)
+    return { games: null, error: gamesErr }
+  }
+
+  const pageIds = [...new Set(
+    (games || []).map((g: any) => g.page_id).filter(Boolean)
+  )]
+
+  let pageDateMap = new Map<string, string>()
+  if (pageIds.length > 0) {
+    const { data: pages, error: pagesErr } = await supabaseAdmin
+      .from('pages')
+      .select('id, date')
+      .in('id', pageIds)
+
+    if (pagesErr) {
+      console.error('[api/stats] pages query failed:', pagesErr)
+      return { games: null, error: pagesErr }
+    }
+
+    pageDateMap = new Map((pages || []).map((p: any) => [p.id, p.date]))
+  }
+
+  // On reforme la shape attendue par computeStats : `{ ..., pages: { date } | null }`
+  const enriched = (games || []).map((g: any) => ({
+    ...g,
+    pages: pageDateMap.has(g.page_id) ? { date: pageDateMap.get(g.page_id) } : null,
+  }))
+
+  return { games: enriched, error: null }
+}
+
 export async function GET(req: NextRequest) {
   const usernameParam = req.nextUrl.searchParams.get('username')
-
-  let userId: string
 
   if (usernameParam) {
     // Public profile lookup by username
@@ -19,14 +68,8 @@ export async function GET(req: NextRequest) {
     if (!profile) {
       return NextResponse.json({ error: 'Joueur introuvable' }, { status: 404 })
     }
-    userId = profile.id
 
-    // Récupère toutes les parties du joueur
-    const { data: games, error } = await supabaseAdmin
-      .from('games')
-      .select('id, guess_count, completed, completed_at, pages(date)')
-      .eq('user_id', userId)
-
+    const { games, error } = await fetchPlayerGamesWithDates(profile.id)
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
@@ -34,14 +77,14 @@ export async function GET(req: NextRequest) {
     const result = computeStats(games || [])
     return NextResponse.json({
       ...result,
-      userId,
+      userId: profile.id,
       username: profile.username,
       favoriteBadge: profile.favorite_badge || null,
       memberSince: profile.created_at,
     })
   }
 
-  // Authenticated user stats (original behavior)
+  // Authenticated user stats
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -49,12 +92,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
   }
 
-  // Récupère toutes les parties du joueur
-  const { data: games, error } = await supabaseAdmin
-    .from('games')
-    .select('id, guess_count, completed, completed_at, pages(date)')
-    .eq('user_id', user.id)
-
+  const { games, error } = await fetchPlayerGamesWithDates(user.id)
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
