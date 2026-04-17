@@ -28,7 +28,7 @@ export function calculateRankedScore(guessCount: number, completed: boolean, dur
 export async function getActiveSeason(): Promise<{ id: number; name: string; starts_at: string; ends_at: string } | null> {
   const { data } = await supabaseAdmin
     .from('seasons')
-    .select('*')
+    .select('id, name, starts_at, ends_at')
     .eq('is_active', true)
     .single()
   return data
@@ -48,7 +48,7 @@ export async function updateSeasonScore(
   // Récupère ou crée le score saisonnier
   const { data: existing } = await supabaseAdmin
     .from('season_scores')
-    .select('*')
+    .select('id, total_score, total_time_seconds, games_played')
     .eq('user_id', userId)
     .eq('season_id', season.id)
     .single()
