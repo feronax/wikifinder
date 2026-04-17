@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
@@ -33,7 +34,9 @@ async function fetchPlayerGames(userId: string): Promise<{ games: EnrichedGame[]
     .eq('user_id', userId)
 
   if (gamesErr) {
-    console.error('[api/stats] games query failed:', gamesErr)
+    Sentry.captureException(gamesErr, {
+      tags: { context: 'api/stats' },
+    })
     return { games: null, error: gamesErr }
   }
 
@@ -49,7 +52,9 @@ async function fetchPlayerGames(userId: string): Promise<{ games: EnrichedGame[]
       .in('id', pageIds)
 
     if (pagesErr) {
-      console.error('[api/stats] pages query failed:', pagesErr)
+      Sentry.captureException(pagesErr, {
+        tags: { context: 'api/stats' },
+      })
       return { games: null, error: pagesErr }
     }
 

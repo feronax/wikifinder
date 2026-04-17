@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
@@ -72,7 +73,9 @@ export async function POST(req: NextRequest) {
       word_count_fr: frArticle.wordCount,
     })
   } catch (err) {
-    console.error('Seed error:', err)
+    Sentry.captureException(err, {
+      tags: { context: 'admin/seed-today' },
+    })
     const errorMessage = err instanceof Error ? err.message : 'Une erreur inconnue est survenue'
     return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
