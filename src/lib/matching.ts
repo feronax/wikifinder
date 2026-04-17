@@ -23,7 +23,10 @@ export function wordsMatch(input: string, token: string): boolean {
 }
 
 export function splitOnApostrophe(word: string): string[] {
-    const parts = word.split(/[''']/)
+    // ASCII apostrophe (U+0027) + left curly (U+2018) + right curly (U+2019).
+    // Mobile autocorrect routinely produces U+2019 — without this, guess matching
+    // silently fails on any curly-apostrophe input (e.g. "c\u2019est").
+    const parts = word.split(/[\u0027\u2018\u2019]/)
     return parts.filter(p => p.length > 0)
 }
 
