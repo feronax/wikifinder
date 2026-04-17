@@ -45,6 +45,10 @@ export default function GamePage() {
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const safeSetTimeout = useSafeTimeout()
+    // HARD-01: single-in-flight queue — serializes POST /api/game/guess
+    // behind any prior in-flight POST. Optimistic UI fires BEFORE this chain
+    // is touched (sacred latency); the chain only throttles the network call.
+    const submitChainRef = useRef<Promise<unknown>>(Promise.resolve())
 
     // Timer
     useEffect(() => {
@@ -298,120 +302,135 @@ export default function GamePage() {
 
         inputRef.current?.focus()
 
-        // 3. Sync avec le serveur en BACKGROUND — transparent pour le joueur
+        // 3. Sync avec le serveur en BACKGROUND — transparent pour le joueur.
+        //    HARD-01: generate a fresh idempotency key per Enter keypress
+        //    and chain the POST behind any prior in-flight POST via
+        //    submitChainRef. The optimistic UI is ALREADY on screen above
+        //    (sacred path) — this queue only serializes the network call.
+        //    crypto.randomUUID is native Web Crypto (browser + Android WebView 24+).
+        //    If unavailable, omit the key — server treats as non-deduplicated
+        //    (same as anonymous). Never fall back to Math.random (collision risk).
+        const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : undefined
         const guessBody = {
             gameId: gameState.gameId,
             pageId: gameState.pageData.id,
             lang,
             word,
             elapsed,
+            ...(idempotencyKey ? { idempotencyKey } : {}),
             ...(!gameState.gameId && !alreadyWon && { previousGuesses: gameState.guesses.map(g => g.word) }),
         }
 
-        fetch('/api/game/guess', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(guessBody),
-        }).then(async res => {
-            const data = await res.json()
+        submitChainRef.current = submitChainRef.current
+            .catch(() => {})  // earlier failure does not block this one
+            .then(() =>
+                fetch('/api/game/guess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(guessBody),
+                }).then(async res => {
+                    const data = await res.json()
 
-            // Si le mot n'existe pas (Wiktionary), rollback le guess
-            if (data.wordNotFound) {
-                setInputError(t.wordNotFound)
-                setGameState(prev => prev ? {
-                    ...prev,
-                    guesses: prev.guesses.filter(g => g.word !== word),
-                    guessCount: alreadyWon ? prev.guessCount : prev.guessCount - 1,
-                } : prev)
-                return
-            }
-
-            // Sync le guess count serveur si différent
-            if (data.guessCount !== null && data.guessCount !== undefined) {
-                setGameState(prev => prev ? {
-                    ...prev,
-                    guessCount: alreadyWon ? prev.guessCount : data.guessCount,
-                } : prev)
-            }
-
-            // Applique les tokens révélés par le serveur (valeurs réelles)
-            const { revealedTokens, revealedTitleIndices, won: isWon } = data
-
-            // Arrête l'animation pending
-            setPendingRevealLength(null)
-
-            // Rollback si le client pensait que le mot était dans l'article mais le serveur dit non
-            if ((!revealedTokens || revealedTokens.length === 0) && !data.isInText) {
-                setGameState(prev => prev ? {
-                    ...prev,
-                    guesses: prev.guesses.map(g => g.word === word ? { ...g, found: false } : g),
-                } : prev)
-            }
-
-            if (revealedTokens && revealedTokens.length > 0) {
-                const revealedTokenMap = new Map<number, string>()
-                for (const rt of revealedTokens) revealedTokenMap.set(rt.index, rt.value)
-                const revealedTitleMap = new Map<number, string>()
-                for (const rt of (revealedTitleIndices || [])) revealedTitleMap.set(rt.index, rt.value)
-
-                // Animations
-                setJustRevealedTokens(new Set(revealedTokenMap.keys()))
-                safeSetTimeout(() => setJustRevealedTokens(new Set()), 700)
-                if (revealedTitleIndices && revealedTitleIndices.length > 0) {
-                    setJustRevealedTitle(new Set<number>(revealedTitleIndices.map((rt: { index: number }) => rt.index)))
-                    safeSetTimeout(() => setJustRevealedTitle(new Set()), 900)
-                }
-
-                setGameState(prev => {
-                    if (!prev) return prev
-                    return {
-                        ...prev,
-                        tokens: prev.tokens.map(token =>
-                            revealedTokenMap.has(token.index)
-                                ? { ...token, value: revealedTokenMap.get(token.index)!, visible: true }
-                                : token
-                        ),
-                        titleWords: prev.titleWords.map(tw =>
-                            revealedTitleMap.has(tw.index)
-                                ? { ...tw, value: revealedTitleMap.get(tw.index)!, revealed: true }
-                                : tw
-                        ),
-                        won: isWon || prev.won,
+                    // Si le mot n'existe pas (Wiktionary), rollback le guess
+                    if (data.wordNotFound) {
+                        setInputError(t.wordNotFound)
+                        setGameState(prev => prev ? {
+                            ...prev,
+                            guesses: prev.guesses.filter(g => g.word !== word),
+                            guessCount: alreadyWon ? prev.guessCount : prev.guessCount - 1,
+                        } : prev)
+                        return
                     }
+
+                    // Sync le guess count serveur si différent
+                    if (data.guessCount !== null && data.guessCount !== undefined) {
+                        setGameState(prev => prev ? {
+                            ...prev,
+                            guessCount: alreadyWon ? prev.guessCount : data.guessCount,
+                        } : prev)
+                    }
+
+                    // Applique les tokens révélés par le serveur (valeurs réelles)
+                    const { revealedTokens, revealedTitleIndices, won: isWon } = data
+
+                    // Arrête l'animation pending
+                    setPendingRevealLength(null)
+
+                    // Rollback si le client pensait que le mot était dans l'article mais le serveur dit non
+                    if ((!revealedTokens || revealedTokens.length === 0) && !data.isInText) {
+                        setGameState(prev => prev ? {
+                            ...prev,
+                            guesses: prev.guesses.map(g => g.word === word ? { ...g, found: false } : g),
+                        } : prev)
+                    }
+
+                    if (revealedTokens && revealedTokens.length > 0) {
+                        const revealedTokenMap = new Map<number, string>()
+                        for (const rt of revealedTokens) revealedTokenMap.set(rt.index, rt.value)
+                        const revealedTitleMap = new Map<number, string>()
+                        for (const rt of (revealedTitleIndices || [])) revealedTitleMap.set(rt.index, rt.value)
+
+                        // Animations
+                        setJustRevealedTokens(new Set(revealedTokenMap.keys()))
+                        safeSetTimeout(() => setJustRevealedTokens(new Set()), 700)
+                        if (revealedTitleIndices && revealedTitleIndices.length > 0) {
+                            setJustRevealedTitle(new Set<number>(revealedTitleIndices.map((rt: { index: number }) => rt.index)))
+                            safeSetTimeout(() => setJustRevealedTitle(new Set()), 900)
+                        }
+
+                        setGameState(prev => {
+                            if (!prev) return prev
+                            return {
+                                ...prev,
+                                tokens: prev.tokens.map(token =>
+                                    revealedTokenMap.has(token.index)
+                                        ? { ...token, value: revealedTokenMap.get(token.index)!, visible: true }
+                                        : token
+                                ),
+                                titleWords: prev.titleWords.map(tw =>
+                                    revealedTitleMap.has(tw.index)
+                                        ? { ...tw, value: revealedTitleMap.get(tw.index)!, revealed: true }
+                                        : tw
+                                ),
+                                won: isWon || prev.won,
+                            }
+                        })
+                    }
+
+                    if (isWon && !alreadyWon) {
+                        // Fige le chrono au moment de la victoire
+                        setFrozenElapsed(elapsed)
+                        fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
+                        // Lazy-load canvas-confetti au moment de la victoire (~30KB gzip hors bundle critique)
+                        import('canvas-confetti').then(({ default: confetti }) => {
+                            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
+                            safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
+                            safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
+                        })
+
+                        // Badge unlock notifications
+                        if (data.newBadges && data.newBadges.length > 0) {
+                            data.newBadges.forEach((badge: { key: string; name: string; icon: string; rarity: string }, idx: number) => {
+                                safeSetTimeout(() => {
+                                    setBadgeNotifications(prev => [...prev, badge])
+                                    safeSetTimeout(() => {
+                                        setBadgeNotifications(prev => prev.filter(b => b.key !== badge.key))
+                                    }, 3200)
+                                }, idx * 800)
+                            })
+                        }
+
+                        // Season ranked score
+                        if (data.seasonUpdate) {
+                            setSeasonUpdate(data.seasonUpdate)
+                        }
+                    }
+                }).catch(() => {
+                    // Erreur réseau silencieuse — le guess est déjà affiché localement
                 })
-            }
-
-            if (isWon && !alreadyWon) {
-                // Fige le chrono au moment de la victoire
-                setFrozenElapsed(elapsed)
-                fetch('/api/game/streak').then(r => r.json()).then(d => setStreak(d.streak || 0))
-                // Lazy-load canvas-confetti au moment de la victoire (~30KB gzip hors bundle critique)
-                import('canvas-confetti').then(({ default: confetti }) => {
-                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
-                    safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
-                    safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
-                })
-
-                // Badge unlock notifications
-                if (data.newBadges && data.newBadges.length > 0) {
-                    data.newBadges.forEach((badge: { key: string; name: string; icon: string; rarity: string }, idx: number) => {
-                        safeSetTimeout(() => {
-                            setBadgeNotifications(prev => [...prev, badge])
-                            safeSetTimeout(() => {
-                                setBadgeNotifications(prev => prev.filter(b => b.key !== badge.key))
-                            }, 3200)
-                        }, idx * 800)
-                    })
-                }
-
-                // Season ranked score
-                if (data.seasonUpdate) {
-                    setSeasonUpdate(data.seasonUpdate)
-                }
-            }
-        }).catch(() => {
-            // Erreur réseau silencieuse — le guess est déjà affiché localement
-        })
+            )
 
         // Proximity hints en background (uniquement si mot dans l'article)
         if (inArticle) {
