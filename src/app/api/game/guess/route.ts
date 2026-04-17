@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
@@ -8,6 +9,7 @@ import { checkWordExists } from '@/lib/wiktionary-cache'
 import { evaluateBadges } from '@/lib/badges'
 import { calculateRankedScore, updateSeasonScore } from '@/lib/seasons'
 import { parseJsonBody, UuidSchema, LangSchema, GuessWordSchema } from '@/lib/validation'
+import { acquireIdempotencySlot } from '@/lib/idempotency'
 import type { RankedPageRow } from '@/lib/wikipedia-types'
 
 // Schéma plat — hot path, < 1ms à parser
@@ -18,12 +20,21 @@ const GuessBodySchema = z.object({
   word: GuessWordSchema,
   elapsed: z.number().int().nonnegative().nullable().optional(),
   previousGuesses: z.array(z.string()).optional(),
+  idempotencyKey: UuidSchema.optional(),  // NEW — kept optional for backward compat with old clients
 })
 
 export async function POST(req: NextRequest) {
   const parsed = await parseJsonBody(req, GuessBodySchema)
   if ('error' in parsed) return parsed.error
-  const { gameId, pageId, lang, word, elapsed, previousGuesses: clientPreviousGuesses } = parsed.data
+  const { gameId, pageId, lang, word, elapsed, previousGuesses: clientPreviousGuesses, idempotencyKey } = parsed.data
+
+  // Idempotency only applies to authenticated games (gameId present + key sent).
+  // Anonymous games rely on client-side rollback for safety.
+  let slot: Awaited<ReturnType<typeof acquireIdempotencySlot>> | null = null
+  if (gameId && idempotencyKey) {
+    slot = await acquireIdempotencySlot(gameId, idempotencyKey)
+    if (slot.kind === 'replay') return NextResponse.json(slot.response)
+  }
 
   // Authentification + chargement article en parallèle
   const [authResult, pageResult, rankedPageResult] = await Promise.all([
@@ -118,15 +129,26 @@ export async function POST(req: NextRequest) {
   if (!isInText) {
     const exists = await checkWordExists(word, lang)
     if (!exists) {
-      return NextResponse.json({
+      const wordNotFoundBody = {
         isInText: false,
-        revealedTokens: [],
-        revealedTitleIndices: [],
+        revealedTokens: [] as { index: number; value: string }[],
+        revealedTitleIndices: [] as { index: number; value: string }[],
         won: false,
         guessCount: serverGuessCount,
-        proximityHints: [],
+        proximityHints: [] as { index: number; score: number }[],
         wordNotFound: true,
-      })
+      }
+      if (slot && slot.kind === 'fresh') {
+        try {
+          await slot.commit(wordNotFoundBody)
+        } catch (commitErr) {
+          Sentry.captureException(commitErr, {
+            tags: { context: 'api/game/guess' },
+            extra: { gameId, key: idempotencyKey },
+          })
+        }
+      }
+      return NextResponse.json(wordNotFoundBody)
     }
   }
 
@@ -216,7 +238,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({
+  const responseBody = {
     isInText,
     revealedTokens,
     revealedTitleIndices,
@@ -224,5 +246,19 @@ export async function POST(req: NextRequest) {
     newBadges: newBadges.map(b => ({ key: b.key, name: b.name, nameEn: b.nameEn, icon: b.icon, rarity: b.rarity })),
     seasonUpdate,
     guessCount: serverGuessCount,
-  })
+  }
+
+  if (slot && slot.kind === 'fresh') {
+    try {
+      await slot.commit(responseBody)
+    } catch (commitErr) {
+      Sentry.captureException(commitErr, {
+        tags: { context: 'api/game/guess' },
+        extra: { gameId, key: idempotencyKey },
+      })
+      // Continue — return the response anyway. Worst case: a duplicate retry will run the handler again.
+    }
+  }
+
+  return NextResponse.json(responseBody)
 }
