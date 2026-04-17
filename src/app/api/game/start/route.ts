@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   // Cherche la meilleure partie existante (complétée en priorité, sinon la plus récente)
   const { data: existing } = await supabaseAdmin
     .from('games')
-    .select('*')
+    .select('id, user_id, page_id, lang, guess_count, completed, completed_at, duration_seconds, ip_hash, created_at')
     .eq('user_id', user.id)
     .eq('page_id', pageId)
     .eq('lang', lang)

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (type === 'daily') {
     const { data: rows, error } = await supabaseAdmin
       .from('leaderboard_daily')
-      .select('*')
+      .select('username, score, guess_count, duration_seconds, date, position')
       .eq('date', date)
       .limit(20)
 
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   } else if (type === 'global') {
     const { data: rows, error } = await supabaseAdmin
       .from('leaderboard_global')
-      .select('*')
+      .select('username, score, guess_count, duration_seconds, position')
       .limit(20)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

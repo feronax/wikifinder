@@ -6,7 +6,7 @@ export async function GET() {
   // Récupère la saison active
   const { data: season } = await supabaseAdmin
     .from('seasons')
-    .select('*')
+    .select('id, name, starts_at, ends_at, is_active')
     .eq('is_active', true)
     .single()
 
