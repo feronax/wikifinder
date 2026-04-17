@@ -6,6 +6,7 @@ import { isStopword } from '@/lib/wikipedia'
 import { normalize, wordsMatch } from '@/lib/matching'
 import { setWordHashSet, isWordInArticle } from '@/lib/client-hash'
 import { useIsMobile, calculateScore } from '@/lib/utils'
+import { useSafeTimeout } from '@/lib/use-safe-timeout'
 import Header from '@/components/Header'
 import Loader from '@/components/Loader'
 import TokenRenderer from '@/components/game/TokenRenderer'
@@ -43,6 +44,7 @@ export default function GamePage() {
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const safeSetTimeout = useSafeTimeout()
 
     // Timer
     useEffect(() => {
@@ -52,6 +54,14 @@ export default function GamePage() {
         }, 1000)
         return () => clearInterval(interval)
     }, [startedAt, gameState?.won])
+
+    // Cleanup hint timer on unmount (HARD-06: hintTimerRef has clear-on-resubmit
+    // logic but no unmount cleanup — covers tab close while a hint is showing).
+    useEffect(() => {
+        return () => {
+            if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
+        }
+    }, [])
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
     const isMobile = useIsMobile()
@@ -189,7 +199,7 @@ export default function GamePage() {
             setFrozenElapsed(initialElapsed)
         }
         setLoading(false)
-        setTimeout(() => inputRef.current?.focus(), 100)
+        safeSetTimeout(() => inputRef.current?.focus(), 100)
     }
 
     function showHint(index: number) {
@@ -213,7 +223,7 @@ export default function GamePage() {
             window.scrollTo({ top: elementPosition - headerOffset, behavior: 'smooth' })
             void (el as HTMLElement).offsetWidth
             el.classList.add('word-highlight')
-            setTimeout(() => el.classList.remove('word-highlight'), 1200)
+            safeSetTimeout(() => el.classList.remove('word-highlight'), 1200)
             return { word: normWord, index: nextIndex }
         })
     }
@@ -346,10 +356,10 @@ export default function GamePage() {
 
                 // Animations
                 setJustRevealedTokens(new Set(revealedTokenMap.keys()))
-                setTimeout(() => setJustRevealedTokens(new Set()), 700)
+                safeSetTimeout(() => setJustRevealedTokens(new Set()), 700)
                 if (revealedTitleIndices && revealedTitleIndices.length > 0) {
                     setJustRevealedTitle(new Set<number>(revealedTitleIndices.map((rt: { index: number }) => rt.index)))
-                    setTimeout(() => setJustRevealedTitle(new Set()), 900)
+                    safeSetTimeout(() => setJustRevealedTitle(new Set()), 900)
                 }
 
                 setGameState(prev => {
@@ -378,16 +388,16 @@ export default function GamePage() {
                 // Lazy-load canvas-confetti au moment de la victoire (~30KB gzip hors bundle critique)
                 import('canvas-confetti').then(({ default: confetti }) => {
                     confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
-                    setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
-                    setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
+                    safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
+                    safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
                 })
 
                 // Badge unlock notifications
                 if (data.newBadges && data.newBadges.length > 0) {
                     data.newBadges.forEach((badge: { key: string; name: string; icon: string; rarity: string }, idx: number) => {
-                        setTimeout(() => {
+                        safeSetTimeout(() => {
                             setBadgeNotifications(prev => [...prev, badge])
-                            setTimeout(() => {
+                            safeSetTimeout(() => {
                                 setBadgeNotifications(prev => prev.filter(b => b.key !== badge.key))
                             }, 3200)
                         }, idx * 800)
@@ -538,7 +548,7 @@ export default function GamePage() {
         ].join('\n')
         navigator.clipboard.writeText(text).then(() => {
             setShareCopied(true)
-            setTimeout(() => setShareCopied(false), 2000)
+            safeSetTimeout(() => setShareCopied(false), 2000)
         })
     }
 
@@ -550,7 +560,7 @@ export default function GamePage() {
             : `I challenge you on Wikifinder! Can you beat my score of ${score.toLocaleString()} pts?\n\n${challengeUrl}`
         navigator.clipboard.writeText(text).then(() => {
             setChallengeCopied(true)
-            setTimeout(() => setChallengeCopied(false), 2000)
+            safeSetTimeout(() => setChallengeCopied(false), 2000)
         })
     }
 
