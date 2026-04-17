@@ -28,6 +28,42 @@ test('plays today\'s daily article and meets sacred latency budgets', async ({ p
   const input = page.locator('input[placeholder*="mot" i], input[placeholder*="word" i]').first()
   await input.waitFor({ state: 'visible', timeout: 30_000 })
 
+  // -----------------------------------------------------------------------
+  // Warm-up guess (unmeasured). Establishes "warm" for the <200ms warm-budget
+  // per D-08/D-09 clarification #3 (2026-04-17). Cold-boot costs on the FIRST
+  // iteration — Next server cold start, Supabase connection-pool init, and
+  // Wiktionary TLS handshake — are architectural and unrelated to product
+  // perf. Excluding them from the gate is correct; this is NOT median-of-N
+  // smoothing (D-10 preserved — every measured sample still hard-fails on
+  // budget).
+  //
+  // We use a word the server will process fully but that will traverse the
+  // full /api/game/guess → Wiktionary validation → Supabase path. Pick a
+  // plainly-invalid nonce ("xzqw") that Wiktionary will reject — rejected
+  // guesses still serialize through the HARD-01 queue exactly like a real
+  // guess, so the warm-up touches the same network + server paths as a real
+  // submission. A known stopword would NOT warm-up because the client
+  // filters stopwords before submission. This nonce is not in SEED_WORDS so
+  // it does not deplete the measured sequence.
+  // -----------------------------------------------------------------------
+  await input.fill('xzqw')
+  await input.press('Enter')
+  await page.waitForFunction(
+    () => performance.getEntriesByName('guess:fetch-end').length > 0,
+    null,
+    { timeout: 10_000 },
+  ).catch(() => {
+    // Even if fetch-end never fires (e.g., client-side reject before submit),
+    // continue — the measured loop will still benefit from JIT/process warm-up.
+  })
+  // Clear marks/measures so the measured loop starts with a clean slate.
+  await page.evaluate(() => {
+    performance.clearMarks()
+    performance.clearMeasures()
+  })
+  // Clear the input field (some browsers retain the rejected value).
+  await input.fill('')
+
   const maxGuesses = 60
   const tried: string[] = []
   let seedIdx = 0
