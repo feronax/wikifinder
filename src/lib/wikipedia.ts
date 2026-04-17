@@ -1,3 +1,5 @@
+import type { MediaWikiPage, MediaWikiQueryResponse } from '@/lib/wikipedia-types'
+
 const WIKI_HEADERS = { 'User-Agent': 'Wikifinder/1.0 (https://wikifinder.vercel.app)' }
 
 const STOPWORDS_FR = new Set([
@@ -38,9 +40,9 @@ export async function fetchRandomQualityArticle(lang: 'fr' | 'en') {
 
   const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|info&explaintext=true&inprop=url&format=json&origin=*`
   const contentRes = await fetch(contentUrl, { headers: WIKI_HEADERS })
-  const contentData = await contentRes.json()
-  
-  const page = Object.values(contentData.query.pages)[0] as any
+  const contentData = await contentRes.json() as MediaWikiQueryResponse
+
+  const page = Object.values(contentData.query.pages)[0] as MediaWikiPage
   const content = page.extract || ''
   const words = extractWords(content)
 
@@ -58,10 +60,10 @@ export async function fetchLinkedArticle(title: string, fromLang: 'fr' | 'en') {
 
   const res = await fetch(url, { headers: WIKI_HEADERS })
   if (!res.ok) return null
-  let data
-  try { data = await res.json() } catch { return null }
+  let data: MediaWikiQueryResponse
+  try { data = await res.json() as MediaWikiQueryResponse } catch { return null }
   const pages = data.query.pages
-  const page = Object.values(pages)[0] as any
+  const page = Object.values(pages)[0] as MediaWikiPage
   const langlinks = page.langlinks
 
   if (!langlinks || langlinks.length === 0) return null
@@ -70,10 +72,10 @@ export async function fetchLinkedArticle(title: string, fromLang: 'fr' | 'en') {
   const contentUrl = `https://${toLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(linkedTitle)}&prop=extracts&explaintext=true&format=json&origin=*`
   const contentRes = await fetch(contentUrl, { headers: WIKI_HEADERS })
   if (!contentRes.ok) return null
-  let contentData
-  try { contentData = await contentRes.json() } catch { return null }
+  let contentData: MediaWikiQueryResponse
+  try { contentData = await contentRes.json() as MediaWikiQueryResponse } catch { return null }
   const linkedPages = contentData.query.pages
-  const linkedPage = Object.values(linkedPages)[0] as any
+  const linkedPage = Object.values(linkedPages)[0] as MediaWikiPage
 
   const words = extractWords(linkedPage.extract || '')
 

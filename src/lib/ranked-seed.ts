@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './supabase-admin'
 import { extractWords } from './wikipedia'
 import { tokenizeContent, tokenizeTitle } from './tokenize'
+import type { MediaWikiPage, MediaWikiQueryResponse, PageviewsResponse } from './wikipedia-types'
 
 const WIKI_HEADERS = { 'User-Agent': 'Wikifinder/1.0 (https://wikifinder.vercel.app)' }
 
@@ -22,8 +23,8 @@ async function getPageviews(title: string, lang: string): Promise<number> {
     const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/${lang}.wikipedia/all-access/all-agents/${encodeURIComponent(title)}/monthly/${fmt(start)}/${fmt(end)}`
     const res = await fetch(url, { headers: WIKI_HEADERS })
     if (!res.ok) return 0
-    const data = await res.json()
-    return (data.items || []).reduce((sum: number, item: any) => sum + (item.views || 0), 0)
+    const data = await res.json() as PageviewsResponse
+    return (data.items || []).reduce((sum, item) => sum + (item.views || 0), 0)
   } catch {
     return 0
   }
@@ -45,7 +46,7 @@ export async function seedRankedArticle(
     .select('wikipedia_title')
     .eq('lang', lang)
 
-  const usedTitles = new Set((existing || []).map((p: any) => p.wikipedia_title))
+  const usedTitles = new Set((existing || []).map((p) => p.wikipedia_title))
 
   // Aussi exclure les articles du mode quotidien
   const { data: dailyPages } = await supabaseAdmin
@@ -53,7 +54,11 @@ export async function seedRankedArticle(
     .select(lang === 'fr' ? 'wikipedia_title_fr' : 'wikipedia_title_en')
 
   const dailyTitles = new Set(
-    (dailyPages || []).map((p: any) => lang === 'fr' ? p.wikipedia_title_fr : p.wikipedia_title_en).filter(Boolean)
+    (dailyPages || [])
+      .map((p: { wikipedia_title_fr?: string | null; wikipedia_title_en?: string | null }) =>
+        lang === 'fr' ? p.wikipedia_title_fr : p.wikipedia_title_en
+      )
+      .filter((t): t is string => Boolean(t))
   )
 
   const MAX_ATTEMPTS = 30
@@ -74,9 +79,9 @@ export async function seedRankedArticle(
       const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|info&explaintext=true&inprop=url&format=json&origin=*`
       const contentRes = await fetch(contentUrl, { headers: WIKI_HEADERS })
       if (!contentRes.ok) continue
-      let contentData
-      try { contentData = await contentRes.json() } catch { continue }
-      const page = Object.values(contentData.query.pages)[0] as any
+      let contentData: MediaWikiQueryResponse
+      try { contentData = await contentRes.json() as MediaWikiQueryResponse } catch { continue }
+      const page = Object.values(contentData.query.pages)[0] as MediaWikiPage
       const content = page.extract || ''
       const wordCount = extractWords(content).length
 
@@ -124,9 +129,9 @@ export async function seedRankedArticle(
       const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|info&explaintext=true&inprop=url&format=json&origin=*`
       const contentRes = await fetch(contentUrl, { headers: WIKI_HEADERS })
       if (!contentRes.ok) continue
-      let contentData
-      try { contentData = await contentRes.json() } catch { continue }
-      const page = Object.values(contentData.query.pages)[0] as any
+      let contentData: MediaWikiQueryResponse
+      try { contentData = await contentRes.json() as MediaWikiQueryResponse } catch { continue }
+      const page = Object.values(contentData.query.pages)[0] as MediaWikiPage
       const content = page.extract || ''
       const wordCount = extractWords(content).length
 

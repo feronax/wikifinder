@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nextjs'
 import { extractWords } from '@/lib/wikipedia'
+import type { MediaWikiPage, MediaWikiQueryResponse, PageviewsResponse } from '@/lib/wikipedia-types'
 
 const MIN_WORD_COUNT = 2000
 const MIN_PAGEVIEWS = 1000
@@ -24,8 +25,8 @@ async function getPageviews(title: string, lang: 'fr' | 'en'): Promise<number> {
         const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/${lang}.wikipedia/all-access/all-agents/${encodeURIComponent(title)}/monthly/${fmt(start)}/${fmt(end)}`
         const res = await fetch(url, { headers: WIKI_HEADERS })
         if (!res.ok) return 0
-        const data = await res.json()
-        return (data.items || []).reduce((sum: number, item: any) => sum + (item.views || 0), 0)
+        const data = await res.json() as PageviewsResponse
+        return (data.items || []).reduce((sum, item) => sum + (item.views || 0), 0)
     } catch {
         return 0
     }
@@ -36,13 +37,13 @@ async function fetchArticleContent(title: string, lang: 'fr' | 'en') {
     const res = await fetch(url, { headers: WIKI_HEADERS })
     if (!res.ok) throw new Error(`Wikipedia API error: ${res.status}`)
     const text = await res.text()
-    let data
-    try { data = JSON.parse(text) } catch { throw new Error(`Wikipedia returned invalid JSON for "${title}": ${text.slice(0, 200)}`) }
-    const page = Object.values(data.query.pages)[0] as any
+    let data: MediaWikiQueryResponse
+    try { data = JSON.parse(text) as MediaWikiQueryResponse } catch { throw new Error(`Wikipedia returned invalid JSON for "${title}": ${text.slice(0, 200)}`) }
+    const page = Object.values(data.query.pages)[0] as MediaWikiPage
     return {
-        title: page.title as string,
-        url: page.fullurl as string,
-        content: (page.extract || '') as string,
+        title: page.title,
+        url: page.fullurl ?? '',
+        content: page.extract ?? '',
     }
 }
 
