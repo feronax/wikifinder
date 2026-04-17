@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
 
@@ -50,8 +51,12 @@ export async function parseJsonBody<T extends z.ZodType>(
   const result = schema.safeParse(raw)
   if (!result.success) {
     // On ne renvoie PAS les détails Zod au client (évite la fuite d'info schéma).
-    // Les détails restent dans les logs serveur pour debug.
-    console.error('[validation] body parse failed:', result.error.issues)
+    // Les détails partent vers Sentry (server-side uniquement) pour debug.
+    Sentry.captureMessage('[validation] body parse failed', {
+      level: 'warning',
+      tags: { context: 'validation' },
+      extra: { issues: result.error.issues },
+    })
     return { error: NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 }) }
   }
   return { data: result.data }
@@ -69,7 +74,11 @@ export function parseSearchParams<T extends z.ZodType>(
   for (const [k, v] of url.searchParams.entries()) obj[k] = v
   const result = schema.safeParse(obj)
   if (!result.success) {
-    console.error('[validation] query parse failed:', result.error.issues)
+    Sentry.captureMessage('[validation] query parse failed', {
+      level: 'warning',
+      tags: { context: 'validation' },
+      extra: { issues: result.error.issues },
+    })
     return { error: NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 }) }
   }
   return { data: result.data }

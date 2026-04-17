@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { extractWords } from '@/lib/wikipedia'
 
 const MIN_WORD_COUNT = 2000
@@ -53,24 +54,29 @@ export async function fetchRandomQualityArticle(
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         try {
             const randomUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`
-            console.log(`[seed] attempt ${attempt + 1}: fetching random article...`)
             const randomRes = await fetch(randomUrl, { headers: WIKI_HEADERS })
-            if (!randomRes.ok) { console.log(`[seed] random API returned ${randomRes.status}`); continue }
+            if (!randomRes.ok) continue
             const randomText = await randomRes.text()
             let randomData
-            try { randomData = JSON.parse(randomText) } catch { console.log(`[seed] random API returned non-JSON:`, randomText.slice(0, 100)); continue }
+            try {
+                randomData = JSON.parse(randomText)
+            } catch {
+                Sentry.captureMessage('[seed] non-JSON response', {
+                    level: 'warning',
+                    tags: { context: 'seed' },
+                    extra: { snippet: randomText.slice(0, 100) },
+                })
+                continue
+            }
             const title = randomData.query.random[0].title
-            console.log(`[seed] got title: "${title}"`)
 
-            if (alreadyUsedTitles.includes(title)) { console.log(`[seed] already used, skip`); continue }
+            if (alreadyUsedTitles.includes(title)) continue
 
             const { title: cleanTitle, url, content } = await fetchArticleContent(title, lang)
             const wordCount = extractWords(content).length
-            console.log(`[seed] "${cleanTitle}" has ${wordCount} words (min: ${MIN_WORD_COUNT})`)
             if (wordCount < MIN_WORD_COUNT) continue
 
             const pageviews = await getPageviews(cleanTitle, lang)
-            console.log(`[seed] "${cleanTitle}" has ${pageviews} pageviews (min: ${MIN_PAGEVIEWS})`)
             if (pageviews < MIN_PAGEVIEWS) continue
 
             return { title: cleanTitle, url, content, wordCount, pageviews, usedFallback: false }
