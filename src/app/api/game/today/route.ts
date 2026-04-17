@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
   // 1. Récupération de l'article depuis la base de données
   let { data: page, error } = await supabaseAdmin
     .from('pages')
-    .select('*')
+    .select('id, date, wikipedia_title_fr, wikipedia_title_en, wikipedia_url_fr, wikipedia_url_en, content_fr, content_en, tokens_fr, tokens_en, title_tokens_fr, title_tokens_en, word_count_fr, word_count_en')
     .eq('date', targetDate)
     .single()
 

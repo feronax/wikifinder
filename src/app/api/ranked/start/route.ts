@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   let { data: availablePages } = await supabaseAdmin
     .from('ranked_pages')
-    .select('*')
+    .select('id, lang, difficulty, wikipedia_title, wikipedia_url, tokens, title_tokens, used_count')
     .eq('lang', lang)
     .eq('difficulty', difficulty)
     .order('used_count', { ascending: true })
@@ -67,11 +67,11 @@ export async function POST(req: NextRequest) {
     if (seeded) {
       const { data: newPage } = await supabaseAdmin
         .from('ranked_pages')
-        .select('*')
+        .select('id, lang, difficulty, wikipedia_title, wikipedia_url, tokens, title_tokens, used_count')
         .eq('lang', lang)
         .eq('wikipedia_title', seeded.title)
         .single()
-      page = newPage
+      page = newPage ?? undefined
     }
   }
 
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     for (let i = Math.max(0, currentIdx - 1); i >= 0; i--) {
       const { data: fallbackPages } = await supabaseAdmin
         .from('ranked_pages')
-        .select('*')
+        .select('id, lang, difficulty, wikipedia_title, wikipedia_url, tokens, title_tokens, used_count')
         .eq('lang', lang)
         .eq('difficulty', fallbackDiffs[i])
         .order('used_count', { ascending: true })
