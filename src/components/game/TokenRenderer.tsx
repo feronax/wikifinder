@@ -1,7 +1,18 @@
 'use client'
 
-import React from 'react'
+import React, { useLayoutEffect, useRef } from 'react'
 import { Token } from '@/app/game/types'
+
+// Runs callback AFTER the browser has actually painted.
+// A plain useLayoutEffect measures React commit time (before paint);
+// rAF + MessageChannel schedules work after the browser's render steps.
+function afterFramePaint(cb: () => void) {
+    requestAnimationFrame(() => {
+        const mc = new MessageChannel()
+        mc.port1.onmessage = () => cb()
+        mc.port2.postMessage(0)
+    })
+}
 
 interface TokenRendererProps {
     tokens: Token[]
@@ -59,6 +70,15 @@ function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, isPending, showHi
 }
 
 export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justRevealedTokens, proximityHints, pendingRevealLength, showHint }: TokenRendererProps) {
+    const lastPendingRef = useRef<number | null>(null)
+
+    useLayoutEffect(() => {
+        if (pendingRevealLength !== null && lastPendingRef.current === null) {
+            afterFramePaint(() => performance.mark('guess:reveal-painted'))
+        }
+        lastPendingRef.current = pendingRevealLength
+    }, [pendingRevealLength])
+
     const elements: React.ReactNode[] = []
     let i = 0
 
