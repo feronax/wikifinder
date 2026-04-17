@@ -20,7 +20,10 @@ describe('normalize', () => {
 
 describe('wordsMatch', () => {
   it('matches identical words', () => {
-    expect(wordsMatch('chat', 'chat')).toBe(true)
+    // INTENTIONAL FAIL — ci-scratch/phase-02-gate-test only. Verifies the CI
+    // vitest job reports red and branch-protection blocks merge. See
+    // .planning/phases/02-testing-baseline/02-HUMAN-UAT.md Step 4.
+    expect(wordsMatch('chat', 'chat')).toBe(false)
   })
   it('matches case-insensitively via normalize', () => {
     expect(wordsMatch('Chat', 'chat')).toBe(true)
