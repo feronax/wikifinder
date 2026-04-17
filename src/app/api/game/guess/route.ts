@@ -8,6 +8,7 @@ import { checkWordExists } from '@/lib/wiktionary-cache'
 import { evaluateBadges } from '@/lib/badges'
 import { calculateRankedScore, updateSeasonScore } from '@/lib/seasons'
 import { parseJsonBody, UuidSchema, LangSchema, GuessWordSchema } from '@/lib/validation'
+import type { RankedPageRow } from '@/lib/wikipedia-types'
 
 // Schéma plat — hot path, < 1ms à parser
 const GuessBodySchema = z.object({
@@ -48,7 +49,9 @@ export async function POST(req: NextRequest) {
   let page = pageResult.data
   let isRankedPage = false
   if (!page && rankedPageResult.data) {
-    const rp = rankedPageResult.data as any
+    // FIXME(deferred): same value assigned to both _fr and _en branches at lines 53-62.
+    // See CONCERNS.md "Ranked Page Format Adaptation" — out of HARD-07 scope per CONTEXT.md.
+    const rp = rankedPageResult.data as Pick<RankedPageRow, 'lang' | 'wikipedia_title' | 'content' | 'tokens' | 'title_tokens'>
     // Adapte le format ranked_pages pour matcher le format pages
     page = {
       wikipedia_title_fr: rp.lang === 'fr' ? rp.wikipedia_title : rp.wikipedia_title,

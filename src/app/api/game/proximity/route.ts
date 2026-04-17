@@ -5,6 +5,7 @@ import { tokenizeContent } from '@/lib/tokenize'
 import { findProximityHints } from '@/lib/proximity'
 import { wordsMatch, cleanTokenValue, splitOnApostrophe } from '@/lib/matching'
 import { parseJsonBody, UuidSchema, LangSchema, GuessWordSchema } from '@/lib/validation'
+import type { RankedPageRow } from '@/lib/wikipedia-types'
 
 const ProximityBodySchema = z.object({
   pageId: UuidSchema,
@@ -42,8 +43,9 @@ export async function POST(req: NextRequest) {
     if (!rankedPage) {
       return NextResponse.json({ proximityHints: [] })
     }
-    content = (rankedPage as any).content
-    precomputed = (rankedPage as any).tokens
+    const rankedPageTyped = rankedPage as Pick<RankedPageRow, 'content' | 'tokens'>
+    content = rankedPageTyped.content
+    precomputed = rankedPageTyped.tokens
   }
 
   const fullTokens = precomputed || tokenizeContent(content, lang)

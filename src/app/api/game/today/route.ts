@@ -6,6 +6,7 @@ import { wordsMatch, splitOnApostrophe, cleanTokenValue, normalize } from '@/lib
 import { tokenizeContent, tokenizeTitle, maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
 import { findProximityHints } from '@/lib/proximity'
 import { createHash } from 'crypto'
+import type { GuessRow } from '@/lib/wikipedia-types'
 
 async function seedPage(date: string) {
   const { data: usedPages } = await supabaseAdmin
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
 
     const previousWords = (guesses || []).map((g: any) => g.word)
     if (guesses && guesses.length > 0) {
-      firstGuessAt = (guesses[0] as any).guessed_at
+      firstGuessAt = (guesses[0] as GuessRow).guessed_at
     }
     const allVariants = previousWords.flatMap(splitOnApostrophe)
 
