@@ -24,7 +24,73 @@ const SEED_WORDS = [
 test('plays today\'s daily article and meets sacred latency budgets', async ({ page }) => {
   await page.goto('/game')
 
-  // Wait for the game UI to be interactive (guess input present)
+  // -----------------------------------------------------------------------
+  // Dismiss the Axeptio cookie-consent widget before anything else (D-14,
+  // 2026-04-17). The widget is loaded via GTM (see src/app/layout.tsx
+  // <GoogleTagManager>) on every fresh browser profile — in Playwright, each
+  // test run uses a fresh storage state, so the widget is ALWAYS visible on
+  // the first load. When active, Axeptio injects scripts that compete with
+  // the /api/game/guess fetch for the main-thread JS budget, inflating
+  // rttMs well above the 200ms sacred budget (observed 358ms on the first
+  // measured iteration of prior runs). Real users dismiss the widget once
+  // per device then never see it again, so measuring rttMs with it open is
+  // not representative of product perf.
+  //
+  // The widget renders as a role="dialog" with primary action "OK pour moi"
+  // (accept-all) in the full modal. A-B variants may surface different
+  // labels; we try a prioritised selector list with short, bounded timeouts.
+  // All attempts swallow errors via .catch(() => {}) so the test still works
+  // if none of the variants match (e.g., GTM blocked, returning visitor
+  // with stored consent, or Axeptio service unreachable).
+  //
+  // Implementation notes:
+  //   - D-04 preserved: we dismiss the DISPLAY layer, not any data layer —
+  //     the test still plays today's real daily article from prod Supabase.
+  //   - addLocatorHandler as a safety net: if the widget re-appears later in
+  //     the session (rare but possible), Playwright auto-dismisses it.
+  //   - setTimes: 2 caps runaway dismiss loops; noWaitAfter: false preserves
+  //     the default wait-until-hidden behaviour.
+  // -----------------------------------------------------------------------
+  const dismissConsent = async () => {
+    // Try primary action labels in priority order. First match wins; others
+    // no-op because the dialog is already gone.
+    const labels = [
+      'OK pour moi',
+      'Accepter',
+      'Accept all',
+      'Tout accepter',
+    ]
+    for (const name of labels) {
+      const btn = page.getByRole('button', { name }).first()
+      const ok = await btn.click({ timeout: 2000 }).then(() => true).catch(() => false)
+      if (ok) return
+    }
+    // Fallback: click the first button inside any role="dialog" whose
+    // accessible name references consent / cookies / Axeptio.
+    const dialog = page.getByRole('dialog').filter({
+      hasText: /consent|cookie|axeptio|personnalisez/i,
+    }).first()
+    await dialog.getByRole('button').first().click({ timeout: 2000 }).catch(() => {})
+  }
+
+  // Register a handler so a re-appearing widget is auto-dismissed. The
+  // trigger is ANY role="dialog" with consent-related text in the main frame.
+  await page.addLocatorHandler(
+    page.getByRole('dialog').filter({
+      hasText: /consent|cookie|axeptio|personnalisez/i,
+    }).first(),
+    dismissConsent,
+    { times: 2 },
+  )
+
+  // Proactive dismiss on first paint — don't wait for the widget to block a
+  // future action. Give the GTM/Axeptio script up to 5s to surface.
+  await page.waitForTimeout(500) // let GTM boot
+  await dismissConsent()
+
+  // Wait for the game UI to be interactive (guess input present). If the
+  // widget is still up at this point, the addLocatorHandler above will
+  // dismiss it when Playwright tries to interact with the input.
   const input = page.locator('input[placeholder*="mot" i], input[placeholder*="word" i]').first()
   await input.waitFor({ state: 'visible', timeout: 30_000 })
 
