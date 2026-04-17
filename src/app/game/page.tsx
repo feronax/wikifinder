@@ -233,7 +233,11 @@ export default function GamePage() {
     }
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-        if (e.key === 'Enter') { handleGuess(); return }
+        if (e.key === 'Enter') {
+            performance.mark('guess:enter')
+            handleGuess()
+            return
+        }
         if (e.key === 'ArrowUp') {
             e.preventDefault()
             if (inputHistory.length === 0) return
@@ -325,12 +329,14 @@ export default function GamePage() {
 
         submitChainRef.current = submitChainRef.current
             .catch(() => {})  // earlier failure does not block this one
-            .then(() =>
-                fetch('/api/game/guess', {
+            .then(() => {
+                performance.mark('guess:fetch-start')
+                return fetch('/api/game/guess', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(guessBody),
                 }).then(async res => {
+                    performance.mark('guess:fetch-end')
                     const data = await res.json()
 
                     // Si le mot n'existe pas (Wiktionary), rollback le guess
@@ -430,7 +436,7 @@ export default function GamePage() {
                 }).catch(() => {
                     // Erreur réseau silencieuse — le guess est déjà affiché localement
                 })
-            )
+            })
 
         // Proximity hints en background (uniquement si mot dans l'article)
         if (inArticle) {
