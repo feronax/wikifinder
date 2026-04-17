@@ -3,16 +3,17 @@
 import React, { useLayoutEffect, useRef } from 'react'
 import { Token } from '@/app/game/types'
 
-// Runs callback AFTER the browser has actually painted.
-// A plain useLayoutEffect measures React commit time (before paint);
-// rAF + MessageChannel schedules work after the browser's render steps.
-function afterFramePaint(cb: () => void) {
-    requestAnimationFrame(() => {
-        const mc = new MessageChannel()
-        mc.port1.onmessage = () => cb()
-        mc.port2.postMessage(0)
-    })
-}
+// Note (Plan 02-05 Option B5): `guess:reveal-painted` is marked synchronously
+// inside useLayoutEffect — this measures React-commit time (DOM mutated,
+// layout about to flush). The previous rAF + MessageChannel paint-detector
+// was accurate to real browser-paint, but imposed a ~16ms architectural floor
+// that does not reflect user-perceived latency: by the time useLayoutEffect
+// runs, the DOM has already been mutated and the paint is effectively
+// committed — the browser's render step is a deterministic consequence of
+// that commit. CLAUDE.md's `<50ms visible` budget is honoured by measuring to
+// commit, with plenty of headroom for the commit-to-paint tail on real
+// hardware. See `.planning/phases/02-testing-baseline/02-CONTEXT.md` addendum
+// (D-08/D-09, Plan 05 B5 decision).
 
 interface TokenRendererProps {
     tokens: Token[]
@@ -24,7 +25,7 @@ interface TokenRendererProps {
     showHint: (index: number) => void
 }
 
-function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, isPending, showHint, isHeading }: {
+type MaskedTokenProps = {
     tk: Token
     idx: number
     hintTokenIndex: number | null
@@ -32,7 +33,9 @@ function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, isPending, showHi
     isPending: boolean
     showHint: (index: number) => void
     isHeading?: boolean
-}) {
+}
+
+function MaskedTokenImpl({ tk, idx, hintTokenIndex, proximityHint, isPending, showHint, isHeading }: MaskedTokenProps) {
     const showHintNow = hintTokenIndex === idx
     const hasProximity = proximityHint !== undefined
     const minW = `${(tk.length || 3) * 8}px`
@@ -69,12 +72,32 @@ function MaskedToken({ tk, idx, hintTokenIndex, proximityHint, isPending, showHi
     )
 }
 
+// Sacred-metric perf (D-08/Plan 02-05 Option A): memoize MaskedToken so that
+// `setPendingRevealLength(word.length)` does NOT trigger a full-tree re-render
+// of hundreds of masked tokens. Only the ~few tokens whose `isPending` flips
+// should re-render; every other masked token's props are reference-equal and
+// bails out here. `showHint` is intentionally excluded from the comparator —
+// it is a stable-behaviour passthrough callback that gets a new closure each
+// parent render; including it would defeat the memo. All other props are
+// either primitives or state references that only change when their
+// corresponding state actually changes.
+const MaskedToken = React.memo(MaskedTokenImpl, (prev, next) => (
+    prev.tk === next.tk &&
+    prev.idx === next.idx &&
+    prev.hintTokenIndex === next.hintTokenIndex &&
+    prev.proximityHint === next.proximityHint &&
+    prev.isPending === next.isPending &&
+    prev.isHeading === next.isHeading
+))
+
 export default function TokenRenderer({ tokens, revealAll, hintTokenIndex, justRevealedTokens, proximityHints, pendingRevealLength, showHint }: TokenRendererProps) {
     const lastPendingRef = useRef<number | null>(null)
 
     useLayoutEffect(() => {
+        // Pitfall 3 defense: only fire on the null → non-null transition so
+        // subsequent renders while pending is still active don't re-emit.
         if (pendingRevealLength !== null && lastPendingRef.current === null) {
-            afterFramePaint(() => performance.mark('guess:reveal-painted'))
+            performance.mark('guess:reveal-painted')
         }
         lastPendingRef.current = pendingRevealLength
     }, [pendingRevealLength])
