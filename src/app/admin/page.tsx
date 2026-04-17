@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
+import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 const ADMIN_KEY = 'wikifinder_admin'
 
 export default function AdminPage() {
+  const supabase = createSupabaseBrowserClient()
   const [auth, setAuth] = useState(false)
   const [input, setInput] = useState('')
   const [authError, setAuthError] = useState('')
@@ -17,18 +19,28 @@ export default function AdminPage() {
 
   useEffect(() => {
     setDate(new Date().toISOString().split('T')[0])
-    // Vérifie si le mot de passe en session est encore valide
-    const storedPwd = sessionStorage.getItem('wikifinder_pwd')
-    if (storedPwd) {
-      verifyPassword(storedPwd).then(valid => {
-        setAuth(valid)
-        if (!valid) {
-          sessionStorage.removeItem(ADMIN_KEY)
-          sessionStorage.removeItem('wikifinder_pwd')
-        }
-      })
-    }
-    setMounted(true)
+    // PATH A (preferred): check Supabase session for admin role
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user && user.app_metadata?.role === 'admin') {
+        setAuth(true)
+        setMounted(true)
+        return
+      }
+      // PATH B (legacy fallback during dual-auth window): try sessionStorage password
+      const storedPwd = sessionStorage.getItem('wikifinder_pwd')
+      if (storedPwd) {
+        verifyPassword(storedPwd).then(valid => {
+          setAuth(valid)
+          if (!valid) {
+            sessionStorage.removeItem(ADMIN_KEY)
+            sessionStorage.removeItem('wikifinder_pwd')
+          }
+          setMounted(true)
+        })
+      } else {
+        setMounted(true)
+      }
+    })
   }, [])
 
   async function verifyPassword(password: string): Promise<boolean> {
