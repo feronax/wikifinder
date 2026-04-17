@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  compiler: {
+    removeConsole: { exclude: ['error'] },
+  },
   async headers() {
     return [
       {
