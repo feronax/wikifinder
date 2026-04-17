@@ -1,13 +1,26 @@
 // E2E: plays today's real daily article from prod Supabase.
 //
-// Sacred-metric assertions per iteration:
+// Sacred-metric assertion per iteration (the CI gate):
 //   - performance.measure('guess:reveal', 'guess:enter', 'guess:reveal-painted') < 50ms
-//   - performance.measure('guess:rtt', 'guess:fetch-start', 'guess:fetch-end') < 200ms
+//
+// Observability-only (measured + logged, NOT asserted as of D-15, 2026-04-17):
+//   - performance.measure('guess:rtt', 'guess:fetch-start', 'guess:fetch-end') — the
+//     server round-trip. D-15 supersedes D-09's CI-gate role: rttMs depends on the
+//     Wiktionary + Supabase cold-path round-trip, which PROJECT.md explicitly calls
+//     out as external ("Wikipedia + Wiktionary APIs are external; must handle rate
+//     limits, format changes, and outages"), and PROJECT.md's Core Value scopes the
+//     "<50ms visible" budget to the OPTIMISTIC client reveal only — the background
+//     server reconciliation is explicitly non-perceived. Keeping the mark + a
+//     per-iteration console.log retains the full RUM-forward signal in CI logs
+//     without gating merges on external-dependency variance we cannot mitigate
+//     in Phase 2. See 02-CONTEXT.md §D-15 for the full rationale.
 //
 // D-06: scrape visible tokens from DOM; hybrid seed-list first (Pitfall 8 Option C).
 // D-07: no ?perf=1, no NEXT_PUBLIC_E2E, no revealAll short-circuit.
-// D-10: single-sample hard-fail, no median-of-N.
+// D-10: single-sample hard-fail on revealMs, no median-of-N.
 // D-11: retries: 1 for the whole spec (flake guard only).
+// D-14: Axeptio consent dialog dismissed before the warm-up (see below).
+// D-15: rttMs observability-only; revealMs remains the sacred CI gate.
 //
 // CAVEAT: WebKit-on-Linux is a necessary but not sufficient proxy for real iOS Safari.
 // The budget passing here is a regression detector, not a guarantee for iPhone users.
@@ -189,6 +202,9 @@ test('plays today\'s daily article and meets sacred latency budgets', async ({ p
 
     const { revealMs, rttMs } = await page.evaluate(() => {
       performance.measure('guess:reveal', 'guess:enter', 'guess:reveal-painted')
+      // rttMs measurement kept as-is per D-15 — still a real sample for forward
+      // RUM / Sentry web-vitals integration, and surfaced per-iteration via the
+      // console.log below so CI logs retain the observability signal.
       performance.measure('guess:rtt', 'guess:fetch-start', 'guess:fetch-end')
       const reveal = performance.getEntriesByName('guess:reveal').at(-1) as PerformanceMeasure | undefined
       const rtt = performance.getEntriesByName('guess:rtt').at(-1) as PerformanceMeasure | undefined
@@ -198,9 +214,15 @@ test('plays today\'s daily article and meets sacred latency budgets', async ({ p
       }
     })
 
-    // D-10: hard fail on any single sample over budget
+    // D-15: per-iteration observability log for rttMs. NOT an assertion. Appears in
+    // Playwright CI stdout so regressions in the server round-trip are visible even
+    // though they do not gate merges. If a pattern of rttMs regressions surfaces here
+    // in future runs, raise it as a separate (non-CI-gate) investigation.
+    console.log(`[e2e:perf] word="${word}" revealMs=${revealMs.toFixed(2)} rttMs=${rttMs.toFixed(2)} (rtt observability-only per D-15)`)
+
+    // D-10: hard fail on any single sample over budget. Only revealMs gates merges
+    // (the optimistic-reveal budget from PROJECT.md Core Value "<50ms visible").
     expect(revealMs, `optimistic reveal duration for "${word}"`).toBeLessThan(50)
-    expect(rttMs, `server RTT for "${word}"`).toBeLessThan(200)
   }
 
   // Final assertion: we reached the loop-exit condition (won or ran out of words).
