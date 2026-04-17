@@ -6,16 +6,15 @@ import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
 import { fetchLinkedArticle } from '@/lib/wikipedia'
 import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
 import { parseJsonBody, DateSchema } from '@/lib/validation'
+import { requireAdmin } from '@/lib/admin-auth'
 
 const SeedTodayBodySchema = z.object({
   date: z.union([DateSchema, z.literal('__check__')]).optional(),
 })
 
 export async function POST(req: NextRequest) {
-  const adminPassword = req.headers.get('x-admin-password')
-  if (adminPassword !== process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
+  const auth = await requireAdmin(req)
+  if ('error' in auth) return auth.error
 
   const parsed = await parseJsonBody(req, SeedTodayBodySchema)
   if ('error' in parsed) return parsed.error
