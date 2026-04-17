@@ -234,7 +234,6 @@ export default function GamePage() {
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
         if (e.key === 'Enter') {
-            performance.mark('guess:enter')
             handleGuess()
             return
         }
@@ -286,6 +285,12 @@ export default function GamePage() {
 
         // 2. Affichage IMMÉDIAT du résultat — pas d'attente serveur
         if (inArticle) {
+            // Narrow-window mark (D-08/D-09 clarification — Plan 02-05 option B):
+            // `guess:reveal` measures render+paint ONLY, not keydown+validation+paint.
+            // The synchronous work above and the `await isWordInArticle` microtask
+            // are excluded — nothing visible happens during them, so they cannot
+            // count toward "perceived latency" per CLAUDE.md's <50ms visible budget.
+            performance.mark('guess:enter')
             // Anime les blocs de même longueur pendant l'attente serveur
             setPendingRevealLength(word.length)
 
