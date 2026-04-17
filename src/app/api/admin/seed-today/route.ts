@@ -1,9 +1,15 @@
 import * as Sentry from '@sentry/nextjs'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
 import { fetchLinkedArticle } from '@/lib/wikipedia'
 import { tokenizeContent, tokenizeTitle } from '@/lib/tokenize'
+import { parseJsonBody, DateSchema } from '@/lib/validation'
+
+const SeedTodayBodySchema = z.object({
+  date: z.union([DateSchema, z.literal('__check__')]).optional(),
+})
 
 export async function POST(req: NextRequest) {
   const adminPassword = req.headers.get('x-admin-password')
@@ -11,8 +17,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 
-  const body = await req.json().catch(() => ({}))
-  const targetDate: string = body.date || new Date().toISOString().split('T')[0]
+  const parsed = await parseJsonBody(req, SeedTodayBodySchema)
+  if ('error' in parsed) return parsed.error
+  const targetDate = parsed.data.date || new Date().toISOString().split('T')[0]
 
   if (targetDate === '__check__') {
     return NextResponse.json({ ok: true })
