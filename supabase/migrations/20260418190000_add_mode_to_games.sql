@@ -13,9 +13,13 @@
 BEGIN;
 
 -- 1. Column additions (NOT NULL with DEFAULT performs implicit backfill for existing rows)
+-- `score` is nullable: daily/ranked rows never had a persisted score (computed via view); survival rows
+-- will write it at end-of-run (D-09, D-11). The leaderboard_survival view below references g.score
+-- directly and must have the column to reference. [Rule 2: missing critical functionality from plan]
 ALTER TABLE public.games
   ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'daily',
-  ADD COLUMN IF NOT EXISTS mode_config JSONB NOT NULL DEFAULT '{}'::jsonb;
+  ADD COLUMN IF NOT EXISTS mode_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS score INTEGER;
 
 -- 2. Dual-purpose index for per-mode leaderboards + per-user-per-mode restore (D-03)
 CREATE INDEX IF NOT EXISTS games_mode_user_idx ON public.games (mode, user_id);
