@@ -8,8 +8,13 @@ import {
   ScreenshotDataSchema,
   parseJsonBody,
   parseSearchParams,
+  SurvivalStartSchema,
+  SurvivalGiveUpSchema,
+  SurvivalEndSchema,
 } from '@/lib/validation'
 import { z } from 'zod'
+
+const UUID = '00000000-0000-4000-8000-000000000000'
 
 describe('LangSchema', () => {
   it("accepts 'fr'", () => {
@@ -150,5 +155,76 @@ describe('parseSearchParams', () => {
     const url = new URL('http://localhost/')
     const r = parseSearchParams(url, schema)
     expect('error' in r).toBe(true)
+  })
+})
+
+describe('SurvivalStartSchema', () => {
+  it('accepts initial-start shape { lang: "fr" }', () => {
+    expect(SurvivalStartSchema.safeParse({ lang: 'fr' }).success).toBe(true)
+  })
+  it('accepts chain-advance shape with gameId/completedPageId/idempotencyKey', () => {
+    const r = SurvivalStartSchema.safeParse({
+      lang: 'en',
+      gameId: UUID,
+      completedPageId: UUID,
+      idempotencyKey: UUID,
+    })
+    expect(r.success).toBe(true)
+  })
+  it('rejects invalid lang { lang: "de" }', () => {
+    expect(SurvivalStartSchema.safeParse({ lang: 'de' }).success).toBe(false)
+  })
+  it('rejects non-UUID gameId', () => {
+    expect(
+      SurvivalStartSchema.safeParse({ lang: 'fr', gameId: 'not-a-uuid' }).success
+    ).toBe(false)
+  })
+  it('silently strips unknown extra fields (Zod default)', () => {
+    const r = SurvivalStartSchema.safeParse({ lang: 'fr', score: 99999, evil: true })
+    expect(r.success).toBe(true)
+    if (r.success) {
+      expect((r.data as Record<string, unknown>).score).toBeUndefined()
+      expect((r.data as Record<string, unknown>).evil).toBeUndefined()
+    }
+  })
+})
+
+describe('SurvivalGiveUpSchema', () => {
+  it('accepts { gameId }', () => {
+    expect(SurvivalGiveUpSchema.safeParse({ gameId: UUID }).success).toBe(true)
+  })
+  it('accepts { gameId, idempotencyKey }', () => {
+    expect(
+      SurvivalGiveUpSchema.safeParse({ gameId: UUID, idempotencyKey: UUID }).success
+    ).toBe(true)
+  })
+  it('rejects {} (missing required gameId)', () => {
+    expect(SurvivalGiveUpSchema.safeParse({}).success).toBe(false)
+  })
+  it('rejects non-UUID gameId', () => {
+    expect(SurvivalGiveUpSchema.safeParse({ gameId: 'abc' }).success).toBe(false)
+  })
+  it('silently strips unknown extra fields', () => {
+    const r = SurvivalGiveUpSchema.safeParse({ gameId: UUID, extra: 'x' })
+    expect(r.success).toBe(true)
+  })
+})
+
+describe('SurvivalEndSchema', () => {
+  it('accepts { gameId }', () => {
+    expect(SurvivalEndSchema.safeParse({ gameId: UUID }).success).toBe(true)
+  })
+  it('rejects non-UUID gameId', () => {
+    expect(SurvivalEndSchema.safeParse({ gameId: 'abc' }).success).toBe(false)
+  })
+  it('rejects {} (missing required gameId)', () => {
+    expect(SurvivalEndSchema.safeParse({}).success).toBe(false)
+  })
+  it('silently strips client-supplied score (server-only write per 03-01 carry-forward)', () => {
+    const r = SurvivalEndSchema.safeParse({ gameId: UUID, score: 999999 })
+    expect(r.success).toBe(true)
+    if (r.success) {
+      expect((r.data as Record<string, unknown>).score).toBeUndefined()
+    }
   })
 })
