@@ -19,8 +19,9 @@ export async function GET(req: NextRequest) {
   if (type === 'daily') {
     const { data: rows, error } = await supabaseAdmin
       .from('leaderboard_daily')
-      .select('username, score, guess_count, duration_seconds, date, position')
+      .select('username, score, guess_count, duration_seconds, date, position, lang')
       .eq('date', date)
+      .order('position', { ascending: true })
       .limit(20)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

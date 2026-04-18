@@ -375,7 +375,7 @@ export default function LeaderboardPage() {
                             {tab === 'daily' ? (entry.duration_seconds ? `${Math.floor(entry.duration_seconds / 60)}m${entry.duration_seconds % 60}s` : '-') : entry.avg_guesses}
                           </div>
                           <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                            {tab === 'daily' ? entry.lang.toUpperCase() : entry.best_guesses}
+                            {tab === 'daily' ? (entry.lang?.toUpperCase() ?? '—') : entry.best_guesses}
                           </div>
                         </>
                       )}

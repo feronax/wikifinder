@@ -17,17 +17,26 @@ export async function POST(req: NextRequest) {
 
   if (!user) return NextResponse.json({ saved: false, anonymous: true })
 
-  // Cherche la meilleure partie existante (complétée en priorité, sinon la plus récente)
-  const { data: existing } = await supabaseAdmin
+  // Cherche la meilleure partie existante (complétée en priorité, sinon la plus récente).
+  // maybeSingle() handles zero-or-one cleanly; .single() rejects multi-row matches with
+  // PGRST116 and the prior silent destructure fell through to fresh-insert → SC-2/SC-3
+  // regression. UNIQUE(user_id, page_id, lang) now prevents multi-row matches at the DB
+  // layer (see supabase/migrations/20260418155343_dedupe_games_and_add_unique.sql).
+  const { data: existing, error: existingErr } = await supabaseAdmin
     .from('games')
-    .select('id, user_id, page_id, lang, guess_count, completed, completed_at, duration_seconds, ip_hash, created_at')
+    .select('id, user_id, page_id, lang, guess_count, completed, completed_at, duration_seconds, ip_hash, started_at')
     .eq('user_id', user.id)
     .eq('page_id', pageId)
     .eq('lang', lang)
     .order('completed', { ascending: false })
     .order('guess_count', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
+
+  if (existingErr) {
+    // [api/game/start] surface PostgREST errors rather than silently inserting a fresh game
+    return NextResponse.json({ error: existingErr.message }, { status: 500 })
+  }
 
   if (existing) {
     return NextResponse.json({ saved: true, game: existing })
