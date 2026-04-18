@@ -7,7 +7,8 @@ interface SurvivalResultsPanelProps {
     score: number
     chain: { outcome: 'completed' | 'gave_up' }[]
     durationSec: number
-    onShare: () => void
+    onShare?: () => void
+    shareSlot?: React.ReactNode
     onPlayAgain: () => void
     t: {
         headline: string
@@ -30,6 +31,7 @@ export default function SurvivalResultsPanel({
     chain,
     durationSec,
     onShare,
+    shareSlot,
     onPlayAgain,
     t,
 }: SurvivalResultsPanelProps) {
@@ -110,24 +112,26 @@ export default function SurvivalResultsPanel({
                     flexWrap: 'wrap',
                 }}
             >
-                <button
-                    type="button"
-                    onClick={onShare}
-                    style={{
-                        padding: '12px 24px',
-                        minHeight: 44,
-                        fontSize: 15,
-                        fontWeight: 600,
-                        borderRadius: 8,
-                        border: 'none',
-                        backgroundColor: 'var(--accent)',
-                        color: 'white',
-                        cursor: 'pointer',
-                        fontFamily: 'var(--font-sans)',
-                    }}
-                >
-                    {t.shareCta}
-                </button>
+                {shareSlot ?? (
+                    <button
+                        type="button"
+                        onClick={onShare}
+                        style={{
+                            padding: '12px 24px',
+                            minHeight: 44,
+                            fontSize: 15,
+                            fontWeight: 600,
+                            borderRadius: 8,
+                            border: 'none',
+                            backgroundColor: 'var(--accent)',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-sans)',
+                        }}
+                    >
+                        {t.shareCta}
+                    </button>
+                )}
                 <button
                     type="button"
                     onClick={onPlayAgain}

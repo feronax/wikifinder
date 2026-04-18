@@ -16,6 +16,7 @@ import SurvivalLivesIndicator from '@/components/game/SurvivalLivesIndicator'
 import SurvivalChainBadge from '@/components/game/SurvivalChainBadge'
 import GiveUpButton from '@/components/game/GiveUpButton'
 import SurvivalResultsPanel from '@/components/game/SurvivalResultsPanel'
+import SurvivalShareCard from '@/components/game/SurvivalShareCard'
 import { GameState, translations } from './types'
 
 // Survival-mode translations (UI-SPEC §Copywriting Contract — FR + EN parity)
@@ -789,17 +790,21 @@ export default function GamePage() {
                         score={survivalResults.score}
                         chain={survivalResults.chain}
                         durationSec={survivalResults.durationSec}
-                        onShare={() => {
-                            // Phase 3 Plan 04 ships text-only fallback; Plan 5 swaps to
-                            // html2canvas SurvivalShareCard + Web Share API files payload.
-                            if (typeof navigator === 'undefined') return
-                            const nav = navigator as Navigator & { share?: (data: { text?: string }) => Promise<void> }
-                            if (typeof nav.share === 'function') {
-                                nav.share({ text: survivalResults.shareText }).catch(() => {})
-                            } else if (nav.clipboard) {
-                                nav.clipboard.writeText(survivalResults.shareText).catch(() => {})
-                            }
-                        }}
+                        shareSlot={
+                            <SurvivalShareCard
+                                chain={survivalResults.chain}
+                                chainLength={survivalResults.chainLength}
+                                score={survivalResults.score}
+                                shareText={survivalResults.shareText}
+                                altText={survivalTranslations[lang].results.trailAria(
+                                    survivalResults.chainLength,
+                                    survivalResults.chain.filter(e => e.outcome === 'completed').length,
+                                    survivalResults.chain.filter(e => e.outcome === 'gave_up').length,
+                                    survivalResults.score,
+                                )}
+                                label={survivalTranslations[lang].results.shareCta}
+                            />
+                        }
                         onPlayAgain={() => {
                             window.location.href = `/game?mode=survival&lang=${survivalState?.language ?? lang}`
                         }}
