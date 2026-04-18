@@ -3,8 +3,11 @@ import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { parseSearchParams, DateSchema } from '@/lib/validation'
 
+// Phase 3: 'survival' queries leaderboard_survival view (MODE-02). 'global' is
+// the existing Ranked leaderboard (no separate /api/leaderboard/ranked route —
+// VERIFIED 2026-04-18).
 const LeaderboardQuerySchema = z.object({
-  type: z.enum(['daily', 'global']).optional().default('daily'),
+  type: z.enum(['daily', 'global', 'survival']).optional().default('daily'),
   date: DateSchema.optional(),
 })
 
@@ -31,6 +34,18 @@ export async function GET(req: NextRequest) {
       .from('leaderboard_global')
       .select('username, score, guess_count, duration_seconds, position')
       .limit(20)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    data = rows || []
+  } else if (type === 'survival') {
+    // Phase 3 MODE-02: per-mode leaderboard; never mixed with daily/ranked (D-12).
+    // SELECT list MUST match leaderboard_survival view columns exactly
+    // (Pitfall 2: Phase 2.1 SC-1 recurrence guard).
+    const { data: rows, error } = await supabaseAdmin
+      .from('leaderboard_survival')
+      .select('username, score, completed_at, lang, chain_length, position')
+      .order('position', { ascending: true })
+      .limit(100)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     data = rows || []
