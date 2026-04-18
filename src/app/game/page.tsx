@@ -128,7 +128,7 @@ export default function GamePage() {
 
         // 2. Si partie existante avec des guesses, recharge les tokens avec restauration serveur
         let finalData = preData
-        if (game && game.guess_count > 0 && gameId) {
+        if (game && (game.guess_count > 0 || game.completed === true) && gameId) {
             const restoreUrl = `${todayUrl}&gameId=${gameId}`
             const restoreRes = await fetch(restoreUrl)
             if (restoreRes.ok) {
@@ -190,7 +190,7 @@ export default function GamePage() {
             setWordHashSet(finalData.wordHashSet)
         }
 
-        const timerStart = finalData.firstGuessAt || game?.created_at
+        const timerStart = finalData.firstGuessAt || game?.started_at
         const start = timerStart ? new Date(timerStart) : new Date()
         setStartedAt(start)
         const initialElapsed = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000))
