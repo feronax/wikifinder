@@ -780,6 +780,36 @@ export default function GamePage() {
         };
     }, [isMobile]);
 
+    if (isSurvival && survivalResults) {
+        return (
+            <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
+                <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+                <div style={{ padding: '32px 20px' }}>
+                    <SurvivalResultsPanel
+                        score={survivalResults.score}
+                        chain={survivalResults.chain}
+                        durationSec={survivalResults.durationSec}
+                        onShare={() => {
+                            // Phase 3 Plan 04 ships text-only fallback; Plan 5 swaps to
+                            // html2canvas SurvivalShareCard + Web Share API files payload.
+                            if (typeof navigator === 'undefined') return
+                            const nav = navigator as Navigator & { share?: (data: { text?: string }) => Promise<void> }
+                            if (typeof nav.share === 'function') {
+                                nav.share({ text: survivalResults.shareText }).catch(() => {})
+                            } else if (nav.clipboard) {
+                                nav.clipboard.writeText(survivalResults.shareText).catch(() => {})
+                            }
+                        }}
+                        onPlayAgain={() => {
+                            window.location.href = `/game?mode=survival&lang=${survivalState?.language ?? lang}`
+                        }}
+                        t={survivalTranslations[lang].results}
+                    />
+                </div>
+            </div>
+        )
+    }
+
     if (loading || !gameState) {
         return (
             <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
