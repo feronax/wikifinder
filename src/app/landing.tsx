@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import SurvivalCard from '@/components/game/SurvivalCard'
 
 const masked = (w: number) => ({
   display: 'inline-block',
@@ -57,6 +58,18 @@ const translations = {
     ],
     cta: 'Commencer la partie du jour',
     noAccount: 'Gratuit, pas besoin de compte',
+    survival: {
+      eyebrow: 'Mode Survie',
+      heading: 'Survival',
+      subtitle: 'Enchaîne les articles. Perds une vie quand tu abandonnes.',
+      langLabel: 'Langue de la run',
+      startCta: 'Lancer un Survival',
+      resumeHeading: 'Reprendre ta run',
+      resumeMeta: (chain: number, lives: number) => `Chaîne ${chain} · ${lives} vie${lives > 1 ? 's' : ''} restante${lives > 1 ? 's' : ''}`,
+      resumeCta: (chain: number, lives: number) => `Reprendre — chaîne ${chain}, ${lives} vie${lives > 1 ? 's' : ''}`,
+      signInCta: 'Se connecter pour jouer Survival',
+      livesAria: (n: number, total: number) => `Vies restantes : ${n} sur ${total}`,
+    },
   },
   en: {
     subtitle: 'Every day, a Wikipedia article to guess.',
@@ -92,23 +105,59 @@ const translations = {
     ],
     cta: 'Start today\'s game',
     noAccount: 'Free, no account needed',
+    survival: {
+      eyebrow: 'Survival Mode',
+      heading: 'Survival',
+      subtitle: 'Chain articles. Lose a life when you give up.',
+      langLabel: 'Run language',
+      startCta: 'Start Survival',
+      resumeHeading: 'Resume your run',
+      resumeMeta: (chain: number, lives: number) => `Chain ${chain} · ${lives} life${lives > 1 ? ' lives' : ''} remaining`,
+      resumeCta: (chain: number, lives: number) => `Resume — chain ${chain}, ${lives} life${lives > 1 ? ' lives' : ''} left`,
+      signInCta: 'Sign in to play Survival',
+      livesAria: (n: number, total: number) => `Lives remaining: ${n} of ${total}`,
+    },
   },
 }
 
 export default function LandingPage() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr')
   const [checking, setChecking] = useState(true)
+  const [user, setUser] = useState<{ id: string } | null>(null)
+  const [resumeState, setResumeState] = useState<{ chainLength: number; livesRemaining: number; language: 'fr' | 'en' } | null>(null)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        window.location.href = '/game'
-        return
-      }
+      setUser(data.user ? { id: data.user.id } : null)
       setChecking(false)
     })
   }, [])
+
+  // [landing/survival-resume] Fetch active survival run, if any — drives SurvivalCard Resume state (UI-SPEC §Surface 1).
+  useEffect(() => {
+    if (!user) { setResumeState(null); return }
+    supabase
+      .from('games')
+      .select('id, mode_config, lang')
+      .eq('user_id', user.id)
+      .eq('mode', 'survival')
+      .is('completed_at', null)
+      .filter('mode_config->>lives_remaining', 'gt', '0')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: { data: { id: string; mode_config: unknown; lang: string } | null }) => {
+        if (!data) { setResumeState(null); return }
+        // Pitfall 3: PostgREST compares jsonb->>text lexicographically; at 1-digit life cap, 'gt' '0' is safe.
+        const mc = data.mode_config as { chain?: unknown[]; lives_remaining?: number | string; language?: string } | null
+        setResumeState({
+          chainLength: Array.isArray(mc?.chain) ? mc!.chain!.length : 0,
+          livesRemaining: Number(mc?.lives_remaining ?? 0),
+          language: ((mc?.language ?? data.lang ?? 'fr') as 'fr' | 'en'),
+        })
+      })
+  }, [user])
 
   const t = translations[lang]
 
@@ -185,6 +234,19 @@ export default function LandingPage() {
         }}>
           {t.play}
         </a>
+      </div>
+
+      {/* Survival card (Plan 03-05) */}
+      <div style={{ width: '100%', maxWidth: 680, padding: '0 24px 16px' }}>
+        <SurvivalCard
+          resumeState={resumeState}
+          isAuthed={Boolean(user)}
+          defaultLang={lang}
+          onStart={(pickedLang) => { window.location.href = `/game?mode=survival&lang=${pickedLang}` }}
+          onResume={() => { window.location.href = '/game?mode=survival' }}
+          onSignIn={() => { window.location.href = '/login?next=/game?mode=survival' }}
+          t={t.survival}
+        />
       </div>
 
       {/* Tutoriel étape par étape */}
