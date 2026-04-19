@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import React, { Suspense, useCallback, useEffect, useState } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { createSupabaseBrowserClient } from '@/lib/supabase'
+import Header from '@/components/Header'
 import DuelLobby from '@/components/duel/DuelLobby'
 import DuelWaitingPanel from '@/components/duel/DuelWaitingPanel'
 import DuelComparisonPanel from '@/components/duel/DuelComparisonPanel'
@@ -35,21 +37,42 @@ type DuelResponse =
       }
     }
 
-function getUiLang(): 'fr' | 'en' {
-  if (typeof window === 'undefined') return 'fr'
-  const nav = navigator.language.slice(0, 2)
-  return nav === 'en' ? 'en' : 'fr'
+export default function DuelIdPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
+        <div style={{ padding: 24, maxWidth: 480, margin: '0 auto' }}>
+          <div className="skeleton" style={{ width: 220, height: 28, marginBottom: 16, borderRadius: 6 }} />
+          <div className="skeleton" style={{ width: '100%', height: 16, marginBottom: 8, borderRadius: 4 }} />
+          <div className="skeleton" style={{ width: '80%', height: 16, marginBottom: 24, borderRadius: 4 }} />
+          <div className="skeleton" style={{ width: '100%', height: 44, borderRadius: 8 }} />
+        </div>
+      </div>
+    }>
+      <DuelIdPageInner />
+    </Suspense>
+  )
 }
 
-export default function DuelIdPage() {
+function DuelIdPageInner() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
+  const sp = useSearchParams()
   const id = params?.id ?? ''
+  const langParam = sp.get('lang') as 'fr' | 'en' | null
+  const [uiLang, setUiLang] = useState<'fr' | 'en'>(langParam === 'en' || langParam === 'fr' ? langParam : 'fr')
+  const supabase = createSupabaseBrowserClient()
   const [data, setData] = useState<DuelResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [langMismatchSub, setLangMismatchSub] = useState(false)
   const [toast, setToast] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
-  const uiLang = getUiLang()
+
+  // Keep Header language toggle in sync with page UI language.
+  const onLangChange = useCallback((l: 'fr' | 'en') => setUiLang(l), [])
+  const onLogout = useCallback(async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+  }, [router, supabase])
 
   const loadDuel = useCallback(async () => {
     setLoading(true)
@@ -104,23 +127,32 @@ export default function DuelIdPage() {
     }
   }, [id, uiLang])
 
+  const shell = (inner: React.ReactNode) => (
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
+      <Header lang={uiLang} onLangChange={onLangChange} onLogout={onLogout} />
+      <div style={{ padding: 24, flex: 1 }}>{inner}</div>
+    </div>
+  )
+
   if (loading || !data) {
-    return <div style={{ padding: 24, textAlign: 'center' }}>…</div>
+    return shell(
+      <div style={{ maxWidth: 480, margin: '0 auto' }}>
+        <div className="skeleton" style={{ width: 220, height: 28, marginBottom: 16, borderRadius: 6 }} />
+        <div className="skeleton" style={{ width: '100%', height: 16, marginBottom: 8, borderRadius: 4 }} />
+        <div className="skeleton" style={{ width: '80%', height: 16, marginBottom: 24, borderRadius: 4 }} />
+        <div className="skeleton" style={{ width: 160, height: 13, marginBottom: 24, borderRadius: 4 }} />
+        <div className="skeleton" style={{ width: '100%', height: 44, borderRadius: 8 }} />
+      </div>,
+    )
   }
   if ('error' in data) {
-    return (
-      <DuelPrivatePanel lang={uiLang} onPlayToday={() => router.push('/game')} />
-    )
+    return shell(<DuelPrivatePanel lang={uiLang} onPlayToday={() => router.push('/game')} />)
   }
 
   const { state, room, viewer, opponent, comparison } = data
 
   if (state === 'private') {
-    return (
-      <div style={{ padding: 24 }}>
-        <DuelPrivatePanel lang={uiLang} onPlayToday={() => router.push('/game')} />
-      </div>
-    )
+    return shell(<DuelPrivatePanel lang={uiLang} onPlayToday={() => router.push('/game')} />)
   }
 
   if (state === 'lobby') {
@@ -131,8 +163,8 @@ export default function DuelIdPage() {
         : langMismatchSub
           ? 'lang-mismatch' as const
           : 'authed-match' as const
-    return (
-      <div style={{ padding: 24 }}>
+    return shell(
+      <>
         <DuelLobby
           sub={sub}
           creatorUsername={room.creatorUsername}
@@ -147,14 +179,14 @@ export default function DuelIdPage() {
           onSignIn={() => router.push(`/login?next=/duel/${id}`)}
         />
         {toast && <DuelToast variant={toast.variant} message={toast.message} onDismiss={() => setToast(null)} />}
-      </div>
+      </>,
     )
   }
 
   if (state === 'waiting') {
     const opponentName = opponent?.username ?? ''
-    return (
-      <div style={{ padding: 24 }}>
+    return shell(
+      <>
         <DuelWaitingPanel
           opponentUsername={opponentName}
           expiresAt={room.expiresAt}
@@ -163,7 +195,7 @@ export default function DuelIdPage() {
           onShareLink={handleShareLink}
         />
         {toast && <DuelToast variant={toast.variant} message={toast.message} onDismiss={() => setToast(null)} />}
-      </div>
+      </>,
     )
   }
 
@@ -202,8 +234,8 @@ export default function DuelIdPage() {
       />
     ) : undefined
 
-    return (
-      <div style={{ padding: 24 }}>
+    return shell(
+      <>
         <DuelComparisonPanel
           variant={variant}
           winner={winner}
@@ -215,19 +247,17 @@ export default function DuelIdPage() {
           onHome={() => router.push('/')}
         />
         {toast && <DuelToast variant={toast.variant} message={toast.message} onDismiss={() => setToast(null)} />}
-      </div>
+      </>,
     )
   }
 
   // expired-none
-  return (
-    <div style={{ padding: 24 }}>
-      <DuelComparisonPanel
-        variant="unresolved"
-        articleTitle={room.articleTitle}
-        lang={uiLang}
-        onHome={() => router.push('/')}
-      />
-    </div>
+  return shell(
+    <DuelComparisonPanel
+      variant="unresolved"
+      articleTitle={room.articleTitle}
+      lang={uiLang}
+      onHome={() => router.push('/')}
+    />,
   )
 }

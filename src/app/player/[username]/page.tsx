@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import Loader from '@/components/Loader'
 
 const RARITY_COLORS: Record<string, string> = {
@@ -118,7 +117,6 @@ export default function PlayerProfilePage() {
         </div>
         <div className="skeleton" style={{ width: '100%', height: 200, borderRadius: 10 }} />
       </div>
-      <Footer />
     </div>
   )
 
@@ -132,7 +130,6 @@ export default function PlayerProfilePage() {
           Retour au classement
         </a>
       </div>
-      <Footer />
     </div>
   )
 
@@ -273,7 +270,6 @@ export default function PlayerProfilePage() {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   )
 }
