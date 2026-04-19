@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import SurvivalCard from '@/components/game/SurvivalCard'
+import DuelCard from '@/components/duel/DuelCard'
 
 const masked = (w: number) => ({
   display: 'inline-block',
@@ -57,6 +59,18 @@ const translations = {
     ],
     cta: 'Commencer la partie du jour',
     noAccount: 'Gratuit, pas besoin de compte',
+    survival: {
+      eyebrow: 'Mode Survie',
+      heading: 'Survival',
+      subtitle: 'Enchaîne les articles. Perds une vie quand tu abandonnes.',
+      langLabel: 'Langue de la run',
+      startCta: 'Lancer un Survival',
+      resumeHeading: 'Reprendre ta run',
+      resumeMeta: (chain: number, lives: number) => `Chaîne ${chain} · ${lives} vie${lives > 1 ? 's' : ''} restante${lives > 1 ? 's' : ''}`,
+      resumeCta: (chain: number, lives: number) => `Reprendre — chaîne ${chain}, ${lives} vie${lives > 1 ? 's' : ''}`,
+      signInCta: 'Se connecter pour jouer Survival',
+      livesAria: (n: number, total: number) => `Vies restantes : ${n} sur ${total}`,
+    },
   },
   en: {
     subtitle: 'Every day, a Wikipedia article to guess.',
@@ -92,23 +106,103 @@ const translations = {
     ],
     cta: 'Start today\'s game',
     noAccount: 'Free, no account needed',
+    survival: {
+      eyebrow: 'Survival Mode',
+      heading: 'Survival',
+      subtitle: 'Chain articles. Lose a life when you give up.',
+      langLabel: 'Run language',
+      startCta: 'Start Survival',
+      resumeHeading: 'Resume your run',
+      resumeMeta: (chain: number, lives: number) => `Chain ${chain} · ${lives} life${lives > 1 ? ' lives' : ''} remaining`,
+      resumeCta: (chain: number, lives: number) => `Resume — chain ${chain}, ${lives} life${lives > 1 ? ' lives' : ''} left`,
+      signInCta: 'Sign in to play Survival',
+      livesAria: (n: number, total: number) => `Lives remaining: ${n} of ${total}`,
+    },
   },
 }
 
 export default function LandingPage() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr')
   const [checking, setChecking] = useState(true)
+  const [user, setUser] = useState<{ id: string } | null>(null)
+  const [resumeState, setResumeState] = useState<{ chainLength: number; livesRemaining: number; language: 'fr' | 'en' } | null>(null)
+  const [duelState, setDuelState] = useState<{ id: string; state: 'waiting' | 'your-turn' | 'ready'; expiresAt: string } | null>(null)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
-        window.location.href = '/game'
+        // Authed users skip the tutorial landing and go straight to the daily game.
+        window.location.replace('/game')
         return
       }
+      setUser(null)
       setChecking(false)
     })
   }, [])
+
+  // [landing/survival-resume] Fetch active survival run, if any — drives SurvivalCard Resume state (UI-SPEC §Surface 1).
+  useEffect(() => {
+    if (!user) { setResumeState(null); return }
+    supabase
+      .from('games')
+      .select('id, mode_config, lang')
+      .eq('user_id', user.id)
+      .eq('mode', 'survival')
+      .is('completed_at', null)
+      .filter('mode_config->>lives_remaining', 'gt', '0')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: { data: { id: string; mode_config: unknown; lang: string } | null }) => {
+        if (!data) { setResumeState(null); return }
+        // Pitfall 3: PostgREST compares jsonb->>text lexicographically; at 1-digit life cap, 'gt' '0' is safe.
+        const mc = data.mode_config as { chain?: unknown[]; lives_remaining?: number | string; language?: string } | null
+        setResumeState({
+          chainLength: Array.isArray(mc?.chain) ? mc!.chain!.length : 0,
+          livesRemaining: Number(mc?.lives_remaining ?? 0),
+          language: ((mc?.language ?? data.lang ?? 'fr') as 'fr' | 'en'),
+        })
+      })
+  }, [user])
+
+  // [landing/duel-state] Most recently active duel room for this user (D-11) — derives home DuelCard state.
+  useEffect(() => {
+    if (!user) { setDuelState(null); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: rp } = await supabase
+          .from('room_players')
+          .select('room_id, user_id, game_id, multiplayer_rooms!inner(id, expires_at, updated_at)')
+          .eq('user_id', user.id)
+          .order('multiplayer_rooms(updated_at)', { ascending: false })
+          .limit(1)
+        const first = Array.isArray(rp) ? rp[0] : null
+        if (!first) { if (!cancelled) setDuelState(null); return }
+        const roomRaw = (first as { multiplayer_rooms?: { id: string; expires_at: string } | { id: string; expires_at: string }[] }).multiplayer_rooms
+        const room = Array.isArray(roomRaw) ? roomRaw[0] : roomRaw
+        if (!room) { if (!cancelled) setDuelState(null); return }
+        const res = await fetch(`/api/duel/${room.id}`, { cache: 'no-store' })
+        const body = await res.json()
+        if (cancelled) return
+        if (!res.ok || body.error) { setDuelState(null); return }
+        const serverState = body.state as 'lobby' | 'waiting' | 'ready' | 'expired-one' | 'expired-none' | 'private'
+        if (serverState === 'ready' || serverState === 'expired-one') {
+          setDuelState({ id: room.id, state: 'ready', expiresAt: room.expires_at })
+        } else if (serverState === 'waiting') {
+          setDuelState({ id: room.id, state: 'waiting', expiresAt: room.expires_at })
+        } else if (serverState === 'lobby' && body.opponent?.state === 'finished') {
+          setDuelState({ id: room.id, state: 'your-turn', expiresAt: room.expires_at })
+        } else {
+          setDuelState(null)
+        }
+      } catch {
+        // Silent: home card simply falls back to idle.
+      }
+    })()
+    return () => { cancelled = true }
+  }, [user])
 
   const t = translations[lang]
 
@@ -185,6 +279,51 @@ export default function LandingPage() {
         }}>
           {t.play}
         </a>
+      </div>
+
+      {/* Duel card (Plan 04-04) */}
+      <div style={{ width: '100%', maxWidth: 680, padding: '0 24px 16px' }}>
+        <DuelCard
+          state={!user ? 'anon' : duelState?.state ?? 'idle'}
+          expiresAt={duelState?.expiresAt}
+          lang={lang}
+          onPrimary={() => {
+            if (!user) { window.location.href = '/login?next=/'; return }
+            if (duelState) { window.location.href = `/duel/${duelState.id}`; return }
+            ;(async () => {
+              try {
+                const res = await fetch('/api/duel/create', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ lang, idempotencyKey: crypto.randomUUID() }),
+                })
+                const body = await res.json()
+                if (res.ok && body?.duelUrl) {
+                  const url = `${window.location.origin}${body.duelUrl}`
+                  const nav = navigator as Navigator & { share?: (d: { url?: string }) => Promise<void> }
+                  try {
+                    if (typeof nav.share === 'function') await nav.share({ url })
+                    else if (navigator.clipboard) await navigator.clipboard.writeText(url)
+                  } catch { /* user cancelled share */ }
+                  window.location.href = body.duelUrl
+                }
+              } catch { /* HARD-04 no-console silent */ }
+            })()
+          }}
+        />
+      </div>
+
+      {/* Survival card (Plan 03-05) */}
+      <div style={{ width: '100%', maxWidth: 680, padding: '0 24px 16px' }}>
+        <SurvivalCard
+          resumeState={resumeState}
+          isAuthed={Boolean(user)}
+          defaultLang={lang}
+          onStart={(pickedLang) => { window.location.href = `/game?mode=survival&lang=${pickedLang}` }}
+          onResume={() => { window.location.href = '/game?mode=survival' }}
+          onSignIn={() => { window.location.href = '/login?next=/game?mode=survival' }}
+          t={t.survival}
+        />
       </div>
 
       {/* Tutoriel étape par étape */}

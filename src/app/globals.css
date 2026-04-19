@@ -14,6 +14,7 @@
     --revealed: #C5D89D;
     --revealed-title: #9CAB84;
     --masked: #B8B2A0;
+    --destructive: #B54B3D;
     --font-sans: 'DM Sans', sans-serif;
     --font-serif: 'DM Serif Display', serif;
     --radius: 8px;
@@ -35,6 +36,7 @@
     --revealed: transparent;
     --revealed-title: transparent;
     --masked: #1A1D24;
+    --destructive: #E06B5C;
     --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
@@ -261,3 +263,12 @@ button, a {
 @tailwind utilities;
 
 /* Le reste de ton code CSS (tes variables --bg, --text, etc.) reste ici en dessous intact */
+
+/* Phase 3 — Survival mode: respect reduced-motion preference (UI-SPEC §Motion) */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

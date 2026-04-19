@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { isStopword } from '@/lib/wikipedia'
 import { normalize, wordsMatch } from '@/lib/matching'
@@ -12,7 +12,68 @@ import Loader from '@/components/Loader'
 import TokenRenderer from '@/components/game/TokenRenderer'
 import GuessInput from '@/components/game/GuessInput'
 import TitleDisplay from '@/components/game/TitleDisplay'
+import SurvivalLivesIndicator from '@/components/game/SurvivalLivesIndicator'
+import SurvivalChainBadge from '@/components/game/SurvivalChainBadge'
+import GiveUpButton from '@/components/game/GiveUpButton'
+import SurvivalResultsPanel from '@/components/game/SurvivalResultsPanel'
+import SurvivalShareCard from '@/components/game/SurvivalShareCard'
+import ChallengeButton from '@/components/duel/ChallengeButton'
+import DuelToast from '@/components/duel/DuelToast'
 import { GameState, translations } from './types'
+
+// Survival-mode translations (UI-SPEC §Copywriting Contract — FR + EN parity)
+const survivalTranslations = {
+    fr: {
+        livesAria: (n: number, total: number) => `Vies restantes : ${n} sur ${total}`,
+        chain: (n: number) => `Chaîne ${n}`,
+        chainAria: (n: number) => `Longueur de la chaîne : ${n} articles`,
+        giveUp: {
+            label: 'Abandonner l\u2019article',
+            dialog: {
+                title: 'Abandonner cet article ?',
+                body: (nextLives: number) => `Tu perds une vie et passes au suivant. Il te restera ${nextLives} vie(s).`,
+                confirm: 'Oui, abandonner',
+                cancel: 'Continuer',
+            },
+        },
+        results: {
+            headline: 'Run terminée',
+            scoreLabel: 'Score',
+            metaLine: (n: number, duration: string) => `Chaîne : ${n} articles · Durée : ${duration}`,
+            shareCta: 'Partager',
+            replayCta: 'Relancer un Survival',
+            trailAria: (total: number, cleared: number, gaveUp: number, score: number) =>
+                `Chaîne Wikifinder Survival de ${total} articles : ${cleared} réussis, ${gaveUp} abandons. Score ${score}.`,
+        },
+        startFailed: 'Impossible de lancer la run. Réessaye dans un instant.',
+        startCta: 'Lancer un Survival',
+    },
+    en: {
+        livesAria: (n: number, total: number) => `Lives remaining: ${n} of ${total}`,
+        chain: (n: number) => `Chain ${n}`,
+        chainAria: (n: number) => `Chain length: ${n} articles`,
+        giveUp: {
+            label: 'Give up this article',
+            dialog: {
+                title: 'Give up this article?',
+                body: (nextLives: number) => `You\u2019ll lose a life and move to the next article. You\u2019ll have ${nextLives} life (lives) left.`,
+                confirm: 'Yes, give up',
+                cancel: 'Keep trying',
+            },
+        },
+        results: {
+            headline: 'Run ended',
+            scoreLabel: 'Score',
+            metaLine: (n: number, duration: string) => `Chain: ${n} articles · Duration: ${duration}`,
+            shareCta: 'Share',
+            replayCta: 'Play another run',
+            trailAria: (total: number, cleared: number, gaveUp: number, score: number) =>
+                `Wikifinder Survival chain of ${total} articles: ${cleared} cleared, ${gaveUp} given up. Score ${score}.`,
+        },
+        startFailed: 'Couldn\u2019t start the run. Try again in a moment.',
+        startCta: 'Start Survival',
+    },
+}
 
 export default function GamePage() {
     const [gameState, setGameState] = useState<GameState | null>(null)
@@ -42,6 +103,24 @@ export default function GamePage() {
     const [pendingRevealLength, setPendingRevealLength] = useState<number | null>(null)
     const [badgeNotifications, setBadgeNotifications] = useState<{ key: string; name: string; icon: string; rarity: string }[]>([])
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
+    const [duelToast, setDuelToast] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
+
+    // Survival mode state (Plan 03-04 — only populated when mode=survival)
+    const [isSurvival, setIsSurvival] = useState(false)
+    const [survivalState, setSurvivalState] = useState<{
+        gameId: string | null   // null for anonymous
+        livesRemaining: number
+        chainLength: number
+        language: 'fr' | 'en'
+        anonymous: boolean
+    } | null>(null)
+    const [survivalResults, setSurvivalResults] = useState<{
+        score: number
+        chainLength: number
+        chain: { outcome: 'completed' | 'gave_up' }[]
+        durationSec: number
+        shareText: string
+    } | null>(null)
 
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const safeSetTimeout = useSafeTimeout()
@@ -89,12 +168,73 @@ export default function GamePage() {
         const params = new URLSearchParams(window.location.search)
         const dateParam = params.get('date')
         const langParam = params.get('lang') as 'fr' | 'en' | null
+        const modeParam = params.get('mode') as 'daily' | 'survival' | null
+        const survival = modeParam === 'survival'
         if (langParam && langParam !== lang && (langParam === 'fr' || langParam === 'en')) {
             setLang(langParam)
             return
         }
+        if (survival) {
+            setIsSurvival(true)
+            loadSurvival(lang)
+            return
+        }
+        setIsSurvival(false)
         loadGame(lang, dateParam || undefined)
     }, [lang])
+
+    async function loadSurvival(l: 'fr' | 'en') {
+        setLoading(true)
+        setLoadError(null)
+        setRevealAll(false)
+        setClickedWord(null)
+        setHintTokenIndex(null)
+
+        try {
+            const res = await fetch('/api/survival/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lang: l }),
+            })
+            if (!res.ok) {
+                setLoadError(survivalTranslations[l].startFailed)
+                setLoading(false)
+                return
+            }
+            const body = await res.json()
+            setSurvivalState({
+                gameId: body.gameId ?? null,
+                livesRemaining: body.livesRemaining,
+                chainLength: body.chainLength,
+                language: body.language,
+                anonymous: !!body.anonymous,
+            })
+            setGameState({
+                tokens: body.tokens,
+                titleWords: body.titleWords,
+                guesses: [],
+                guessCount: 0,
+                won: false,
+                pageData: {
+                    id: body.pageId,
+                    wikipedia_url_fr: body.language === 'fr' ? body.wikipedia_url : undefined,
+                    wikipedia_url_en: body.language === 'en' ? body.wikipedia_url : undefined,
+                },
+                gameId: body.gameId ?? null,
+            })
+            if (body.wordHashSet) {
+                setWordHashSet(body.wordHashSet)
+            }
+            const start = new Date()
+            setStartedAt(start)
+            setElapsed(0)
+            setFrozenElapsed(null)
+        } catch {
+            setLoadError(survivalTranslations[l].startFailed)
+        }
+        setLoading(false)
+        safeSetTimeout(() => inputRef.current?.focus(), 100)
+    }
 
     async function loadGame(l: 'fr' | 'en', date?: string) {
         setLoading(true)
@@ -205,6 +345,130 @@ export default function GamePage() {
         setLoading(false)
         safeSetTimeout(() => inputRef.current?.focus(), 100)
     }
+
+    // Survival give-up handler — rides submitChainRef (HARD-01 queue) per D-16.
+    // Anonymous users have no gameId and get a disabled button (see HUD render),
+    // so this is a no-op guard rather than a UX path.
+    const handleSurvivalGiveUp = useCallback(() => {
+        if (!survivalState || !survivalState.gameId) return
+        const gameId = survivalState.gameId
+        const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID() : undefined
+        submitChainRef.current = submitChainRef.current
+            .catch(() => {})
+            .then(async () => {
+                try {
+                    const res = await fetch('/api/survival/give-up', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ gameId, idempotencyKey }),
+                    })
+                    if (!res.ok) return
+                    const body = await res.json()
+                    if (body.ended) {
+                        // lives went to 0 — server inlined end-of-run payload
+                        setSurvivalResults({
+                            score: body.score,
+                            chainLength: body.chainLength,
+                            chain: body.chain,
+                            durationSec: body.durationSec,
+                            shareText: body.shareText,
+                        })
+                        setFrozenElapsed(elapsed)
+                        return
+                    }
+                    // lives > 0 — server returned next article
+                    setSurvivalState(s => s ? {
+                        ...s,
+                        livesRemaining: body.livesRemaining,
+                        chainLength: body.chainLength,
+                    } : s)
+                    if (body.next) {
+                        setGameState({
+                            tokens: body.next.tokens,
+                            titleWords: body.next.titleWords,
+                            guesses: [],
+                            guessCount: 0,
+                            won: false,
+                            pageData: {
+                                id: body.next.pageId,
+                                wikipedia_url_fr: survivalState.language === 'fr' ? body.next.wikipedia_url : undefined,
+                                wikipedia_url_en: survivalState.language === 'en' ? body.next.wikipedia_url : undefined,
+                            },
+                            gameId,
+                        })
+                        if (body.next.wordHashSet) setWordHashSet(body.next.wordHashSet)
+                        const start = new Date()
+                        setStartedAt(start)
+                        setElapsed(0)
+                        setFrozenElapsed(null)
+                    }
+                } catch {
+                    // Silent degrade — optimistic UI unaffected (we don't mutate pre-fetch)
+                }
+            })
+    }, [survivalState, elapsed])
+
+    // Chain-advance effect: after winning a survival article, fetch next article
+    // via /api/survival/start (chain-advance branch for authed; fresh pick for anon).
+    // CRITICAL: setTimeout 1200ms keeps this fully OUTSIDE the sacred <50ms
+    // reveal window (Phase 2 D-10). The reveal-painted mark has long fired.
+    useEffect(() => {
+        if (!isSurvival || !gameState?.won || !survivalState || survivalResults) return
+        const pageId = gameState.pageData?.id
+        const language = survivalState.language
+        const gameId = survivalState.gameId
+        const timer = setTimeout(() => {
+            const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID() : undefined
+            submitChainRef.current = submitChainRef.current
+                .catch(() => {})
+                .then(async () => {
+                    try {
+                        const res = await fetch('/api/survival/start', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                lang: language,
+                                gameId: gameId ?? undefined,
+                                completedPageId: gameId ? pageId : undefined,
+                                idempotencyKey,
+                            }),
+                        })
+                        if (!res.ok) return
+                        const body = await res.json()
+                        setSurvivalState(s => s ? {
+                            ...s,
+                            livesRemaining: body.livesRemaining,
+                            chainLength: body.chainLength,
+                            anonymous: !!body.anonymous,
+                            gameId: body.gameId ?? s.gameId,
+                        } : s)
+                        setGameState({
+                            tokens: body.tokens,
+                            titleWords: body.titleWords,
+                            guesses: [],
+                            guessCount: 0,
+                            won: false,
+                            pageData: {
+                                id: body.pageId,
+                                wikipedia_url_fr: language === 'fr' ? body.wikipedia_url : undefined,
+                                wikipedia_url_en: language === 'en' ? body.wikipedia_url : undefined,
+                            },
+                            gameId: body.gameId ?? null,
+                        })
+                        if (body.wordHashSet) setWordHashSet(body.wordHashSet)
+                        const start = new Date()
+                        setStartedAt(start)
+                        setElapsed(0)
+                        setFrozenElapsed(null)
+                    } catch {
+                        // Silent degrade
+                    }
+                })
+        }, 1200)
+        return () => clearTimeout(timer)
+    }, [gameState?.won, isSurvival, survivalState, survivalResults, gameState?.pageData?.id])
 
     function showHint(index: number) {
         if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
@@ -520,6 +784,40 @@ export default function GamePage() {
         };
     }, [isMobile]);
 
+    if (isSurvival && survivalResults) {
+        return (
+            <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
+                <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+                <div style={{ padding: '32px 20px' }}>
+                    <SurvivalResultsPanel
+                        score={survivalResults.score}
+                        chain={survivalResults.chain}
+                        durationSec={survivalResults.durationSec}
+                        shareSlot={
+                            <SurvivalShareCard
+                                chain={survivalResults.chain}
+                                chainLength={survivalResults.chainLength}
+                                score={survivalResults.score}
+                                shareText={survivalResults.shareText}
+                                altText={survivalTranslations[lang].results.trailAria(
+                                    survivalResults.chainLength,
+                                    survivalResults.chain.filter(e => e.outcome === 'completed').length,
+                                    survivalResults.chain.filter(e => e.outcome === 'gave_up').length,
+                                    survivalResults.score,
+                                )}
+                                label={survivalTranslations[lang].results.shareCta}
+                            />
+                        }
+                        onPlayAgain={() => {
+                            window.location.href = `/game?mode=survival&lang=${survivalState?.language ?? lang}`
+                        }}
+                        t={survivalTranslations[lang].results}
+                    />
+                </div>
+            </div>
+        )
+    }
+
     if (loading || !gameState) {
         return (
             <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
@@ -630,6 +928,52 @@ export default function GamePage() {
                 </div>
             )}
             <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+            {user && !isSurvival && (
+                <div style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 20px 0', display: 'flex', justifyContent: 'flex-end' }}>
+                    <ChallengeButton
+                        lang={lang as 'fr' | 'en'}
+                        onCreate={async () => {
+                            try {
+                                const res = await fetch('/api/duel/create', {
+                                    method: 'POST',
+                                    headers: { 'content-type': 'application/json' },
+                                    body: JSON.stringify({ lang, idempotencyKey: crypto.randomUUID() }),
+                                })
+                                const body = await res.json()
+                                if (res.ok && body?.duelUrl) {
+                                    const url = `${window.location.origin}${body.duelUrl}`
+                                    const nav = navigator as Navigator & { share?: (d: { url?: string }) => Promise<void> }
+                                    try {
+                                        if (typeof nav.share === 'function') await nav.share({ url })
+                                        else if (navigator.clipboard) await navigator.clipboard.writeText(url)
+                                    } catch { /* user cancelled */ }
+                                    setDuelToast({
+                                        variant: 'success',
+                                        message: lang === 'fr' ? 'Lien de duel copié' : 'Duel link copied',
+                                    })
+                                } else {
+                                    setDuelToast({
+                                        variant: 'error',
+                                        message: lang === 'fr' ? 'Impossible de créer le duel' : 'Could not create duel',
+                                    })
+                                }
+                            } catch {
+                                setDuelToast({
+                                    variant: 'error',
+                                    message: lang === 'fr' ? 'Erreur réseau' : 'Network error',
+                                })
+                            }
+                        }}
+                    />
+                </div>
+            )}
+            {duelToast && (
+                <DuelToast
+                    variant={duelToast.variant}
+                    message={duelToast.message}
+                    onDismiss={() => setDuelToast(null)}
+                />
+            )}
 
             <div style={{
                 maxWidth: 1200,
@@ -675,6 +1019,34 @@ export default function GamePage() {
                 )}
 
                 <div style={{ flex: 1, minWidth: 0 }}>
+
+                    {isSurvival && survivalState && !survivalResults && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 16,
+                            padding: '8px 16px',
+                            borderBottom: '1px solid var(--border)',
+                            marginBottom: 16,
+                            minHeight: 44,
+                        }}>
+                            <SurvivalLivesIndicator
+                                livesRemaining={survivalState.livesRemaining as 0 | 1 | 2 | 3}
+                                t={survivalTranslations[lang]}
+                            />
+                            <SurvivalChainBadge
+                                length={survivalState.chainLength}
+                                t={survivalTranslations[lang]}
+                            />
+                            <div style={{ flex: 1 }} />
+                            <GiveUpButton
+                                livesRemaining={survivalState.livesRemaining}
+                                onConfirm={handleSurvivalGiveUp}
+                                disabled={!survivalState.gameId}
+                                t={survivalTranslations[lang].giveUp}
+                            />
+                        </div>
+                    )}
 
                     <TitleDisplay
                         titleWords={titleWords}

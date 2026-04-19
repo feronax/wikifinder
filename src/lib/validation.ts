@@ -31,6 +31,47 @@ export const FeedbackMessageSchema = z.string().trim().min(1).max(2000)
 /** Data URI d'un screenshot — borné à 5MB encodé base64. */
 export const ScreenshotDataSchema = z.string().max(6_500_000)
 
+// Phase 3 MODE-03 (D-16): survival route body schemas. Flat, UUID-typed, no
+// nested objects — keeps parse <1ms on the hot path per the top-of-file convention.
+// Extra fields (e.g. client-supplied `score`) are silently stripped by Zod default
+// strip behavior — server-only writes remain authoritative (03-01 carry-forward).
+export const SurvivalStartSchema = z.object({
+  lang: LangSchema,
+  idempotencyKey: UuidSchema.optional(),
+  gameId: UuidSchema.optional(),
+  completedPageId: UuidSchema.optional(),
+})
+
+export const SurvivalGiveUpSchema = z.object({
+  gameId: UuidSchema,
+  idempotencyKey: UuidSchema.optional(),
+})
+
+export const SurvivalEndSchema = z.object({
+  gameId: UuidSchema,
+  idempotencyKey: UuidSchema.optional(),
+})
+
+// Phase 4 MP-02/MP-03/MP-07: duel route body schemas. Flat, UUID-typed,
+// no nested objects — keeps parse <1ms (consistent with SurvivalStartSchema).
+// DuelJoinSchema.expectedLang is the MP-07 server-side lang-enforcement anchor.
+export const DuelCreateSchema = z.object({
+  lang: LangSchema,
+  idempotencyKey: UuidSchema.optional(),
+})
+
+export const DuelJoinSchema = z.object({
+  roomId: UuidSchema,
+  expectedLang: LangSchema,
+  idempotencyKey: UuidSchema.optional(),
+})
+
+export const DuelEndSchema = z.object({
+  gameId: UuidSchema,
+  roomId: UuidSchema,
+  idempotencyKey: UuidSchema.optional(),
+})
+
 /**
  * Parse et valide un body JSON. Retourne `{ data }` ou `{ error: Response }`.
  * Usage :

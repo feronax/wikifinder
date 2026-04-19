@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.wikifinder",
+      "sha256_cert_fingerprints": [
+        "5A:CA:32:C6:D5:31:A8:D1:9D:95:F3:40:22:A0:DE:9E:67:77:86:1E:0C:E1:1D:37:41:22:9D:78:06:51:67:4B",
+        "ED:3B:E1:6F:FE:B0:26:26:58:EB:91:BF:78:67:78:83:9B:02:9C:BF:98:CE:7D:6B:5B:0E:B7:EA:4B:C9:E7:27"
+      ]
+    }
+  }
+]
