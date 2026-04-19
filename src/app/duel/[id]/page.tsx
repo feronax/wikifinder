@@ -39,7 +39,16 @@ type DuelResponse =
 
 export default function DuelIdPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)' }} />}>
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
+        <div style={{ padding: 24, maxWidth: 480, margin: '0 auto' }}>
+          <div className="skeleton" style={{ width: 220, height: 28, marginBottom: 16, borderRadius: 6 }} />
+          <div className="skeleton" style={{ width: '100%', height: 16, marginBottom: 8, borderRadius: 4 }} />
+          <div className="skeleton" style={{ width: '80%', height: 16, marginBottom: 24, borderRadius: 4 }} />
+          <div className="skeleton" style={{ width: '100%', height: 44, borderRadius: 8 }} />
+        </div>
+      </div>
+    }>
       <DuelIdPageInner />
     </Suspense>
   )
@@ -126,7 +135,15 @@ function DuelIdPageInner() {
   )
 
   if (loading || !data) {
-    return shell(<div style={{ padding: 24, textAlign: 'center' }}>…</div>)
+    return shell(
+      <div style={{ maxWidth: 480, margin: '0 auto' }}>
+        <div className="skeleton" style={{ width: 220, height: 28, marginBottom: 16, borderRadius: 6 }} />
+        <div className="skeleton" style={{ width: '100%', height: 16, marginBottom: 8, borderRadius: 4 }} />
+        <div className="skeleton" style={{ width: '80%', height: 16, marginBottom: 24, borderRadius: 4 }} />
+        <div className="skeleton" style={{ width: 160, height: 13, marginBottom: 24, borderRadius: 4 }} />
+        <div className="skeleton" style={{ width: '100%', height: 44, borderRadius: 8 }} />
+      </div>,
+    )
   }
   if ('error' in data) {
     return shell(<DuelPrivatePanel lang={uiLang} onPlayToday={() => router.push('/game')} />)
