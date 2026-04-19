@@ -75,8 +75,10 @@ export async function GET(
       creatorUsername: usernameFor(room.creator_id),
     }
 
-    // Third party (authed, not participant/creator) — no comparison leaks.
-    if (user && !isParticipant && !isCreator) {
+    // Third party = room is FULL (both slots taken) AND viewer is neither participant.
+    // When the room still has an open slot, an authed non-creator is a candidate joiner
+    // and falls through to the lobby branch (D-10 recipient flow).
+    if (user && !isParticipant && !isCreator && players.length >= 2) {
       return NextResponse.json({
         state: 'private' as const,
         room: roomSummary,
