@@ -17,6 +17,8 @@ import SurvivalChainBadge from '@/components/game/SurvivalChainBadge'
 import GiveUpButton from '@/components/game/GiveUpButton'
 import SurvivalResultsPanel from '@/components/game/SurvivalResultsPanel'
 import SurvivalShareCard from '@/components/game/SurvivalShareCard'
+import ChallengeButton from '@/components/duel/ChallengeButton'
+import DuelToast from '@/components/duel/DuelToast'
 import { GameState, translations } from './types'
 
 // Survival-mode translations (UI-SPEC §Copywriting Contract — FR + EN parity)
@@ -101,6 +103,7 @@ export default function GamePage() {
     const [pendingRevealLength, setPendingRevealLength] = useState<number | null>(null)
     const [badgeNotifications, setBadgeNotifications] = useState<{ key: string; name: string; icon: string; rarity: string }[]>([])
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
+    const [duelToast, setDuelToast] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
 
     // Survival mode state (Plan 03-04 — only populated when mode=survival)
     const [isSurvival, setIsSurvival] = useState(false)
@@ -925,6 +928,52 @@ export default function GamePage() {
                 </div>
             )}
             <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+            {user && !isSurvival && (
+                <div style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 20px 0', display: 'flex', justifyContent: 'flex-end' }}>
+                    <ChallengeButton
+                        lang={lang as 'fr' | 'en'}
+                        onCreate={async () => {
+                            try {
+                                const res = await fetch('/api/duel/create', {
+                                    method: 'POST',
+                                    headers: { 'content-type': 'application/json' },
+                                    body: JSON.stringify({ lang, idempotencyKey: crypto.randomUUID() }),
+                                })
+                                const body = await res.json()
+                                if (res.ok && body?.duelUrl) {
+                                    const url = `${window.location.origin}${body.duelUrl}`
+                                    const nav = navigator as Navigator & { share?: (d: { url?: string }) => Promise<void> }
+                                    try {
+                                        if (typeof nav.share === 'function') await nav.share({ url })
+                                        else if (navigator.clipboard) await navigator.clipboard.writeText(url)
+                                    } catch { /* user cancelled */ }
+                                    setDuelToast({
+                                        variant: 'success',
+                                        message: lang === 'fr' ? 'Lien de duel copié' : 'Duel link copied',
+                                    })
+                                } else {
+                                    setDuelToast({
+                                        variant: 'error',
+                                        message: lang === 'fr' ? 'Impossible de créer le duel' : 'Could not create duel',
+                                    })
+                                }
+                            } catch {
+                                setDuelToast({
+                                    variant: 'error',
+                                    message: lang === 'fr' ? 'Erreur réseau' : 'Network error',
+                                })
+                            }
+                        }}
+                    />
+                </div>
+            )}
+            {duelToast && (
+                <DuelToast
+                    variant={duelToast.variant}
+                    message={duelToast.message}
+                    onDismiss={() => setDuelToast(null)}
+                />
+            )}
 
             <div style={{
                 maxWidth: 1200,

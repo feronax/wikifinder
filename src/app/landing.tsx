@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import SurvivalCard from '@/components/game/SurvivalCard'
+import DuelCard from '@/components/duel/DuelCard'
 
 const masked = (w: number) => ({
   display: 'inline-block',
@@ -125,6 +126,7 @@ export default function LandingPage() {
   const [checking, setChecking] = useState(true)
   const [user, setUser] = useState<{ id: string } | null>(null)
   const [resumeState, setResumeState] = useState<{ chainLength: number; livesRemaining: number; language: 'fr' | 'en' } | null>(null)
+  const [duelState, setDuelState] = useState<{ id: string; state: 'waiting' | 'your-turn' | 'ready'; expiresAt: string } | null>(null)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
@@ -157,6 +159,44 @@ export default function LandingPage() {
           language: ((mc?.language ?? data.lang ?? 'fr') as 'fr' | 'en'),
         })
       })
+  }, [user])
+
+  // [landing/duel-state] Most recently active duel room for this user (D-11) — derives home DuelCard state.
+  useEffect(() => {
+    if (!user) { setDuelState(null); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: rp } = await supabase
+          .from('room_players')
+          .select('room_id, user_id, game_id, multiplayer_rooms!inner(id, expires_at, updated_at)')
+          .eq('user_id', user.id)
+          .order('multiplayer_rooms(updated_at)', { ascending: false })
+          .limit(1)
+        const first = Array.isArray(rp) ? rp[0] : null
+        if (!first) { if (!cancelled) setDuelState(null); return }
+        const roomRaw = (first as { multiplayer_rooms?: { id: string; expires_at: string } | { id: string; expires_at: string }[] }).multiplayer_rooms
+        const room = Array.isArray(roomRaw) ? roomRaw[0] : roomRaw
+        if (!room) { if (!cancelled) setDuelState(null); return }
+        const res = await fetch(`/api/duel/${room.id}`, { cache: 'no-store' })
+        const body = await res.json()
+        if (cancelled) return
+        if (!res.ok || body.error) { setDuelState(null); return }
+        const serverState = body.state as 'lobby' | 'waiting' | 'ready' | 'expired-one' | 'expired-none' | 'private'
+        if (serverState === 'ready' || serverState === 'expired-one') {
+          setDuelState({ id: room.id, state: 'ready', expiresAt: room.expires_at })
+        } else if (serverState === 'waiting') {
+          setDuelState({ id: room.id, state: 'waiting', expiresAt: room.expires_at })
+        } else if (serverState === 'lobby' && body.opponent?.state === 'finished') {
+          setDuelState({ id: room.id, state: 'your-turn', expiresAt: room.expires_at })
+        } else {
+          setDuelState(null)
+        }
+      } catch {
+        // Silent: home card simply falls back to idle.
+      }
+    })()
+    return () => { cancelled = true }
   }, [user])
 
   const t = translations[lang]
@@ -234,6 +274,38 @@ export default function LandingPage() {
         }}>
           {t.play}
         </a>
+      </div>
+
+      {/* Duel card (Plan 04-04) */}
+      <div style={{ width: '100%', maxWidth: 680, padding: '0 24px 16px' }}>
+        <DuelCard
+          state={!user ? 'anon' : duelState?.state ?? 'idle'}
+          expiresAt={duelState?.expiresAt}
+          lang={lang}
+          onPrimary={() => {
+            if (!user) { window.location.href = '/login?next=/'; return }
+            if (duelState) { window.location.href = `/duel/${duelState.id}`; return }
+            ;(async () => {
+              try {
+                const res = await fetch('/api/duel/create', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ lang, idempotencyKey: crypto.randomUUID() }),
+                })
+                const body = await res.json()
+                if (res.ok && body?.duelUrl) {
+                  const url = `${window.location.origin}${body.duelUrl}`
+                  const nav = navigator as Navigator & { share?: (d: { url?: string }) => Promise<void> }
+                  try {
+                    if (typeof nav.share === 'function') await nav.share({ url })
+                    else if (navigator.clipboard) await navigator.clipboard.writeText(url)
+                  } catch { /* user cancelled share */ }
+                  window.location.href = body.duelUrl
+                }
+              } catch { /* HARD-04 no-console silent */ }
+            })()
+          }}
+        />
       </div>
 
       {/* Survival card (Plan 03-05) */}
