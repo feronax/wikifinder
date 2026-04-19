@@ -11,6 +11,9 @@ import {
   SurvivalStartSchema,
   SurvivalGiveUpSchema,
   SurvivalEndSchema,
+  DuelCreateSchema,
+  DuelJoinSchema,
+  DuelEndSchema,
 } from '@/lib/validation'
 import { z } from 'zod'
 
@@ -226,5 +229,47 @@ describe('SurvivalEndSchema', () => {
     if (r.success) {
       expect((r.data as Record<string, unknown>).score).toBeUndefined()
     }
+  })
+})
+
+describe('duel schemas', () => {
+  const UUID2 = '11111111-1111-4111-8111-111111111111'
+
+  it("DuelCreateSchema accepts { lang: 'fr' }", () => {
+    expect(DuelCreateSchema.safeParse({ lang: 'fr' }).success).toBe(true)
+  })
+  it('DuelCreateSchema accepts idempotencyKey', () => {
+    expect(DuelCreateSchema.safeParse({ lang: 'en', idempotencyKey: UUID }).success).toBe(true)
+  })
+  it("DuelCreateSchema rejects { lang: 'de' }", () => {
+    expect(DuelCreateSchema.safeParse({ lang: 'de' }).success).toBe(false)
+  })
+  it('DuelCreateSchema rejects {} (missing lang)', () => {
+    expect(DuelCreateSchema.safeParse({}).success).toBe(false)
+  })
+  it('DuelCreateSchema silently strips over-sends', () => {
+    const r = DuelCreateSchema.safeParse({ lang: 'fr', score: 999 })
+    expect(r.success).toBe(true)
+    if (r.success) expect((r.data as Record<string, unknown>).score).toBeUndefined()
+  })
+
+  it('DuelJoinSchema accepts { roomId, expectedLang }', () => {
+    expect(DuelJoinSchema.safeParse({ roomId: UUID, expectedLang: 'fr' }).success).toBe(true)
+  })
+  it('DuelJoinSchema rejects non-UUID roomId', () => {
+    expect(DuelJoinSchema.safeParse({ roomId: 'not-uuid', expectedLang: 'fr' }).success).toBe(false)
+  })
+  it('DuelJoinSchema rejects missing expectedLang (MP-07 enforcement)', () => {
+    expect(DuelJoinSchema.safeParse({ roomId: UUID }).success).toBe(false)
+  })
+
+  it('DuelEndSchema accepts { gameId, roomId }', () => {
+    expect(DuelEndSchema.safeParse({ gameId: UUID, roomId: UUID2 }).success).toBe(true)
+  })
+  it('DuelEndSchema rejects missing roomId', () => {
+    expect(DuelEndSchema.safeParse({ gameId: UUID }).success).toBe(false)
+  })
+  it('DuelEndSchema rejects bad gameId UUID', () => {
+    expect(DuelEndSchema.safeParse({ gameId: 'x', roomId: UUID }).success).toBe(false)
   })
 })

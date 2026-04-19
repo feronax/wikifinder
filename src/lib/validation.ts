@@ -52,6 +52,26 @@ export const SurvivalEndSchema = z.object({
   idempotencyKey: UuidSchema.optional(),
 })
 
+// Phase 4 MP-02/MP-03/MP-07: duel route body schemas. Flat, UUID-typed,
+// no nested objects — keeps parse <1ms (consistent with SurvivalStartSchema).
+// DuelJoinSchema.expectedLang is the MP-07 server-side lang-enforcement anchor.
+export const DuelCreateSchema = z.object({
+  lang: LangSchema,
+  idempotencyKey: UuidSchema.optional(),
+})
+
+export const DuelJoinSchema = z.object({
+  roomId: UuidSchema,
+  expectedLang: LangSchema,
+  idempotencyKey: UuidSchema.optional(),
+})
+
+export const DuelEndSchema = z.object({
+  gameId: UuidSchema,
+  roomId: UuidSchema,
+  idempotencyKey: UuidSchema.optional(),
+})
+
 /**
  * Parse et valide un body JSON. Retourne `{ data }` ou `{ error: Response }`.
  * Usage :
