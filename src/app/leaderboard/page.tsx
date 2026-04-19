@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useIsMobile } from '@/lib/utils'
 import Header from '@/components/Header'
@@ -76,6 +76,14 @@ const RANK_NAMES: Record<string, string> = {
 }
 
 export default function LeaderboardPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)' }} />}>
+      <LeaderboardPageInner />
+    </Suspense>
+  )
+}
+
+function LeaderboardPageInner() {
   const sp = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()

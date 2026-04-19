@@ -131,7 +131,12 @@ export default function LandingPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ? { id: data.user.id } : null)
+      if (data.user) {
+        // Authed users skip the tutorial landing and go straight to the daily game.
+        window.location.replace('/game')
+        return
+      }
+      setUser(null)
       setChecking(false)
     })
   }, [])
