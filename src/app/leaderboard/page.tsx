@@ -75,6 +75,55 @@ const RANK_NAMES: Record<string, string> = {
   diamond: 'Diamant',
 }
 
+const translations = {
+  fr: {
+    title: 'Classement',
+    tabAujourdhui: 'Aujourd\u2019hui',
+    tabClasse: 'Classé',
+    tabSurvival: 'Survival',
+    rank: 'Rang',
+    player: 'Joueur',
+    score: 'Score',
+    chain: 'Chaîne',
+    date: 'Date',
+    attempts: 'Essais',
+    time: 'Temps',
+    language: 'Langue',
+    games: 'Parties',
+    avg: 'Moyenne',
+    avgShort: 'Moy',
+    minAttempts: 'Min ess.',
+    top100Survival: 'Top 100 — Survival',
+    noSurvivalScores: 'Pas encore de scores Survival. Sois le premier !',
+    noScores: 'Aucun score disponible.',
+    todayBest: (d: string) => `Meilleurs scores du ${d.split('-').reverse().join('-')}`,
+    topPlayers: 'Top joueurs (min. 5 parties)',
+  },
+  en: {
+    title: 'Leaderboard',
+    tabAujourdhui: 'Today',
+    tabClasse: 'Ranked',
+    tabSurvival: 'Survival',
+    rank: 'Rank',
+    player: 'Player',
+    score: 'Score',
+    chain: 'Chain',
+    date: 'Date',
+    attempts: 'Attempts',
+    time: 'Time',
+    language: 'Lang',
+    games: 'Games',
+    avg: 'Average',
+    avgShort: 'Avg',
+    minAttempts: 'Best att.',
+    top100Survival: 'Top 100 — Survival',
+    noSurvivalScores: 'No Survival scores yet. Be the first!',
+    noScores: 'No scores available.',
+    todayBest: (d: string) => `Best scores — ${d}`,
+    topPlayers: 'Top players (min. 5 games)',
+  },
+} as const
+
 export default function LeaderboardPage() {
   return (
     <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)' }} />}>
@@ -88,12 +137,22 @@ function LeaderboardPageInner() {
   const router = useRouter()
   const pathname = usePathname()
   const activeTab: Tab = ((sp.get('mode') as Tab) ?? 'daily')
+  const langParam = sp.get('lang') as 'fr' | 'en' | null
+  const [lang, setLangState] = useState<'fr' | 'en'>(langParam === 'en' ? 'en' : 'fr')
+  const t = translations[lang]
   const [daily, setDaily] = useState<DailyEntry[]>([])
   const [global, setGlobal] = useState<GlobalEntry[]>([])
   const [survival, setSurvival] = useState<SurvivalEntry[]>([])
   const [loading, setLoading] = useState(true)
   const isMobile = useIsMobile()
   const today = new Date().toISOString().split('T')[0]
+
+  function setLang(next: 'fr' | 'en') {
+    setLangState(next)
+    const params = new URLSearchParams(sp?.toString() ?? '')
+    params.set('lang', next)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
 
   useEffect(() => {
     loadAll()
@@ -156,7 +215,7 @@ function LeaderboardPageInner() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
-      <Header />
+      <Header lang={lang} onLangChange={setLang} />
       <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
         <div className="skeleton" style={{ width: 200, height: 28, marginBottom: 20 }} />
         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
@@ -173,10 +232,10 @@ function LeaderboardPageInner() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
-      <Header />
+      <Header lang={lang} onLangChange={setLang} />
       <div style={{ maxWidth: 700, margin: '0 auto', padding: isMobile ? '24px 16px' : '32px 20px' }}>
 
-        <h1 style={{ margin: '0 0 24px 0', fontSize: 28, color: 'var(--text)' }}>Classement</h1>
+        <h1 style={{ margin: '0 0 24px 0', fontSize: 28, color: 'var(--text)' }}>{t.title}</h1>
 
         {/* Tabs — 3-tab shell with URL state per D-12 (W-2 mapping in MODE_TO_TYPE) */}
         <div role="tablist" aria-label="Leaderboard modes" style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
@@ -192,7 +251,7 @@ function LeaderboardPageInner() {
               onClick={() => selectTab(mode)}
               onKeyDown={(e) => handleTabKeydown(e, mode)}
             >
-              {tabLabels[mode].fr}
+              {tabLabels[mode][lang]}
             </button>
           ))}
         </div>
@@ -208,15 +267,10 @@ function LeaderboardPageInner() {
             /* ===== SURVIVAL TAB ===== */
             <>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-                Top 100 — Survival
+                {t.top100Survival}
               </div>
               {survival.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)' }}>
-                  {/* FR + EN empty copy per UI-SPEC §Copywriting */}
-                  Pas encore de scores Survival. Sois le premier !
-                  <br />
-                  <span style={{ fontSize: 12 }}>No Survival scores yet. Be the first!</span>
-                </p>
+                <p style={{ color: 'var(--text-muted)' }}>{t.noSurvivalScores}</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {!isMobile && (
@@ -229,11 +283,11 @@ function LeaderboardPageInner() {
                       fontWeight: 600,
                       fontSize: 13,
                     }}>
-                      <span>Rank</span>
-                      <span>Player</span>
-                      <span style={{ textAlign: 'center' }}>Score</span>
-                      <span style={{ textAlign: 'center' }}>Chain</span>
-                      <span style={{ textAlign: 'center' }}>Date</span>
+                      <span>{t.rank}</span>
+                      <span>{t.player}</span>
+                      <span style={{ textAlign: 'center' }}>{t.score}</span>
+                      <span style={{ textAlign: 'center' }}>{t.chain}</span>
+                      <span style={{ textAlign: 'center' }}>{t.date}</span>
                     </div>
                   )}
                   {survival.map((entry, i) => (
@@ -274,9 +328,9 @@ function LeaderboardPageInner() {
                           borderTop: '1px solid var(--border)',
                           paddingTop: 8,
                         }}>
-                          <div><strong>Score:</strong> {entry.score?.toLocaleString() ?? '-'}</div>
-                          <div><strong>Chain:</strong> {entry.chain_length ?? '-'}</div>
-                          <div><strong>Date:</strong> {entry.completed_at ? new Date(entry.completed_at).toLocaleDateString('fr-FR') : '-'}</div>
+                          <div><strong>{t.score}:</strong> {entry.score?.toLocaleString() ?? '-'}</div>
+                          <div><strong>{t.chain}:</strong> {entry.chain_length ?? '-'}</div>
+                          <div><strong>{t.date}:</strong> {entry.completed_at ? new Date(entry.completed_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US') : '-'}</div>
                         </div>
                       ) : (
                         <>
@@ -287,7 +341,7 @@ function LeaderboardPageInner() {
                             {entry.chain_length ?? '-'}
                           </div>
                           <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                            {entry.completed_at ? new Date(entry.completed_at).toLocaleDateString('fr-FR') : '-'}
+                            {entry.completed_at ? new Date(entry.completed_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US') : '-'}
                           </div>
                         </>
                       )}
@@ -427,11 +481,11 @@ function LeaderboardPageInner() {
             /* ===== DAILY / GLOBAL TABS ===== */
             <>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-                {activeTab === 'daily' ? `Meilleurs scores du ${today}` : "Top joueurs (min. 5 parties)"}
+                {activeTab === 'daily' ? t.todayBest(today) : t.topPlayers}
               </div>
 
               {(activeTab === 'daily' ? daily : global).length === 0 ? (
-                <p style={{ color: 'var(--text-muted)' }}>Aucun score disponible.</p>
+                <p style={{ color: 'var(--text-muted)' }}>{t.noScores}</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -447,10 +501,10 @@ function LeaderboardPageInner() {
                       fontSize: 13
                     }}>
                       <span>#</span>
-                      <span>Joueur</span>
-                      <span style={{ textAlign: 'center' }}>{activeTab === 'daily' ? 'Essais' : 'Parties'}</span>
-                      <span style={{ textAlign: 'center' }}>{activeTab === 'daily' ? 'Temps' : 'Moyenne'}</span>
-                      <span style={{ textAlign: 'center' }}>{activeTab === 'daily' ? 'Langue' : 'Min ess.'}</span>
+                      <span>{t.player}</span>
+                      <span style={{ textAlign: 'center' }}>{activeTab === 'daily' ? t.attempts : t.games}</span>
+                      <span style={{ textAlign: 'center' }}>{activeTab === 'daily' ? t.time : t.avg}</span>
+                      <span style={{ textAlign: 'center' }}>{activeTab === 'daily' ? t.language : t.minAttempts}</span>
                     </div>
                   )}
 
@@ -517,13 +571,13 @@ function LeaderboardPageInner() {
                             paddingTop: '8px'
                         }}>
                           <div>
-                            <strong>{activeTab === 'daily' ? 'Essais' : 'Parties'}:</strong> {activeTab === 'daily' ? entry.guess_count : entry.total_games}
+                            <strong>{activeTab === 'daily' ? t.attempts : t.games}:</strong> {activeTab === 'daily' ? entry.guess_count : entry.total_games}
                           </div>
                           <div>
-                            <strong>{activeTab === 'daily' ? 'Temps' : 'Moy'}:</strong> {activeTab === 'daily' ? (entry.duration_seconds ? `${Math.floor(entry.duration_seconds / 60)}m` : '-') : entry.avg_guesses}
+                            <strong>{activeTab === 'daily' ? t.time : t.avgShort}:</strong> {activeTab === 'daily' ? (entry.duration_seconds ? `${Math.floor(entry.duration_seconds / 60)}m` : '-') : entry.avg_guesses}
                           </div>
                           {activeTab === 'ranked' && (
-                            <div><strong>Min ess.:</strong> {entry.best_guesses}</div>
+                            <div><strong>{t.minAttempts}:</strong> {entry.best_guesses}</div>
                           )}
                         </div>
                       ) : (
