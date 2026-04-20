@@ -124,7 +124,7 @@ export default function FollowSearchInput({ lang }: Props) {
                 }}
               >
                 <a
-                  href={`/u/${r.username}`}
+                  href={`/player/${encodeURIComponent(r.username)}`}
                   style={{
                     flex: 1,
                     color: 'var(--text)',

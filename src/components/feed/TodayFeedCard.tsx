@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import FeedRow, { type FeedEntry } from './FeedRow'
-import FollowSearchInput from './FollowSearchInput'
 
 type Props = { lang: 'fr' | 'en' }
 type State =
@@ -104,10 +103,7 @@ export default function TodayFeedCard({ lang }: Props) {
         <p style={{ color: 'var(--text-muted)', margin: 0 }}>{noPlaysBody}</p>
       )}
       {empty && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p style={{ margin: 0, color: 'var(--text)' }}>{emptyTitle}</p>
-          <FollowSearchInput lang={lang} />
-        </div>
+        <p style={{ margin: 0, color: 'var(--text-muted)' }}>{emptyTitle}</p>
       )}
     </section>
   )
