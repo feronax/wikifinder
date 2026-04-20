@@ -9,7 +9,7 @@ import { parseJsonBody, DateSchema } from '@/lib/validation'
 import { requireAdmin } from '@/lib/admin-auth'
 
 const SeedTodayBodySchema = z.object({
-  date: z.union([DateSchema, z.literal('__check__')]).optional(),
+  date: DateSchema.optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -19,10 +19,6 @@ export async function POST(req: NextRequest) {
   const parsed = await parseJsonBody(req, SeedTodayBodySchema)
   if ('error' in parsed) return parsed.error
   const targetDate = parsed.data.date || new Date().toISOString().split('T')[0]
-
-  if (targetDate === '__check__') {
-    return NextResponse.json({ ok: true })
-  }
 
   const { data: existing } = await supabaseAdmin
     .from('pages')
