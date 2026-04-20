@@ -427,7 +427,7 @@ function LeaderboardPageInner() {
             /* ===== DAILY / GLOBAL TABS ===== */
             <>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-                {activeTab === 'daily' ? `Meilleurs scores du ${today}` : "Top joueurs (min. 5 parties)"}
+                {activeTab === 'daily' ? `Meilleurs scores du ${today.split('-').reverse().join('-')}` : "Top joueurs (min. 5 parties)"}
               </div>
 
               {(activeTab === 'daily' ? daily : global).length === 0 ? (
