@@ -155,6 +155,44 @@ function DuelIdPageInner() {
     return shell(<DuelPrivatePanel lang={uiLang} onPlayToday={() => router.push('/game')} />)
   }
 
+  // "Your turn to play" — both players have joined the room and the opponent has
+  // a game going (or finished), but the viewer hasn't played the duel yet.
+  // API returns state='lobby' with opponent populated; without this branch the
+  // creator would see 'share with a friend' and the joiner would see the lobby
+  // join CTA despite already being joined.
+  if (state === 'lobby' && (viewer.role === 'creator' || viewer.role === 'joiner') && opponent) {
+    const opponentFinished = opponent.state === 'finished'
+    const heading = uiLang === 'fr' ? 'À toi de jouer' : 'Your turn to play'
+    const body = opponentFinished
+      ? (uiLang === 'fr'
+        ? `${opponent.username} a terminé. Lance-toi pour comparer vos résultats.`
+        : `${opponent.username} has finished. Play to compare results.`)
+      : (uiLang === 'fr'
+        ? `${opponent.username} est en train de jouer.`
+        : `${opponent.username} is playing.`)
+    const cta = uiLang === 'fr' ? "Jouer l\u2019article" : 'Play the article'
+    return shell(
+      <div style={{
+        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+        padding: 24, display: 'flex', flexDirection: 'column', gap: 16,
+      }}>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, margin: 0, color: 'var(--text)' }}>{heading}</h1>
+        <p style={{ margin: 0, color: 'var(--text-muted)' }}>{body}</p>
+        <button
+          type="button"
+          onClick={() => router.push(`/game?duel=${id}&lang=${room.lang}`)}
+          style={{
+            minHeight: 44, padding: '12px 16px', borderRadius: 8,
+            background: 'var(--accent)', color: 'var(--surface)', border: 'none',
+            cursor: 'pointer', fontWeight: 600, fontFamily: 'var(--font-sans)',
+          }}
+        >
+          {cta}
+        </button>
+      </div>,
+    )
+  }
+
   if (state === 'lobby') {
     const sub = viewer.role === 'candidate'
       ? 'anon' as const
