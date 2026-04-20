@@ -1007,7 +1007,7 @@ export default function GamePage() {
                     <div className="history-scroll" style={{
                         width: 180, flexShrink: 0, position: 'sticky', top: 20,
                         alignSelf: 'flex-start', maxHeight: 'calc(100vh - 40px)',
-                        overflowY: 'auto', paddingTop: 32, paddingRight: 8,
+                        overflowY: 'auto', paddingTop: 32, paddingRight: 8, paddingBottom: 2,
                     }}>
                         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
                             {t.history}
