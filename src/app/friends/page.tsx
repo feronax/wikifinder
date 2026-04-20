@@ -27,19 +27,30 @@ export default function FriendsPage() {
       }
       setAuthed(true)
       setChecking(false)
-      // Fetch the list of users this viewer follows. RLS on `follows` permits
-      // own-row SELECT (follower_id = auth.uid()). Embed profiles via the
-      // FK name `follows_followee_id_fkey` (05-02 A1).
+      // Fetch the list of users this viewer follows via two simple queries.
+      // RLS on `follows` permits own-row SELECT (follower_id = auth.uid()).
+      // "Lecture publique des profils" policy on profiles permits authed reads.
+      // Embed-based approach failed silently on the browser client because the
+      // FK follows.followee_id → auth.users (not profiles) — PostgREST couldn't
+      // resolve `profiles!follows_followee_id_fkey` without an alias on this path.
       const { data: rows } = await supabase
         .from('follows')
-        .select('followee_id, profiles!follows_followee_id_fkey (id, username)')
+        .select('followee_id, created_at')
         .eq('follower_id', data.user.id)
         .order('created_at', { ascending: false })
-      const list: Follow[] = Array.isArray(rows)
-        ? rows
-            .map((r: any) => r.profiles)
-            .filter((p: any): p is Follow => !!p && typeof p.id === 'string' && typeof p.username === 'string')
-        : []
+      const followeeIds = (rows ?? []).map((r: { followee_id: string }) => r.followee_id)
+      if (followeeIds.length === 0) {
+        setFollows([])
+        return
+      }
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', followeeIds)
+      // Preserve original order (most-recent follow first).
+      const byId = new Map<string, Follow>()
+      for (const p of (profilesData ?? []) as Follow[]) byId.set(p.id, p)
+      const list: Follow[] = followeeIds.map(id => byId.get(id)).filter((p): p is Follow => !!p)
       setFollows(list)
     })()
   }, [])

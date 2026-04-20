@@ -1055,7 +1055,7 @@ export default function GamePage() {
                 </div>
             )}
             <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
-            {user && !isSurvival && (
+            {user && !isSurvival && !duelId && (
                 <div style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 20px 0', display: 'flex', justifyContent: 'flex-end' }}>
                     <ChallengeButton
                         lang={lang as 'fr' | 'en'}
@@ -1260,6 +1260,7 @@ export default function GamePage() {
                         onShare={handleShare}
                         challengeCopied={challengeCopied}
                         onChallenge={handleChallenge}
+                        hideChallenge={!!duelId}
                         hintTokenIndex={hintTokenIndex}
                         justRevealedTitle={justRevealedTitle}
                         showHint={showHint}
