@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import SurvivalCard from '@/components/game/SurvivalCard'
 import DuelCard from '@/components/duel/DuelCard'
-import TodayFeedCard from '@/components/feed/TodayFeedCard'
 
 const masked = (w: number) => ({
   display: 'inline-block',
@@ -131,11 +130,16 @@ export default function LandingPage() {
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
-    // Pitfall 5 fix (Plan 05-04): authed users stay on the landing so they can
-    // see the social feed surface. The "Play today's article" CTA below keeps
-    // the daily one click away.
+    // Landing is the tutorial/onboarding surface for anonymous visitors.
+    // Authed users are redirected to /game (their daily play surface).
+    // The TodayFeedCard social surface moved to a dedicated /friends route
+    // so that logged-in users never need to revisit the anon tutorial.
     supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ? { id: data.user.id } : null)
+      if (data.user) {
+        window.location.replace('/game')
+        return
+      }
+      setUser(null)
       setChecking(false)
     })
   }, [])
@@ -279,13 +283,6 @@ export default function LandingPage() {
           {user ? (lang === 'fr' ? "Jouer l'article du jour →" : "Play today's article →") : t.play}
         </a>
       </div>
-
-      {/* Today feed (Plan 05-04) — authed only; component returns null otherwise (D-09) */}
-      {user && (
-        <div style={{ width: '100%', maxWidth: 680, padding: '0 24px 16px' }}>
-          <TodayFeedCard lang={lang} />
-        </div>
-      )}
 
       {/* Duel card (Plan 04-04) */}
       <div style={{ width: '100%', maxWidth: 680, padding: '0 24px 16px' }}>

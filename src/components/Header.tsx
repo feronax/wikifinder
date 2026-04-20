@@ -19,6 +19,7 @@ const headerTranslations = {
     ranked: 'Classé',
     history: 'Historique',
     leaderboard: 'Classement',
+    friends: 'Amis',
     login: 'Connexion',
     loginMobile: 'Se connecter',
     logout: 'Déconnexion',
@@ -30,6 +31,7 @@ const headerTranslations = {
     ranked: 'Ranked',
     history: 'History',
     leaderboard: 'Leaderboard',
+    friends: 'Friends',
     login: 'Login',
     loginMobile: 'Login',
     logout: 'Logout',
@@ -145,6 +147,9 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
                 <a href="/leaderboard" style={{ fontSize: 14, color: pathname === '/leaderboard' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/leaderboard' ? 600 : 500 }}>
                   {t.leaderboard}
                 </a>
+                <a href="/friends" style={{ fontSize: 14, color: pathname === '/friends' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/friends' ? 600 : 500 }}>
+                  {t.friends}
+                </a>
                 <a href="/profile" style={{ fontSize: 14, color: 'var(--text)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {username || user.email}
                   {streak > 0 && (
@@ -224,6 +229,9 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
               </a>
               <a href="/leaderboard" style={{ fontSize: 16, color: pathname === '/leaderboard' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/leaderboard' ? 600 : 500 }}>
                 {t.leaderboard}
+              </a>
+              <a href="/friends" style={{ fontSize: 16, color: pathname === '/friends' ? 'var(--accent)' : 'var(--text-muted)', textDecoration: 'none', fontWeight: pathname === '/friends' ? 600 : 500 }}>
+                {t.friends}
               </a>
               <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} style={{
                 fontSize: 15, color: 'var(--accent)', background: 'none', border: 'none',
