@@ -46,9 +46,29 @@ vi.mock('@/lib/supabase-server', () => ({
 vi.mock('@/lib/supabase-admin', () => {
   const build = () => {
     const pagesChain: any = {
-      select: vi.fn(() => pagesChain),
+      select: vi.fn((cols: string) => {
+        // Resume path does a per-id SELECT on pages with an explicit column list
+        // ending in `.eq('id', currentPageId).maybeSingle()`. Detect that shape by
+        // the presence of `tokens_fr` in the select string AND a later `.eq('id', ...)`
+        // call below — we route the chain through a page-by-id branch.
+        pagesChain._lastSelect = cols
+        return pagesChain
+      }),
       order: vi.fn(() => pagesChain),
       limit: vi.fn(async () => ({ data: state.pagesRows, error: null })),
+      eq: vi.fn((col: string, val: string) => {
+        // Resume branch: .eq('id', currentPageId).maybeSingle()
+        if (col === 'id') {
+          return {
+            maybeSingle: vi.fn(async () => {
+              const row = (state.pagesRows as any[]).find((p) => p.id === val) ?? null
+              if (!row && state.resumePageRow) return { data: state.resumePageRow, error: null }
+              return { data: row, error: null }
+            }),
+          }
+        }
+        return pagesChain
+      }),
       then: undefined,
     }
     // When `.order()` is the terminal (no limit), make it awaitable too.
@@ -85,17 +105,40 @@ vi.mock('@/lib/supabase-admin', () => {
       })),
     }
 
+    // Resume lookup chain (MODE-05):
+    // .select('id, page_id, lang, mode_config').eq('user_id', u).eq('mode', 'survival')
+    //   .is('completed_at', null).gt('mode_config->>lives_remaining', '0')
+    //   .order('started_at', { ascending: false }).limit(1).maybeSingle()
+    const makeResumeChain = (): any => {
+      const chain: any = {
+        eq: vi.fn(() => chain),
+        is: vi.fn(() => chain),
+        gt: vi.fn(() => chain),
+        order: vi.fn(() => chain),
+        limit: vi.fn(() => chain),
+        maybeSingle: vi.fn(async () => ({
+          data: state.resumeRow ?? null,
+          error: state.resumeError ?? null,
+        })),
+      }
+      return chain
+    }
+
     return {
       supabaseAdmin: {
         from: vi.fn((table: string) => {
           if (table === 'pages') return pagesChain
           if (table === 'games') {
-            // Merge the three behaviors: provides .insert, .select().eq().eq().eq().maybeSingle(),
-            // and .select('page_id').eq(userId) for the pool.
+            // Merge the behaviors: provides .insert, .select().eq().eq().eq().maybeSingle(),
+            // .select('page_id').eq(userId) for the pool, and the MODE-05 resume lookup
+            // chain (select('id, page_id, lang, mode_config')).
             return {
               insert: gamesInsertChain.insert,
               select: vi.fn((cols: string) => {
                 if (cols === 'page_id') return gamesPlayedChain.select()
+                if (typeof cols === 'string' && cols.includes('mode_config') && cols.includes('lang')) {
+                  return makeResumeChain()
+                }
                 return gamesSelectChain
               }),
             }
@@ -167,6 +210,9 @@ beforeEach(() => {
   state.pagesRows = [makePage('page-uuid-0001'), makePage('page-uuid-0002')]
   state.playedRows = []
   state.gameRow = null
+  state.resumeRow = null
+  state.resumeError = null
+  state.resumePageRow = null
   state.insertSpy.mockReset()
   state.rpcSpy.mockReset()
   state.insertReturn = { data: { id: 'game-uuid-1111' }, error: null }
@@ -275,6 +321,71 @@ describe('POST /api/survival/start', () => {
     expect(body.anonymous).toBe(false)
     // Fallback returns the first (oldest ASC) page
     expect(body.pageId).toBe('page-uuid-0001')
+  })
+
+  it('MODE-05: authed initial-start with an open chain RESUMES — returns existing gameId + restored state, no INSERT', async () => {
+    const OPEN_GAME_ID = '00000000-0000-4000-8000-0000000cafe1'
+    const CURRENT_PAGE_ID = 'page-uuid-0002'
+    state.user = { id: 'user-1' }
+    state.resumeRow = {
+      id: OPEN_GAME_ID,
+      page_id: CURRENT_PAGE_ID,
+      lang: 'fr',
+      mode_config: {
+        lives_remaining: 2,
+        chain: [{ page_id: 'page-completed-a', outcome: 'completed' }],
+        current_page_id: CURRENT_PAGE_ID,
+        language: 'fr',
+      },
+    }
+    state.resumePageRow = makePage(CURRENT_PAGE_ID)
+    const res = await POST(makeReq({ lang: 'fr' }))
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.anonymous).toBe(false)
+    expect(body.gameId).toBe(OPEN_GAME_ID)
+    expect(body.pageId).toBe(CURRENT_PAGE_ID)
+    expect(body.livesRemaining).toBe(2)
+    expect(body.chainLength).toBe(1)
+    expect(body.language).toBe('fr')
+    // Critical MODE-05 invariant: resume MUST NOT INSERT a fresh row.
+    expect(state.insertSpy).not.toHaveBeenCalled()
+  })
+
+  it('MODE-05: authed initial-start with NO open chain falls through to fresh INSERT (no regression)', async () => {
+    state.user = { id: 'user-2' }
+    state.resumeRow = null
+    const res = await POST(makeReq({ lang: 'fr' }))
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.anonymous).toBe(false)
+    expect(body.gameId).toBe('game-uuid-1111')
+    expect(body.chainLength).toBe(0)
+    expect(state.insertSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('MODE-05: resume honors stored language even if request body lang differs', async () => {
+    const OPEN_GAME_ID = '00000000-0000-4000-8000-0000000cafe2'
+    const CURRENT_PAGE_ID = 'page-uuid-0001'
+    state.user = { id: 'user-3' }
+    state.resumeRow = {
+      id: OPEN_GAME_ID,
+      page_id: CURRENT_PAGE_ID,
+      lang: 'en',
+      mode_config: {
+        lives_remaining: 1,
+        chain: [],
+        current_page_id: CURRENT_PAGE_ID,
+        language: 'en',
+      },
+    }
+    state.resumePageRow = makePage(CURRENT_PAGE_ID)
+    const res = await POST(makeReq({ lang: 'fr' }))
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.language).toBe('en')
+    expect(body.gameId).toBe(OPEN_GAME_ID)
+    expect(state.insertSpy).not.toHaveBeenCalled()
   })
 
   it('LOUD-IN-ISOLATION regression pin: empty pages table surfaces specific error (not a crash)', async () => {
