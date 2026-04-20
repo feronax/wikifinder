@@ -182,6 +182,7 @@ export default function GamePage() {
         const dateParam = params.get('date')
         const langParam = params.get('lang') as 'fr' | 'en' | null
         const modeParam = params.get('mode') as 'daily' | 'survival' | null
+        const duelParam = params.get('duel')
         const survival = modeParam === 'survival'
         if (langParam && langParam !== lang && (langParam === 'fr' || langParam === 'en')) {
             setLang(langParam)
@@ -193,8 +194,80 @@ export default function GamePage() {
             return
         }
         setIsSurvival(false)
+        if (duelParam) {
+            loadDuelGame(duelParam, lang)
+            return
+        }
         loadGame(lang, dateParam || undefined)
     }, [lang, authReady])
+
+    // Phase 6 fix: wire /game?duel={roomId} to the server's duel-start branch.
+    // The server handler (api/game/start handleDuelStart) creates a mode='duel'
+    // games row and UPDATEs room_players.game_id; without this client call the
+    // joiner's game was being created as mode='daily' and the duel page stayed
+    // stuck in 'lobby' forever (prod bug reported 2026-04-20).
+    async function loadDuelGame(roomId: string, l: 'fr' | 'en') {
+        setLoading(true)
+        setLoadError(null)
+        setRevealAll(false)
+        setClickedWord(null)
+        setHintTokenIndex(null)
+        try {
+            const startRes = await fetch(`/api/game/start?duel=${encodeURIComponent(roomId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}',
+            })
+            if (!startRes.ok) {
+                setLoadError(l === 'fr' ? 'Impossible de démarrer le duel.' : "Couldn't start the duel.")
+                setLoading(false)
+                return
+            }
+            const startData = await startRes.json()
+            const game = startData.game
+            const gameId = game?.id || null
+            // Load article tokens for this room's page+lang
+            const todayRes = await fetch(`/api/game/today?lang=${l}&pageId=${encodeURIComponent(game.page_id)}${gameId ? `&gameId=${gameId}` : ''}`)
+            if (!todayRes.ok) {
+                setLoadError(l === 'fr' ? 'Impossible de charger l\u2019article du duel.' : "Couldn't load the duel article.")
+                setLoading(false)
+                return
+            }
+            const data = await todayRes.json()
+            const previousGuesses: string[] = []
+            if (gameId && game.guess_count > 0) {
+                const gres = await fetch(`/api/game/guesses?gameId=${gameId}`)
+                if (gres.ok) {
+                    const gdata = await gres.json()
+                    previousGuesses.push(...(gdata.guesses || []))
+                }
+            }
+            const guessesWithStatus = previousGuesses.map(word => {
+                const found = data.tokens.some((token: any) =>
+                    token.type === 'word' && token.visible && !token.isStopword && token.value &&
+                    wordsMatch(word, token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
+                )
+                return { word, found }
+            })
+            setGameState({
+                tokens: data.tokens,
+                titleWords: data.titleWords,
+                guesses: guessesWithStatus.slice().reverse(),
+                guessCount: game.guess_count ?? 0,
+                won: game.completed === true,
+                pageData: data,
+                gameId,
+            })
+            if (data.wordHashSet) setWordHashSet(data.wordHashSet)
+            const start = new Date(game.started_at || Date.now())
+            setStartedAt(start)
+            setElapsed(Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000)))
+            setFrozenElapsed(null)
+        } catch {
+            setLoadError(l === 'fr' ? 'Impossible de démarrer le duel.' : "Couldn't start the duel.")
+        }
+        setLoading(false)
+    }
 
     async function loadSurvival(l: 'fr' | 'en') {
         setLoading(true)
