@@ -4,14 +4,9 @@ import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 
-const ADMIN_KEY = 'wikifinder_admin'
-
 export default function AdminPage() {
   const supabase = createSupabaseBrowserClient()
   const [auth, setAuth] = useState(false)
-  const [input, setInput] = useState('')
-  const [authError, setAuthError] = useState('')
-  const [authLoading, setAuthLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<any>(null)
   const [date, setDate] = useState('')
@@ -19,78 +14,26 @@ export default function AdminPage() {
 
   useEffect(() => {
     setDate(new Date().toISOString().split('T')[0])
-    // PATH A (preferred): check Supabase session for admin role
+    // Single-path RBAC: Supabase session + app_metadata.role === 'admin'
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user && user.app_metadata?.role === 'admin') {
         setAuth(true)
-        setMounted(true)
-        return
       }
-      // PATH B (legacy fallback during dual-auth window): try sessionStorage password
-      const storedPwd = sessionStorage.getItem('wikifinder_pwd')
-      if (storedPwd) {
-        verifyPassword(storedPwd).then(valid => {
-          setAuth(valid)
-          if (!valid) {
-            sessionStorage.removeItem(ADMIN_KEY)
-            sessionStorage.removeItem('wikifinder_pwd')
-          }
-          setMounted(true)
-        })
-      } else {
-        setMounted(true)
-      }
+      setMounted(true)
     })
   }, [])
-
-  async function verifyPassword(password: string): Promise<boolean> {
-    try {
-      const res = await fetch('/api/admin/seed-today', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': password,
-        },
-        body: JSON.stringify({ date: '__check__' })
-      })
-      return res.ok
-    } catch {
-      return false
-    }
-  }
-
-  async function handleAuth() {
-    if (!input.trim()) return
-    setAuthLoading(true)
-    setAuthError('')
-
-    const valid = await verifyPassword(input)
-    if (valid) {
-      sessionStorage.setItem(ADMIN_KEY, 'true')
-      sessionStorage.setItem('wikifinder_pwd', input)
-      setAuth(true)
-    } else {
-      setAuthError('Mot de passe incorrect')
-    }
-    setAuthLoading(false)
-  }
 
   async function seedDate() {
     setLoading(true)
     setMessage(null)
     const res = await fetch('/api/admin/seed-today', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-password': sessionStorage.getItem('wikifinder_pwd') || ''
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ date })
     })
     const data = await res.json()
     if (res.status === 401) {
       setAuth(false)
-      sessionStorage.removeItem(ADMIN_KEY)
-      sessionStorage.removeItem('wikifinder_pwd')
     }
     setMessage(data)
     setLoading(false)
@@ -103,39 +46,22 @@ export default function AdminPage() {
       <Header lang="fr" onLangChange={() => {}} onLogout={() => {}} />
       <div className="max-w-sm mx-auto mt-20 px-4">
         <div className="rounded-xl p-8" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-          <h1 className="text-xl font-bold mb-6" style={{ color: 'var(--text)' }}>
+          <h1 className="text-xl font-bold mb-4" style={{ color: 'var(--text)' }}>
             Admin — Wikifinder
           </h1>
-          <input
-            type="password"
-            placeholder="Mot de passe admin"
-            value={input}
-            onChange={e => { setInput(e.target.value); setAuthError('') }}
-            onKeyDown={e => e.key === 'Enter' && handleAuth()}
-            className="w-full rounded-lg px-4 py-3 text-sm outline-none mb-3"
-            style={{
-              backgroundColor: 'var(--bg)',
-              border: `1px solid ${authError ? '#e53e3e' : 'var(--border)'}`,
-              color: 'var(--text)',
-              fontFamily: 'var(--font-sans)',
-            }}
-          />
-          {authError && (
-            <div style={{ fontSize: 13, color: '#e53e3e', marginBottom: 10 }}>{authError}</div>
-          )}
-          <button
-            onClick={handleAuth}
-            disabled={authLoading || !input.trim()}
-            className="w-full py-3 rounded-lg text-sm font-semibold text-white"
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+            Accès réservé. Connectez-vous avec un compte administrateur.
+          </p>
+          <a
+            href="/auth/login"
+            className="block w-full py-3 rounded-lg text-sm font-semibold text-white text-center"
             style={{
               backgroundColor: 'var(--accent)',
               fontFamily: 'var(--font-sans)',
-              opacity: authLoading || !input.trim() ? 0.6 : 1,
-              cursor: authLoading || !input.trim() ? 'default' : 'pointer',
             }}
           >
-            {authLoading ? 'Vérification...' : 'Se connecter'}
-          </button>
+            Se connecter
+          </a>
         </div>
       </div>
     </div>
@@ -144,9 +70,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
       <Header lang="fr" onLangChange={() => {}} onLogout={() => {
-        sessionStorage.removeItem(ADMIN_KEY)
-        sessionStorage.removeItem('wikifinder_pwd')
-        setAuth(false)
+        supabase.auth.signOut().then(() => setAuth(false))
       }} />
       <div className="max-w-lg mx-auto mt-10 px-4">
         <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--text)' }}>
