@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next'
-import { DM_Sans, DM_Serif_Display } from 'next/font/google'
+import { DM_Sans, DM_Serif_Display, Geist, Source_Serif_4 } from 'next/font/google'
 import FeedbackButton from '@/components/FeedbackButton'
 import ThemeProvider from '@/components/ThemeProvider'
 import './globals.css'
+import './design-tokens.generated.css'
 import ScrollToTop from '@/components/ScrollToTop'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import Footer from '@/components/Footer'
@@ -24,6 +25,22 @@ const dmSerif = DM_Serif_Display({
   variable: '--font-serif',
   weight: '400',
   display: 'swap',
+})
+
+const geist = Geist({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-geist',
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  preload: true,
+})
+
+const sourceSerif4 = Source_Serif_4({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-source-serif-4',
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  preload: true,
 })
 
 export const metadata: Metadata = {
@@ -82,7 +99,7 @@ export default function RootLayout({
           })();
         ` }} />
       </head>
-      <body className={`${dmSans.variable} ${dmSerif.variable}`} suppressHydrationWarning>
+      <body className={`${dmSans.variable} ${dmSerif.variable} ${geist.variable} ${sourceSerif4.variable}`} suppressHydrationWarning>
         <GoogleTagManager gtmId="GTM-M2QGSL7C" />
         <ThemeProvider>
           <ErrorBoundary>
