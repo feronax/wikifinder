@@ -179,7 +179,7 @@ function LeaderboardPageInner() {
         <h1 style={{ margin: '0 0 24px 0', fontSize: 28, color: 'var(--text)' }}>Classement</h1>
 
         {/* Tabs — 3-tab shell with URL state per D-12 (W-2 mapping in MODE_TO_TYPE) */}
-        <div role="tablist" aria-label="Leaderboard modes" style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
+        <div role="tablist" aria-label="Leaderboard modes" style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
           {(['daily', 'ranked', 'survival'] as const).map(mode => (
             <button
               key={mode}
