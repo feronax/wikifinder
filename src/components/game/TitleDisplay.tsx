@@ -40,6 +40,7 @@ interface TitleDisplayProps {
     onShare: () => void
     challengeCopied: boolean
     onChallenge: () => void
+    hideChallenge?: boolean
     hintTokenIndex: number | null
     justRevealedTitle: Set<number>
     showHint: (index: number) => void
@@ -68,7 +69,7 @@ interface TitleDisplayProps {
 export default function TitleDisplay({
     titleWords, won, guessCount, score, streak, lang,
     revealAll, setRevealAll, wikipediaUrl, shareCopied, onShare,
-    challengeCopied, onChallenge,
+    challengeCopied, onChallenge, hideChallenge,
     hintTokenIndex, justRevealedTitle, showHint, isMobile, titleScoreStyle, scoreBoxStyle, seasonUpdate, shareSlot, t,
 }: TitleDisplayProps) {
     return (
@@ -131,16 +132,18 @@ export default function TitleDisplay({
                                     {shareCopied ? t.copied : t.share}
                                 </button>
                             )}
-                            <button onClick={onChallenge} style={{
-                                padding: '6px 14px', borderRadius: 6,
-                                border: '1px solid var(--border)',
-                                backgroundColor: challengeCopied ? 'var(--accent)' : 'var(--surface)',
-                                color: challengeCopied ? 'white' : 'var(--text)',
-                                fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                                fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
-                            }}>
-                                {challengeCopied ? t.challengeCopied : t.challenge}
-                            </button>
+                            {!hideChallenge && (
+                                <button onClick={onChallenge} style={{
+                                    padding: '6px 14px', borderRadius: 6,
+                                    border: '1px solid var(--border)',
+                                    backgroundColor: challengeCopied ? 'var(--accent)' : 'var(--surface)',
+                                    color: challengeCopied ? 'white' : 'var(--text)',
+                                    fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                                    fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
+                                }}>
+                                    {challengeCopied ? t.challengeCopied : t.challenge}
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
