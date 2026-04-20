@@ -55,17 +55,20 @@ export async function GET(req: NextRequest) {
   const lang = searchParams.get('lang') as 'fr' | 'en' || 'fr'
   let targetDate = searchParams.get('date')
   const gameId = searchParams.get('gameId')
+  const pageIdParam = searchParams.get('pageId')
 
   if (!targetDate) {
     targetDate = new Date().toISOString().split('T')[0]
   }
 
   // 1. Récupération de l'article depuis la base de données
-  let { data: page, error } = await supabaseAdmin
+  // Phase 6 fix: allow ?pageId lookup for duels where the article may not be today's
+  // daily (e.g. duel created near UTC day-boundary, joiner opens after rollover).
+  let pageQuery = supabaseAdmin
     .from('pages')
     .select('id, date, wikipedia_title_fr, wikipedia_title_en, wikipedia_url_fr, wikipedia_url_en, content_fr, content_en, tokens_fr, tokens_en, title_tokens_fr, title_tokens_en, word_count_fr, word_count_en')
-    .eq('date', targetDate)
-    .single()
+  pageQuery = pageIdParam ? pageQuery.eq('id', pageIdParam) : pageQuery.eq('date', targetDate)
+  let { data: page, error } = await pageQuery.single()
 
   // Si la page du jour n'existe pas (cron échoué), la générer automatiquement
   if ((error || !page) && targetDate === new Date().toISOString().split('T')[0]) {

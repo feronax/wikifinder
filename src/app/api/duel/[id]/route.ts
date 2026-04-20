@@ -16,7 +16,6 @@ type GameRow = {
   duration_seconds: number | null
   completed: boolean
   completed_at: string | null
-  won: boolean
 }
 
 export async function GET(
@@ -90,7 +89,7 @@ export async function GET(
     const gamesResult = gameIds.length
       ? await supabaseAdmin
           .from('games')
-          .select('id, user_id, guess_count, duration_seconds, completed, completed_at, won')
+          .select('id, user_id, guess_count, duration_seconds, completed, completed_at')
           .in('id', gameIds)
       : { data: [] as GameRow[] }
     const games = (gamesResult.data ?? []) as GameRow[]
@@ -102,10 +101,13 @@ export async function GET(
     const toHalf = (userId: string): HalfResult => {
       const g = gameFor(userId)
       const finished = g?.completed === true
+      // Duel mode: finished === won (no give-up path exists for duels).
+      // The 'won' column referenced in earlier versions of this route never existed
+      // in the games table; `completed === true` is the duel-win signal.
       return {
         userId,
         username: usernameFor(userId),
-        won: g?.won === true,
+        won: finished,
         guessCount: finished ? (g?.guess_count ?? null) : null,
         durationSec: finished ? (g?.duration_seconds ?? null) : null,
         dnf: expired && !finished,
