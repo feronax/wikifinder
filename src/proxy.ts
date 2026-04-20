@@ -49,6 +49,26 @@ export async function proxy(request: NextRequest) {
   }
   // === end WF_NEW_DESIGN ===
 
+  // === wf_lang Accept-Language seed (D-06, D-06a) ===
+  // Set ONCE on first visit per user; never overwrite an existing cookie.
+  // Output narrowed to 'fr' | 'en' literals — header content never echoed (T-08-40/41).
+  const existingLang = request.cookies.get('wf_lang')?.value;
+  if (!existingLang) {
+    const accept = (request.headers.get('accept-language') ?? '').toLowerCase();
+    const first = accept.split(',')[0]?.trim() ?? '';
+    const seeded: 'fr' | 'en' = first.startsWith('en') ? 'en' : 'fr';
+    request.cookies.set('wf_lang', seeded);
+    supabaseResponse.cookies.set({
+      name: 'wf_lang',
+      value: seeded,
+      path: '/',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365,
+      httpOnly: false,
+    });
+  }
+  // === end wf_lang ===
+
   return supabaseResponse
 }
 
