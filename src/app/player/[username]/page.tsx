@@ -34,7 +34,12 @@ type PlayerProfile = {
 
 export default function PlayerProfilePage() {
   const params = useParams()
-  const usernameParam = params.username as string
+  const rawParam = params.username as string
+  // Next.js useParams returns the URL-encoded segment on some runtimes
+  // (e.g. "Lydia%20C.") and the decoded string on others ("Lydia C.").
+  // Normalize: decode once; if already plain, decodeURIComponent is a no-op.
+  let usernameParam: string
+  try { usernameParam = decodeURIComponent(rawParam) } catch { usernameParam = rawParam }
   const [profile, setProfile] = useState<PlayerProfile | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
   const [badges, setBadges] = useState<any[]>([])
