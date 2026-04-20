@@ -107,6 +107,7 @@ export default function GamePage() {
     const [badgeNotifications, setBadgeNotifications] = useState<{ key: string; name: string; icon: string; rarity: string }[]>([])
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
     const [duelToast, setDuelToast] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
+    const [duelId, setDuelId] = useState<string | null>(null)
 
     // Survival mode state (Plan 03-04 — only populated when mode=survival)
     const [isSurvival, setIsSurvival] = useState(false)
@@ -195,9 +196,11 @@ export default function GamePage() {
         }
         setIsSurvival(false)
         if (duelParam) {
+            setDuelId(duelParam)
             loadDuelGame(duelParam, lang)
             return
         }
+        setDuelId(null)
         loadGame(lang, dateParam || undefined)
     }, [lang, authReady])
 
@@ -1169,6 +1172,25 @@ export default function GamePage() {
                                 disabled={!survivalState.gameId}
                                 t={survivalTranslations[lang].giveUp}
                             />
+                        </div>
+                    )}
+
+                    {won && duelId && (
+                        <div style={{
+                            marginBottom: 16, padding: 16, borderRadius: 8,
+                            backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--accent)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                        }}>
+                            <div style={{ color: 'var(--text)', fontWeight: 500, fontSize: 14 }}>
+                                {lang === 'fr' ? 'Duel terminé — compare vos résultats.' : 'Duel finished — compare results.'}
+                            </div>
+                            <a href={`/duel/${duelId}`} style={{
+                                padding: '8px 16px', borderRadius: 6, backgroundColor: 'var(--accent)',
+                                color: 'var(--surface)', textDecoration: 'none', fontWeight: 600, fontSize: 13,
+                                whiteSpace: 'nowrap',
+                            }}>
+                                {lang === 'fr' ? 'Voir le résultat du duel' : 'See duel result'}
+                            </a>
                         </div>
                     )}
 

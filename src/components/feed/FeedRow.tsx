@@ -28,7 +28,7 @@ export default function FeedRow({ entry, lang }: { entry: FeedEntry; lang: 'fr' 
 
   return (
     <a
-      href={`/u/${entry.username}`}
+      href={`/player/${encodeURIComponent(entry.username)}`}
       role="listitem"
       style={{
         display: 'flex',
