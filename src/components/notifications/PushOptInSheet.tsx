@@ -10,7 +10,7 @@ type Props = { lang?: 'fr' | 'en'; authed: boolean; completedTodayCount: number 
 const COPY = {
   fr: {
     heading: 'Reçois un rappel quotidien',
-    body: "Ne rate pas l'article du jour — on te rappelle une fois par jour, à 19h.",
+    body: "Ne rate pas l'article du jour — on te rappelle une fois par jour, en soirée.",
     accept: 'Activer les rappels',
     later: 'Plus tard',
     iosHeading: 'Notifications non disponibles sur iOS Safari',
@@ -19,7 +19,7 @@ const COPY = {
   },
   en: {
     heading: 'Get a daily reminder',
-    body: "Don't miss today's article — we'll remind you once a day, at 7pm.",
+    body: "Don't miss today's article — we'll remind you once a day, in the evening.",
     accept: 'Enable reminders',
     later: 'Maybe later',
     iosHeading: "Notifications aren't available on iOS Safari yet",
