@@ -167,7 +167,70 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(body)
     }
 
-    // Initial-start path (authed, no gameId)
+    // ─── Authed resume branch (MODE-05) ────────────────────────────────
+    // An authed initial-start (no gameId, no completedPageId) may actually be a
+    // cross-device / cleared-cookie return to a mid-chain run. Try to restore
+    // the most recent open chain BEFORE INSERTing a fresh row. Best-effort:
+    // any lookup failure falls through to the fresh-start path.
+    const { data: openRow, error: openErr } = await supabaseAdmin
+      .from('games')
+      .select('id, page_id, lang, mode_config')
+      .eq('user_id', user.id)
+      .eq('mode', 'survival')
+      .is('completed_at', null)
+      .gt('mode_config->>lives_remaining', '0')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (openErr) {
+      Sentry.captureException(openErr, {
+        tags: { context: 'api/survival/start', phase: 'resume-lookup' },
+        extra: { userId: user.id },
+      })
+      // Fall through to fresh-start INSERT on lookup error (best-effort resume).
+    }
+
+    if (openRow && !openErr) {
+      const mc = ((openRow as any).mode_config ?? {}) as any
+      const storedLang = (((openRow as any).lang as 'fr' | 'en') ?? lang)
+      const currentPageId = (mc.current_page_id as string) ?? (openRow as any).page_id
+      const { data: pageRow, error: pageErr } = await supabaseAdmin
+        .from('pages')
+        .select('id, tokens_fr, tokens_en, title_tokens_fr, title_tokens_en, wikipedia_url_fr, wikipedia_url_en')
+        .eq('id', currentPageId)
+        .maybeSingle()
+      if (pageErr || !pageRow) {
+        Sentry.captureException(pageErr ?? new Error('resume: page row missing'), {
+          tags: { context: 'api/survival/start', phase: 'resume-page-load' },
+          extra: { userId: user.id, gameId: (openRow as any).id, currentPageId },
+        })
+        // Fall through to fresh-start INSERT.
+      } else {
+        const row = pageRow as any
+        const pageTokens = (storedLang === 'fr' ? row.tokens_fr : row.tokens_en) ?? []
+        const pageTitleTokens = (storedLang === 'fr' ? row.title_tokens_fr : row.title_tokens_en) ?? []
+        const pageUrl = (storedLang === 'fr' ? row.wikipedia_url_fr : row.wikipedia_url_en) ?? ''
+        const livesRemaining = Number(mc.lives_remaining ?? 3)
+        const chainLength = Array.isArray(mc.chain) ? mc.chain.length : 0
+        const wordHashSet = computeWordHashSet(pageTokens, pageTitleTokens)
+        const body: StartResponse = {
+          anonymous: false,
+          gameId: (openRow as any).id,
+          pageId: row.id,
+          tokens: maskTokensForClient(pageTokens),
+          titleWords: maskTitleForClient(pageTitleTokens),
+          wordHashSet,
+          wikipedia_url: pageUrl,
+          livesRemaining,
+          chainLength,
+          language: storedLang,
+        }
+        return NextResponse.json(body)
+      }
+    }
+
+    // Initial-start path (authed, no gameId, no open chain)
     const page = await pickNextSurvivalPage(user.id, lang, new Set())
     if (!page) {
       return NextResponse.json(
