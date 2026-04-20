@@ -19,6 +19,7 @@ import SurvivalResultsPanel from '@/components/game/SurvivalResultsPanel'
 import SurvivalShareCard from '@/components/game/SurvivalShareCard'
 import DailyShareCard from '@/components/game/DailyShareCard'
 import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay'
+import PushOptInSheet from '@/components/notifications/PushOptInSheet'
 import ChallengeButton from '@/components/duel/ChallengeButton'
 import DuelToast from '@/components/duel/DuelToast'
 import { GameState, translations } from './types'
@@ -1189,6 +1190,14 @@ export default function GamePage() {
                             {isMobile ? t.backToTopMobile : t.backToTop}
                         </button>
                     </div>
+
+                    {!isSurvival && (
+                        <PushOptInSheet
+                            lang={lang}
+                            authed={!!user}
+                            completedTodayCount={won ? 1 : 0}
+                        />
+                    )}
 
                 </div>
             </div>
