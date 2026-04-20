@@ -1,0 +1,45 @@
+/* GENERATED FILE — do not edit. Source: src/lib/design/tokens.ts */
+
+[data-theme="dark"] {
+  --wf-bg: #0a0a0b;
+  --wf-bg2: #111113;
+  --wf-surface: #17171a;
+  --wf-border: #26262b;
+  --wf-border-strong: #3a3a42;
+  --wf-ink: #ededee;
+  --wf-muted: #9a9aa3;
+  --wf-faint: #5f5f68;
+  --wf-mask: #1f1f23;
+  --wf-mask-edge: #2d2d33;
+  --wf-accent: #f59e0b;
+  --wf-accent-ink: #1a0f00;
+  --wf-radius: 8px;
+  --wf-radius-card: 12px;
+  --wf-font-head: 'Geist', 'Inter', system-ui, sans-serif;
+  --wf-font-body: 'Geist', 'Inter', system-ui, sans-serif;
+  --wf-font-ui: 'Geist', 'Inter', system-ui, sans-serif;
+  --wf-font-article: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
+  --wf-density: 1;
+}
+
+[data-theme="light"] {
+  --wf-bg: #fafafa;
+  --wf-bg2: #f2f2f3;
+  --wf-surface: #ffffff;
+  --wf-border: #e6e6e8;
+  --wf-border-strong: #c8c8cc;
+  --wf-ink: #0a0a0b;
+  --wf-muted: #63636d;
+  --wf-faint: #9a9aa3;
+  --wf-mask: #d4d4d8;
+  --wf-mask-edge: #bfbfc5;
+  --wf-accent: #f59e0b;
+  --wf-accent-ink: #1a0f00;
+  --wf-radius: 8px;
+  --wf-radius-card: 12px;
+  --wf-font-head: 'Geist', 'Inter', system-ui, sans-serif;
+  --wf-font-body: 'Geist', 'Inter', system-ui, sans-serif;
+  --wf-font-ui: 'Geist', 'Inter', system-ui, sans-serif;
+  --wf-font-article: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
+  --wf-density: 1;
+}

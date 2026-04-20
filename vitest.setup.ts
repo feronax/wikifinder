@@ -20,3 +20,18 @@ vi.mock('@/lib/supabase-admin', () => ({
     })),
   },
 }))
+
+// jsdom 29 lacks matchMedia; ThemeProvider.useEffect calls it. Polyfill to 'no match' default.
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
+})
