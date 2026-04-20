@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import Header from '@/components/Header'
 import Loader from '@/components/Loader'
+import Preferences from './Preferences'
+import { useNewDesignFlag } from '@/lib/feature-flags-client'
 
 type ModeStats = {
   totalGames: number
@@ -39,6 +41,7 @@ export default function ProfilePage() {
   const [badges, setBadges] = useState<any[]>([])
   const [favoriteBadge, setFavoriteBadge] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
+  const isNew = useNewDesignFlag()
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -228,6 +231,7 @@ export default function ProfilePage() {
         <div className="skeleton" style={{ width: '100%', height: 140, borderRadius: 10, marginBottom: 20 }} />
         <div className="skeleton" style={{ width: '100%', height: 100, borderRadius: 10, marginBottom: 20 }} />
         <div className="skeleton" style={{ width: '100%', height: 80, borderRadius: 10 }} />
+        <div className="skeleton" style={{ width: '100%', height: 120, borderRadius: 10, marginTop: 20 }} />
       </div>
     </div>
   )
@@ -392,6 +396,9 @@ export default function ProfilePage() {
             </>
           )}
         </div>
+
+        {/* Préférences (Phase 8 Plan 05 — flag-gated) */}
+        {isNew && <Preferences />}
 
         {/* Section quotidienne : stats + streak + distribution */}
         {stats?.daily && stats.daily.totalGames > 0 && (

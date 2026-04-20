@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next'
+import { cookies } from 'next/headers'
 import { DM_Sans, DM_Serif_Display, Geist, Source_Serif_4 } from 'next/font/google'
 import FeedbackButton from '@/components/FeedbackButton'
 import ThemeProvider from '@/components/ThemeProvider'
+import LangProvider from '@/components/LangProvider'
 import './globals.css'
 import './design-tokens.generated.css'
 import ScrollToTop from '@/components/ScrollToTop'
@@ -61,13 +63,16 @@ export const viewport: Viewport = {
   themeColor: '#5C7A3E',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = await cookies()
+  const langCookie = cookieStore.get('wf_lang')?.value
+  const lang: 'fr' | 'en' = langCookie === 'en' ? 'en' : 'fr'
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
       <head>
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -102,18 +107,20 @@ export default function RootLayout({
       <body className={`${dmSans.variable} ${dmSerif.variable} ${geist.variable} ${sourceSerif4.variable}`} suppressHydrationWarning>
         <GoogleTagManager gtmId="GTM-M2QGSL7C" />
         <ThemeProvider>
-          <ErrorBoundary>
-            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-              <div style={{ flex: 1 }}>
-                {children}
+          <LangProvider initialLang={lang}>
+            <ErrorBoundary>
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                <div style={{ flex: 1 }}>
+                  {children}
+                </div>
+                <Footer />
               </div>
-              <Footer />
-            </div>
-          </ErrorBoundary>
-          <ScrollToTop />
-          <FeedbackButton />
-          <InstallBanner />
-          <ServiceWorkerRegistrar />
+            </ErrorBoundary>
+            <ScrollToTop />
+            <FeedbackButton />
+            <InstallBanner />
+            <ServiceWorkerRegistrar />
+          </LangProvider>
         </ThemeProvider>
       </body>
     </html>
