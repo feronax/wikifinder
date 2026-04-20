@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Header from '@/components/Header'
 import Loader from '@/components/Loader'
+import FollowButton from '@/components/feed/FollowButton'
+import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 const RARITY_COLORS: Record<string, string> = {
   bronze: '#CD7F32',
@@ -45,6 +47,9 @@ export default function PlayerProfilePage() {
   const [badges, setBadges] = useState<any[]>([])
   const [notFound, setNotFound] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [targetUserId, setTargetUserId] = useState<string | null>(null)
+  const [viewerId, setViewerId] = useState<string | null>(null)
+  const [followInit, setFollowInit] = useState<'follow' | 'following' | null>(null)
 
   useEffect(() => {
     async function loadPlayer() {
@@ -70,9 +75,25 @@ export default function PlayerProfilePage() {
         })
 
         if (statsData.userId) {
+          setTargetUserId(statsData.userId)
           const badgesRes = await fetch(`/api/badges?userId=${statsData.userId}`)
           const badgesData = await badgesRes.json()
           setBadges(badgesData.badges || [])
+
+          // Resolve viewer + follow state for Follow button (MP-06).
+          // RLS on follows permits own-row SELECT; missing row means not following.
+          const supabase = createSupabaseBrowserClient()
+          const { data: { user } } = await supabase.auth.getUser()
+          setViewerId(user?.id || null)
+          if (user && user.id !== statsData.userId) {
+            const { data: existing } = await supabase
+              .from('follows')
+              .select('follower_id')
+              .eq('follower_id', user.id)
+              .eq('followee_id', statsData.userId)
+              .maybeSingle()
+            setFollowInit(existing ? 'following' : 'follow')
+          }
         }
       } catch {
         setNotFound(true)
@@ -157,7 +178,7 @@ export default function PlayerProfilePage() {
           }}>
             {favBadge ? favBadge.icon : (profile?.username?.[0]?.toUpperCase() || '?')}
           </div>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 24, color: 'var(--text)' }}>{profile?.username}</h1>
             {profile?.memberSince && (
               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -170,6 +191,9 @@ export default function PlayerProfilePage() {
               </div>
             )}
           </div>
+          {viewerId && targetUserId && viewerId !== targetUserId && followInit && (
+            <FollowButton targetUserId={targetUserId} initialState={followInit} />
+          )}
         </div>
 
         {/* Stats — séparées par mode (quotidien / classé) */}
