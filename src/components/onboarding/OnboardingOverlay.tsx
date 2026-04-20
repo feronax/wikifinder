@@ -47,6 +47,10 @@ export default function OnboardingOverlay({ lang = 'fr' }: Props) {
         } catch {
             return
         }
+        // Intentional: SSR-safe gate. Server renders nothing; client opens
+        // post-hydration only for users without the localStorage flag. No
+        // cascading render — setOpen(true) is terminal for this effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setOpen(true)
     }, [])
 

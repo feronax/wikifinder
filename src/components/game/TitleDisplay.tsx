@@ -47,6 +47,9 @@ interface TitleDisplayProps {
     titleScoreStyle: React.CSSProperties
     scoreBoxStyle: React.CSSProperties
     seasonUpdate?: SeasonUpdateData
+    // Optional render slot for a richer share button (e.g. <DailyShareCard />).
+    // When provided, it replaces the plain `onShare` text-copy button (Plan 05-05 / D-25).
+    shareSlot?: React.ReactNode
     t: {
         titleLabel: string
         found: (n: number) => string
@@ -66,7 +69,7 @@ export default function TitleDisplay({
     titleWords, won, guessCount, score, streak, lang,
     revealAll, setRevealAll, wikipediaUrl, shareCopied, onShare,
     challengeCopied, onChallenge,
-    hintTokenIndex, justRevealedTitle, showHint, isMobile, titleScoreStyle, scoreBoxStyle, seasonUpdate, t,
+    hintTokenIndex, justRevealedTitle, showHint, isMobile, titleScoreStyle, scoreBoxStyle, seasonUpdate, shareSlot, t,
 }: TitleDisplayProps) {
     return (
         <div style={titleScoreStyle}>
@@ -116,16 +119,18 @@ export default function TitleDisplay({
                                     {t.readArticle}
                                 </a>
                             )}
-                            <button onClick={onShare} style={{
-                                padding: '6px 14px', borderRadius: 6,
-                                border: '1px solid var(--accent)',
-                                backgroundColor: shareCopied ? 'var(--accent)' : 'transparent',
-                                color: shareCopied ? 'white' : 'var(--accent)',
-                                fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                                fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
-                            }}>
-                                {shareCopied ? t.copied : t.share}
-                            </button>
+                            {shareSlot ?? (
+                                <button onClick={onShare} style={{
+                                    padding: '6px 14px', borderRadius: 6,
+                                    border: '1px solid var(--accent)',
+                                    backgroundColor: shareCopied ? 'var(--accent)' : 'transparent',
+                                    color: shareCopied ? 'white' : 'var(--accent)',
+                                    fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                                    fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
+                                }}>
+                                    {shareCopied ? t.copied : t.share}
+                                </button>
+                            )}
                             <button onClick={onChallenge} style={{
                                 padding: '6px 14px', borderRadius: 6,
                                 border: '1px solid var(--border)',

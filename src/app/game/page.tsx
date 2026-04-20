@@ -17,6 +17,8 @@ import SurvivalChainBadge from '@/components/game/SurvivalChainBadge'
 import GiveUpButton from '@/components/game/GiveUpButton'
 import SurvivalResultsPanel from '@/components/game/SurvivalResultsPanel'
 import SurvivalShareCard from '@/components/game/SurvivalShareCard'
+import DailyShareCard from '@/components/game/DailyShareCard'
+import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay'
 import ChallengeButton from '@/components/duel/ChallengeButton'
 import DuelToast from '@/components/duel/DuelToast'
 import { GameState, translations } from './types'
@@ -892,8 +894,23 @@ export default function GamePage() {
         })
     }
 
+    // Daily-only onboarding mount (D-20): suppressed in survival runs.
+    // Component self-gates via localStorage (wf_onboarded_v1); auth-agnostic (D-21).
+    const dailyShareText = lang === 'fr'
+        ? `Wikifinder — ${pageData?.date || ''}\n${guessCount} tentatives | Score ${score.toLocaleString()}\nhttps://wikifinder.vercel.app/game`
+        : `Wikifinder — ${pageData?.date || ''}\n${guessCount} guesses | Score ${score.toLocaleString()}\nhttps://wikifinder.vercel.app/game`
+    const dailyShareAlt = lang === 'fr'
+        ? `Wikifinder du ${pageData?.date || ''} — ${guessCount} tentatives, score ${score}`
+        : `Wikifinder for ${pageData?.date || ''} — ${guessCount} guesses, score ${score}`
+    const dailyMaskedTitleWords = titleWords.map(tw => ({
+        revealed: tw.revealed || won,
+        text: tw.value,
+        width: tw.isStopword ? Math.max(20, (tw.length || 3) * 13) : Math.max(40, (tw.length || 4) * 18),
+    }))
+
     return (
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
+            {!isSurvival && <OnboardingOverlay lang={lang} />}
             {/* Badge unlock notifications */}
             {badgeNotifications.length > 0 && (
                 <div style={{
@@ -1121,6 +1138,18 @@ export default function GamePage() {
                         titleScoreStyle={titleScoreStyle}
                         scoreBoxStyle={scoreBoxStyle}
                         seasonUpdate={seasonUpdate}
+                        shareSlot={won && !isSurvival ? (
+                            <DailyShareCard
+                                streak={user ? streak : null}
+                                score={score}
+                                maskedTitleWords={dailyMaskedTitleWords}
+                                articleDate={pageData?.date || new Date().toISOString().slice(0, 10)}
+                                lang={lang}
+                                shareText={dailyShareText}
+                                altText={dailyShareAlt}
+                                label={shareCopied ? t.copied : t.share}
+                            />
+                        ) : undefined}
                         t={t}
                     />
 
