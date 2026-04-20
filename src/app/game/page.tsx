@@ -153,6 +153,8 @@ export default function GamePage() {
     const isMobile = useIsMobile()
     const t = translations[lang]
 
+    const [authReady, setAuthReady] = useState(false)
+
     useEffect(() => {
         supabase.auth.getUser().then(async ({ data }) => {
             setUser(data.user)
@@ -164,10 +166,18 @@ export default function GamePage() {
                     .single()
                 if (profile) setUsername(profile.username)
             }
+            setAuthReady(true)
+        }).catch(() => {
+            // Don't strand the loader if auth.getUser rejects (PWA cookie jar, network, etc.)
+            setAuthReady(true)
         })
     }, [])
 
     useEffect(() => {
+        // Gate loader on auth resolution — PWA standalone mode can race the auth
+        // cookie vs the loader, producing an anon /api/game/start call that
+        // returns a different game than the server has for the signed-in user.
+        if (!authReady) return
         const params = new URLSearchParams(window.location.search)
         const dateParam = params.get('date')
         const langParam = params.get('lang') as 'fr' | 'en' | null
@@ -184,7 +194,7 @@ export default function GamePage() {
         }
         setIsSurvival(false)
         loadGame(lang, dateParam || undefined)
-    }, [lang])
+    }, [lang, authReady])
 
     async function loadSurvival(l: 'fr' | 'en') {
         setLoading(true)
@@ -246,14 +256,21 @@ export default function GamePage() {
         setClickedWord(null)
         setHintTokenIndex(null)
 
+        // 15s watchdog: if any fetch in this flow hangs (PWA SW stuck, network drop,
+        // auth-cookie race mid-flight), surface a retry state rather than strand the
+        // loader spinner. Reported 2026-04-20 — iOS PWA after login hung forever.
+        const abortCtrl = new AbortController()
+        const watchdog = setTimeout(() => abortCtrl.abort(), 15000)
+        try {
         let todayUrl = `/api/game/today?lang=${l}`
         if (date) todayUrl += `&date=${date}`
 
         // Charge la page sans gameId d'abord pour obtenir le pageId
-        const preRes = await fetch(todayUrl)
+        const preRes = await fetch(todayUrl, { signal: abortCtrl.signal })
         if (!preRes.ok) {
             setLoadError(l === 'fr' ? 'Impossible de charger la partie du jour.' : 'Could not load today\'s game.')
             setLoading(false)
+            clearTimeout(watchdog)
             return
         }
         const preData = await preRes.json()
@@ -263,7 +280,8 @@ export default function GamePage() {
         const startRes2 = await fetch('/api/game/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lang: l, pageId })
+            body: JSON.stringify({ lang: l, pageId }),
+            signal: abortCtrl.signal,
         })
         const startData = await startRes2.json()
         const game = startData.game
@@ -273,13 +291,13 @@ export default function GamePage() {
         let finalData = preData
         if (game && (game.guess_count > 0 || game.completed === true) && gameId) {
             const restoreUrl = `${todayUrl}&gameId=${gameId}`
-            const restoreRes = await fetch(restoreUrl)
+            const restoreRes = await fetch(restoreUrl, { signal: abortCtrl.signal })
             if (restoreRes.ok) {
                 finalData = await restoreRes.json()
             }
 
             // Récupère la liste des guesses pour l'historique
-            const guessRes = await fetch(`/api/game/guesses?gameId=${gameId}`)
+            const guessRes = await fetch(`/api/game/guesses?gameId=${gameId}`, { signal: abortCtrl.signal })
             const guessData = await guessRes.json()
             const previousGuesses: string[] = guessData.guesses || []
 
@@ -347,6 +365,21 @@ export default function GamePage() {
         }
         setLoading(false)
         safeSetTimeout(() => inputRef.current?.focus(), 100)
+        } catch (err: any) {
+            // AbortError (watchdog tripped) or any network throw — surface retry state.
+            if (err?.name === 'AbortError') {
+                setLoadError(l === 'fr'
+                    ? 'Le chargement a pris trop de temps. Réessaye.'
+                    : 'Loading took too long. Please retry.')
+            } else {
+                setLoadError(l === 'fr'
+                    ? 'Impossible de charger la partie du jour.'
+                    : 'Could not load today\'s game.')
+            }
+            setLoading(false)
+        } finally {
+            clearTimeout(watchdog)
+        }
     }
 
     // Survival give-up handler — rides submitChainRef (HARD-01 queue) per D-16.
