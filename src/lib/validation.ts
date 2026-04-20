@@ -72,6 +72,24 @@ export const DuelEndSchema = z.object({
   idempotencyKey: UuidSchema.optional(),
 })
 
+// Phase 5 / 05-02 — MP-06 follow + feed schemas. Flat, UUID-typed, no nested
+// objects — keeps parse <1ms (consistent with DuelCreateSchema / SurvivalStartSchema).
+// FollowSchema and UnfollowSchema are kept distinct so future fields can diverge
+// per D-05 idempotency policy (e.g. UnfollowSchema may later accept a batch).
+// FeedQuerySchema is optional: Plan 05-03's feed route reads `?lang=` as a fallback
+// because profiles.lang_pref does not exist (see 05-02-MIGRATION-VERIFY.md Audit A).
+export const FollowSchema = z.object({
+  followeeId: UuidSchema,
+})
+
+export const UnfollowSchema = z.object({
+  followeeId: UuidSchema,
+})
+
+export const FeedQuerySchema = z.object({
+  lang: LangSchema.optional(),
+}).optional()
+
 /**
  * Parse et valide un body JSON. Retourne `{ data }` ou `{ error: Response }`.
  * Usage :
