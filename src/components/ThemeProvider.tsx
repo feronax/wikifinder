@@ -1,7 +1,13 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { tokens as tokensData, type TokenSet, type Theme } from '@/lib/design/tokens'
+import {
+  loadLocalPrefs,
+  saveLocalPrefs,
+  usePreferenceSync,
+  usePreferencesBootstrap,
+} from '@/lib/preferences'
 
 type ThemeContextValue = {
   theme: Theme
@@ -31,13 +37,18 @@ function readFlagCookie(): boolean {
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<Theme>('light')
+  const userIdRef = useRef<string | null>(null)
+  const queueSync = usePreferenceSync()
 
   useEffect(() => {
-    const saved = (typeof localStorage !== 'undefined'
-      ? (localStorage.getItem('theme') as Theme | null)
-      : null)
+    // loadLocalPrefs() handles the one-shot legacy 'theme' → wf_prefs.mode migration
+    // internally and deletes the legacy key.
+    const local = loadLocalPrefs()
+    const saved = local.mode
     const flagDark = readFlagCookie()
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const systemDark = typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false
     const initial: Theme =
       saved === 'light' || saved === 'dark'
         ? saved
@@ -47,17 +58,31 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
         ? 'dark'
         : 'light'
     setModeState(initial)
-    document.documentElement.setAttribute('data-theme', initial)
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', initial)
+    }
   }, [])
+
+  usePreferencesBootstrap({
+    userIdRef,
+    queueSync,
+    onHydrated: (remote) => {
+      if (remote.mode === 'light' || remote.mode === 'dark') {
+        setModeState(remote.mode)
+        if (typeof document !== 'undefined') {
+          document.documentElement.setAttribute('data-theme', remote.mode)
+        }
+      }
+    },
+  })
 
   function setMode(next: Theme) {
     setModeState(next)
     if (typeof document !== 'undefined') {
       document.documentElement.setAttribute('data-theme', next)
     }
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('theme', next)
-    }
+    saveLocalPrefs({ mode: next })
+    queueSync({ mode: next }, userIdRef.current)
   }
 
   function toggle() {
