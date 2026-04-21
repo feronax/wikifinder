@@ -9,38 +9,27 @@ describe('computeMaskWidth', () => {
     }
   })
 
-  it('varies across tokenIndex within the same page', () => {
-    const widths = new Set<number>()
-    for (let i = 0; i < 50; i++) {
-      widths.add(computeMaskWidth('page-x', i, 7))
-    }
-    expect(widths.size).toBeGreaterThan(20)
+  it('is proportional to token length (no jitter, matches proto mask.jsx:17)', () => {
+    // Width = max(1.4, length × 0.56) per design-proto mask.jsx
+    expect(computeMaskWidth('p', 0, 2)).toBe(1.4) // 2 * 0.56 = 1.12 → floor 1.4
+    expect(computeMaskWidth('p', 0, 3)).toBe(1.68) // 3 * 0.56
+    expect(computeMaskWidth('p', 0, 8)).toBe(4.48) // 8 * 0.56
+    expect(computeMaskWidth('p', 0, 12)).toBe(6.72)
+    // Monotonic above the floor: longer words → wider masks
+    expect(computeMaskWidth('p', 0, 8)).toBeGreaterThan(computeMaskWidth('p', 0, 3))
   })
 
-  it('varies across pageId at the same tokenIndex', () => {
-    const pageIds = ['page-a', 'page-b', 'page-c', 'page-d', 'page-e',
-      'page-f', 'page-g', 'page-h', 'page-i', 'page-j']
-    const widths = new Set<number>()
-    for (const pid of pageIds) {
-      widths.add(computeMaskWidth(pid, 5, 7))
-    }
-    expect(widths.size).toBeGreaterThanOrEqual(9)
+  it('ignores pageId and tokenIndex (same length → same width everywhere)', () => {
+    const w = computeMaskWidth('page-a', 5, 7)
+    expect(computeMaskWidth('page-b', 99, 7)).toBe(w)
+    expect(computeMaskWidth('different-page', 0, 7)).toBe(w)
   })
 
-  it('respects bounds 0.65×..1.35× of Math.max(1.4, length×0.56)', () => {
-    const tol = 1e-9
-    let violations = 0
-    for (let length = 1; length <= 15; length++) {
-      const base = Math.max(1.4, length * 0.56)
-      for (let idx = 0; idx <= 200; idx++) {
-        const w = computeMaskWidth('bounds-page', idx, length)
-        const ratio = w / base
-        if (ratio < 0.65 - tol || ratio > 1.35 + tol) {
-          violations++
-        }
-      }
-    }
-    expect(violations).toBe(0)
+  it('enforces the 1.4em floor for very short words', () => {
+    // 1 * 0.56 = 0.56 → floored to 1.4
+    expect(computeMaskWidth('p', 0, 1)).toBe(1.4)
+    // 2 * 0.56 = 1.12 → floored to 1.4
+    expect(computeMaskWidth('p', 0, 2)).toBe(1.4)
   })
 
   it('is server-safe (no browser-global references at import time)', () => {
