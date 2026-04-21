@@ -22,6 +22,8 @@ import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay'
 import PushOptInSheet from '@/components/notifications/PushOptInSheet'
 import ChallengeButton from '@/components/duel/ChallengeButton'
 import DuelToast from '@/components/duel/DuelToast'
+import { useNewDesignFlag } from '@/lib/feature-flags-client'
+import NewGameScreen from '@/components/game/new/NewGameScreen'
 import { GameState, translations } from './types'
 
 // Survival-mode translations (UI-SPEC §Copywriting Contract — FR + EN parity)
@@ -155,6 +157,7 @@ export default function GamePage() {
     const t = translations[lang]
 
     const [authReady, setAuthReady] = useState(false)
+    const newDesignOn = useNewDesignFlag()
 
     useEffect(() => {
         supabase.auth.getUser().then(async ({ data }) => {
@@ -1017,6 +1020,50 @@ export default function GamePage() {
         text: tw.value,
         width: tw.isStopword ? Math.max(20, (tw.length || 3) * 13) : Math.max(40, (tw.length || 4) * 18),
     }))
+
+    // Phase 9 flag-branch (D-01/D-02). When WF_NEW_DESIGN is ON and a daily game is loaded,
+    // render the NewGameScreen tree. Scope: daily game screen only — survival + duel paths
+    // stay on the legacy tree this phase (Phase 10+ rework). Flag OFF ⇒ branch skipped ⇒
+    // legacy tree below renders byte-identically.
+    if (newDesignOn && !isSurvival && !duelId) {
+        const handleNewReveal = (normalizedWord: string) => {
+            setGameState(prev => {
+                if (!prev) return prev
+                if (prev.guesses.some(g => normalize(g.word) === normalizedWord)) return prev
+                return {
+                    ...prev,
+                    guesses: [{ word: normalizedWord, found: true }, ...prev.guesses],
+                    guessCount: prev.won ? prev.guessCount : prev.guessCount + 1,
+                }
+            })
+        }
+        const handleNewMiss = (raw: string) => {
+            setGameState(prev => {
+                if (!prev) return prev
+                const n = normalize(raw)
+                if (prev.guesses.some(g => normalize(g.word) === n)) return prev
+                return {
+                    ...prev,
+                    guesses: [{ word: raw, found: false }, ...prev.guesses],
+                    guessCount: prev.won ? prev.guessCount : prev.guessCount + 1,
+                }
+            })
+        }
+        return (
+            <div style={{ fontFamily: 'var(--wf-font-ui)', minHeight: '100vh', background: 'var(--wf-bg)' }}>
+                <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+                <NewGameScreen
+                    gameState={gameState}
+                    input={input}
+                    setInput={setInput}
+                    elapsed={frozenElapsed ?? elapsed}
+                    lang={lang}
+                    onMiss={handleNewMiss}
+                    onRevealHandled={handleNewReveal}
+                />
+            </div>
+        )
+    }
 
     return (
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
