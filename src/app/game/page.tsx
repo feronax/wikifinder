@@ -1050,7 +1050,21 @@ export default function GamePage() {
             })
         }
         return (
-            <div style={{ fontFamily: 'var(--wf-font-ui)', minHeight: '100vh', background: 'var(--wf-bg)' }}>
+            <div style={{
+                fontFamily: 'var(--wf-font-ui)',
+                minHeight: '100vh',
+                background: 'var(--wf-bg)',
+                // Override legacy --bg/--surface/--border tokens inside the
+                // new-design tree so the legacy <Header> adopts the minimal-amber
+                // palette and blends with the new body (fixes slate-vs-black seam).
+                // Legacy Header source is unmodified — D-02 preserved.
+                ['--bg' as string]: 'var(--wf-bg)',
+                ['--surface' as string]: 'var(--wf-bg2)',
+                ['--border' as string]: 'var(--wf-border)',
+                ['--text' as string]: 'var(--wf-ink)',
+                ['--text-muted' as string]: 'var(--wf-muted)',
+                ['--accent' as string]: 'var(--wf-accent)',
+            }}>
                 <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
                 <NewGameScreen
                     gameState={gameState}

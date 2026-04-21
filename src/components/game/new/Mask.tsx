@@ -53,7 +53,7 @@ function MaskImpl({ word, pageId, tokenIndex, revealed, justRevealed, highlighte
                 height: '1.1em',
                 background: 'var(--wf-mask)',
                 border: '1px solid var(--wf-mask-edge)',
-                borderRadius: 2,
+                borderRadius: 'var(--wf-radius)',
                 transform: 'translateY(-0.08em)',
                 margin: '0 1px',
                 verticalAlign: 'baseline',
