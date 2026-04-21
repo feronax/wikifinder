@@ -54,21 +54,37 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount }: T
                     lineHeight: 1.2,
                     margin: '8px 0 12px',
                     color: 'var(--wf-ink)',
+                    // Explicit flex wrap so adjacent stopword spans and Mask
+                    // inline-blocks keep even spacing, even when the whitespace
+                    // text node gets visually-collapsed at 40px tracking
+                    // (Bug 2 — "tiny squares" symptom).
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'baseline',
+                    gap: '0.25em',
                 }}
             >
-                {titleWords.map((tw, i) => {
-                    const sep = i > 0 ? ' ' : ''
+                {titleWords.map((tw) => {
                     if (tw.isStopword) {
                         return (
-                            <React.Fragment key={tw.index}>
-                                {sep}
-                                <span style={{ color: 'var(--wf-ink)' }}>{tw.value}</span>
-                            </React.Fragment>
+                            <span key={tw.index} style={{ color: 'var(--wf-ink)' }}>
+                                {tw.value}
+                            </span>
                         )
                     }
+                    // Wrap the mask in a min-width container so short title
+                    // words (length 1-3) don't render as visually-square
+                    // micro-blocks at 40px font-size. min-width: 1.8em at 40px
+                    // ≈ 72px, which preserves a legible rectangular silhouette.
                     return (
-                        <React.Fragment key={tw.index}>
-                            {sep}
+                        <span
+                            key={tw.index}
+                            style={{
+                                display: 'inline-flex',
+                                minWidth: '1.8em',
+                                alignItems: 'baseline',
+                            }}
+                        >
                             <Mask
                                 word={tw.value}
                                 pageId={pageId}
@@ -78,7 +94,7 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount }: T
                                 highlighted={false}
                                 lang={lang}
                             />
-                        </React.Fragment>
+                        </span>
                     )
                 })}
             </h1>
