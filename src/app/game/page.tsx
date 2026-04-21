@@ -24,6 +24,7 @@ import ChallengeButton from '@/components/duel/ChallengeButton'
 import DuelToast from '@/components/duel/DuelToast'
 import { useNewDesignFlag } from '@/lib/feature-flags-client'
 import NewGameScreen from '@/components/game/new/NewGameScreen'
+import NewDesignHeader from '@/components/game/new/NewDesignHeader'
 import { GameState, translations } from './types'
 
 // Survival-mode translations (UI-SPEC §Copywriting Contract — FR + EN parity)
@@ -1065,7 +1066,7 @@ export default function GamePage() {
                 ['--text-muted' as string]: 'var(--wf-muted)',
                 ['--accent' as string]: 'var(--wf-accent)',
             }}>
-                <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+                <NewDesignHeader lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
                 <NewGameScreen
                     gameState={gameState}
                     input={input}
