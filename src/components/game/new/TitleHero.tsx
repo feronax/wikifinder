@@ -66,24 +66,26 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount }: T
                             </React.Fragment>
                         )
                     }
-                    // Wrap Mask in an inline-block min-width span so short
-                    // title words don't render as micro-squares at 40px font.
-                    // Staying in the inline flow (not flex) preserves the
-                    // h1 line-box so masks keep their full 1.1em height.
+                    // Render Mask directly in the h1 inline flow (matches
+                    // design-proto game.jsx:208-225). The prior inline-block
+                    // min-width wrapper was added to compensate for the D-05
+                    // PRNG jitter making short-word masks unreadable at 40px.
+                    // Since Bug B removed that jitter (width is now exactly
+                    // length × 0.56em), the wrapper is unnecessary and its
+                    // baseline reset broke mask vs text vertical alignment.
                     return (
                         <React.Fragment key={tw.index}>
                             {sep}
-                            <span style={{ display: 'inline-block', minWidth: '1.8em' }}>
-                                <Mask
-                                    word={tw.value}
-                                    pageId={pageId}
-                                    tokenIndex={tw.index + TITLE_INDEX_OFFSET}
-                                    revealed={tw.revealed}
-                                    justRevealed={false}
-                                    highlighted={false}
-                                    lang={lang}
-                                />
-                            </span>
+                            <Mask
+                                word={tw.value}
+                                wordLength={tw.length}
+                                pageId={pageId}
+                                tokenIndex={tw.index + TITLE_INDEX_OFFSET}
+                                revealed={tw.revealed}
+                                justRevealed={false}
+                                highlighted={false}
+                                lang={lang}
+                            />
                         </React.Fragment>
                     )
                 })}

@@ -53,10 +53,15 @@ function renderWordToken(
         )
     }
     const norm = normalize(tk.value)
+    // Server hides unrevealed word values by sending `value: ""` and exposing
+    // the character count in `tk.length`. Pass that length to Mask so width
+    // can remain proportional to the actual word length (mask.jsx:17).
+    const maskLength = (tk.length ?? tk.value.length) || tk.value.length
     return (
         <Mask
             key={tk.index}
             word={tk.value}
+            wordLength={maskLength}
             pageId={pageId}
             tokenIndex={tk.index}
             revealed={foundSet.has(norm)}
@@ -152,10 +157,15 @@ export default function ArticleBody({
                 background: 'var(--wf-surface)',
                 border: '1px solid var(--wf-border)',
                 borderRadius: 'var(--wf-radius-card)',
-                padding: '32px 48px 40px',
+                // Padding + font metrics from design-proto game.jsx:254-261.
+                // lineHeight 1.75 + fontSize 17 is what the proto uses; it also
+                // matches the line-box the Mask's translateY(-0.08em) was tuned
+                // against in mask.jsx, keeping mask tops aligned with adjacent
+                // text baselines.
+                padding: '32px 40px 40px',
                 fontFamily: 'var(--wf-font-article)',
-                fontSize: 18,
-                lineHeight: 1.7,
+                fontSize: 17,
+                lineHeight: 1.75,
                 color: 'var(--wf-ink)',
             }}
         >

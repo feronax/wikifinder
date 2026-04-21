@@ -6,6 +6,13 @@ import { normalize } from '@/lib/matching'
 
 type MaskProps = {
     word: string
+    /**
+     * Character count of the underlying word. Passed explicitly because the
+     * server hides `word` (sends "") for unrevealed tokens; the true length
+     * lives on the Token's `length` field. Falls back to word.length when not
+     * supplied (callers that still have the raw word in hand).
+     */
+    wordLength?: number
     pageId: string
     tokenIndex: number
     revealed: boolean
@@ -14,8 +21,9 @@ type MaskProps = {
     lang: 'fr' | 'en'
 }
 
-function MaskImpl({ word, pageId, tokenIndex, revealed, justRevealed, highlighted, lang }: MaskProps) {
+function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed, highlighted, lang }: MaskProps) {
     const dataWord = normalize(word)
+    const effectiveLength = wordLength ?? word.length
 
     if (revealed) {
         // justRevealed wins over highlighted when both are true (explicit priority).
@@ -41,7 +49,7 @@ function MaskImpl({ word, pageId, tokenIndex, revealed, justRevealed, highlighte
         )
     }
 
-    const w = computeMaskWidth(pageId, tokenIndex, word.length)
+    const w = computeMaskWidth(pageId, tokenIndex, effectiveLength)
 
     return (
         <span
@@ -69,6 +77,7 @@ function MaskImpl({ word, pageId, tokenIndex, revealed, justRevealed, highlighte
 // so a single reveal does not re-render hundreds of masked spans.
 export default React.memo(MaskImpl, (prev, next) =>
     prev.word === next.word &&
+    prev.wordLength === next.wordLength &&
     prev.tokenIndex === next.tokenIndex &&
     prev.pageId === next.pageId &&
     prev.revealed === next.revealed &&
