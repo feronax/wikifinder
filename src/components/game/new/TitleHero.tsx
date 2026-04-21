@@ -93,9 +93,10 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount }: T
 
             <div
                 style={{
-                    height: 6,
+                    height: 8,
                     background: 'var(--wf-bg2)',
-                    borderRadius: 3,
+                    border: '1px solid var(--wf-border)',
+                    borderRadius: 999,
                     overflow: 'hidden',
                 }}
             >

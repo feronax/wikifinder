@@ -1,14 +1,12 @@
 'use client'
 
 import React from 'react'
-import type { TitleWord } from '@/app/game/types'
 
 interface StatsCardProps {
   elapsed: number
   attemptsCount: number
   foundCount: number
   totalRevealableTokens: number
-  titleWords?: TitleWord[]
   lang: 'fr' | 'en'
 }
 
@@ -17,17 +15,13 @@ const COPY = {
     attempts: 'TENTATIVES',
     found: 'TROUVÉS',
     time: 'TEMPS',
-    pct: '% RÉVÉLÉ',
     articleRevealed: 'ARTICLE RÉVÉLÉ',
-    title: 'TITRE',
   },
   en: {
     attempts: 'ATTEMPTS',
     found: 'FOUND',
     time: 'TIME',
-    pct: '% REVEALED',
     articleRevealed: 'ARTICLE REVEALED',
-    title: 'TITLE',
   },
 } as const
 
@@ -36,7 +30,6 @@ export default function StatsCard({
   attemptsCount,
   foundCount,
   totalRevealableTokens,
-  titleWords,
   lang,
 }: StatsCardProps) {
   const mm = Math.floor(elapsed / 60)
@@ -66,11 +59,8 @@ export default function StatsCard({
     marginTop: 4,
   }
 
-  // Title-progress segments: one per non-stopword title word (Bug 3).
-  const titleSegments = (titleWords ?? []).filter((tw) => !tw.isStopword)
-  const titleFound = titleSegments.filter((tw) => tw.revealed).length
-  const titleTotal = titleSegments.length
-
+  // Proto game.jsx:380-384 — 3-inline stats row (Tentatives / Trouvés / Temps);
+  // % lives on the progress-bar row, not as a separate cell.
   return (
     <section
       style={{
@@ -83,8 +73,8 @@ export default function StatsCard({
     >
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          display: 'flex',
+          justifyContent: 'space-between',
           gap: 12,
         }}
       >
@@ -101,32 +91,44 @@ export default function StatsCard({
           <div
             style={{
               ...numberStyle,
-              fontFamily:
-                'ui-monospace, SFMono-Regular, monospace',
+              fontFamily: 'ui-monospace, SFMono-Regular, monospace',
             }}
           >
             {chrono}
           </div>
         </div>
-        <div>
-          <div style={labelStyle}>{t.pct}</div>
-          <div
-            style={{ ...numberStyle, color: 'var(--wf-accent)' }}
-          >
-            {pct}%
-          </div>
-        </div>
       </div>
 
+      {/* Progress bar row — label on left, percent on right (amber), bar below */}
       <div style={{ marginTop: 14 }}>
-        <div style={labelStyle}>{t.articleRevealed}</div>
         <div
           style={{
-            height: 6,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: 6,
+          }}
+        >
+          <span style={labelStyle}>{t.articleRevealed}</span>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--wf-accent)',
+              fontVariantNumeric: 'tabular-nums',
+              fontFamily: 'var(--wf-font-ui)',
+            }}
+          >
+            {pct}%
+          </span>
+        </div>
+        <div
+          style={{
+            height: 8,
             background: 'var(--wf-bg2)',
-            borderRadius: 3,
+            border: '1px solid var(--wf-border)',
+            borderRadius: 999,
             overflow: 'hidden',
-            marginTop: 6,
           }}
         >
           <div
@@ -139,55 +141,6 @@ export default function StatsCard({
           />
         </div>
       </div>
-
-      {titleTotal > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-            }}
-          >
-            <span style={labelStyle}>{t.title}</span>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: 1,
-                color: 'var(--wf-muted)',
-                fontVariantNumeric: 'tabular-nums',
-                fontFamily: 'var(--wf-font-ui)',
-              }}
-            >
-              {titleFound}/{titleTotal}
-            </span>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              gap: 3,
-              marginTop: 6,
-              height: 6,
-            }}
-          >
-            {titleSegments.map((tw) => (
-              <div
-                key={tw.index}
-                data-testid="title-segment"
-                data-revealed={tw.revealed ? 'true' : 'false'}
-                style={{
-                  flex: 1,
-                  height: '100%',
-                  background: tw.revealed ? 'var(--wf-accent)' : 'var(--wf-bg2)',
-                  borderRadius: 2,
-                  transition: 'background 400ms cubic-bezier(.22, 1, .36, 1)',
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   )
 }

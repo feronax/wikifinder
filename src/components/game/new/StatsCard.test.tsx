@@ -1,85 +1,57 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, screen } from '@testing-library/react'
 import StatsCard from './StatsCard'
-import type { TitleWord } from '@/app/game/types'
 
 afterEach(() => cleanup())
 
-function tw(index: number, value: string, isStopword: boolean, revealed: boolean): TitleWord {
-  return { index, value, isStopword, revealed, length: value.length }
-}
-
-describe('StatsCard — title-progress segmented bar (Bug 3)', () => {
-  it('renders TITRE label and one segment per non-stopword title word', () => {
-    const titleWords: TitleWord[] = [
-      tw(0, 'Norme', false, true),
-      tw(1, 'européenne', false, false),
-      tw(2, "d'", true, true), // stopword — not a segment
-      tw(3, 'émission', false, false),
-    ]
-    const { container } = render(
+describe('StatsCard — 3-inline layout (handoff §5.1 + proto game.jsx:380-384)', () => {
+  it('renders Tentatives, Trouvés, Temps, and ARTICLE RÉVÉLÉ label with percent', () => {
+    render(
       <StatsCard
-        elapsed={0}
-        attemptsCount={0}
-        foundCount={0}
+        elapsed={272} // 4:32
+        attemptsCount={12}
+        foundCount={4}
         totalRevealableTokens={50}
-        titleWords={titleWords}
         lang="fr"
       />,
     )
-    expect(screen.getByText(/TITRE/)).toBeTruthy()
-    const segments = container.querySelectorAll('[data-testid="title-segment"]')
-    expect(segments.length).toBe(3) // stopword excluded
+    expect(screen.getByText(/TENTATIVES/)).toBeTruthy()
+    expect(screen.getByText(/TROUV/)).toBeTruthy()
+    expect(screen.getByText(/TEMPS/)).toBeTruthy()
+    expect(screen.getByText('12')).toBeTruthy()
+    expect(screen.getByText('4')).toBeTruthy()
+    expect(screen.getByText('4:32')).toBeTruthy()
+    expect(screen.getByText(/ARTICLE R.V.L./)).toBeTruthy()
+    // 4/50 = 8%
+    expect(screen.getByText('8%')).toBeTruthy()
   })
 
-  it('marks revealed title segments with accent background', () => {
-    const titleWords: TitleWord[] = [
-      tw(0, 'A', false, true),
-      tw(1, 'B', false, false),
-    ]
-    const { container } = render(
-      <StatsCard
-        elapsed={0}
-        attemptsCount={0}
-        foundCount={0}
-        totalRevealableTokens={10}
-        titleWords={titleWords}
-        lang="fr"
-      />,
-    )
-    const revealed = container.querySelectorAll('[data-testid="title-segment"][data-revealed="true"]')
-    const unrevealed = container.querySelectorAll('[data-testid="title-segment"][data-revealed="false"]')
-    expect(revealed.length).toBe(1)
-    expect(unrevealed.length).toBe(1)
-  })
-
-  it('renders EN label when lang=en', () => {
-    const titleWords: TitleWord[] = [tw(0, 'Hello', false, false)]
+  it('renders EN labels when lang=en', () => {
     render(
       <StatsCard
         elapsed={0}
         attemptsCount={0}
         foundCount={0}
-        totalRevealableTokens={5}
-        titleWords={titleWords}
+        totalRevealableTokens={0}
         lang="en"
       />,
     )
-    expect(screen.getByText(/TITLE/)).toBeTruthy()
+    expect(screen.getByText(/ATTEMPTS/)).toBeTruthy()
+    expect(screen.getByText(/FOUND/)).toBeTruthy()
+    expect(screen.getByText(/TIME/)).toBeTruthy()
+    expect(screen.getByText(/ARTICLE REVEALED/)).toBeTruthy()
   })
 
-  it('does not render title progress row when titleWords is empty or all stopwords', () => {
-    const titleWords: TitleWord[] = [tw(0, 'de', true, true)]
-    const { container } = render(
+  it('guards division by zero when totalRevealableTokens is 0', () => {
+    render(
       <StatsCard
         elapsed={0}
         attemptsCount={0}
         foundCount={0}
-        totalRevealableTokens={10}
-        titleWords={titleWords}
+        totalRevealableTokens={0}
         lang="fr"
       />,
     )
-    expect(container.querySelectorAll('[data-testid="title-segment"]').length).toBe(0)
+    expect(screen.getByText('0%')).toBeTruthy()
   })
 })

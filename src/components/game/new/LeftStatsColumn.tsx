@@ -3,7 +3,6 @@
 import React from 'react'
 import GuessInput from '@/components/game/new/GuessInput'
 import StatsCard from '@/components/game/new/StatsCard'
-import type { TitleWord } from '@/app/game/types'
 
 interface GuessInputProps {
   input: string
@@ -22,7 +21,6 @@ interface StatsCardProps {
   attemptsCount: number
   foundCount: number
   totalRevealableTokens: number
-  titleWords?: TitleWord[]
   lang: 'fr' | 'en'
 }
 

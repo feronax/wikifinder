@@ -4,7 +4,6 @@ import React, { useRef, useState, useMemo } from 'react'
 import { normalize } from '@/lib/matching'
 import { isWordInArticle } from '@/lib/client-hash'
 import { useSafeTimeout } from '@/lib/use-safe-timeout'
-import AutocompleteDropdown from '@/components/game/new/AutocompleteDropdown'
 
 interface GuessInputProps {
   input: string
@@ -191,10 +190,17 @@ export default function GuessInput({
             boxSizing: 'border-box',
           }}
           onFocus={(e) => {
-            if (!shake) e.currentTarget.style.borderColor = 'var(--wf-accent)'
+            if (!shake) {
+              e.currentTarget.style.borderColor = 'var(--wf-accent)'
+              // Proto focus ring: 3px accent glow at ~20% opacity (33 hex)
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.2)'
+            }
           }}
           onBlur={(e) => {
-            if (!shake) e.currentTarget.style.borderColor = 'var(--wf-border)'
+            if (!shake) {
+              e.currentTarget.style.borderColor = 'var(--wf-border)'
+              e.currentTarget.style.boxShadow = 'none'
+            }
           }}
         />
         <button
@@ -219,16 +225,54 @@ export default function GuessInput({
         >
           {copy.validate}
         </button>
+        {/* Inline suggestion chips — proto game.jsx:357-371 pattern.
+            Shows up to 5 already-found words matching current prefix. */}
+        {suggestions.length > 0 && (
+          <div
+            id="wf-autocomplete"
+            role="listbox"
+            aria-label={lang === 'fr' ? 'Suggestions' : 'Suggestions'}
+            style={{
+              marginTop: 8,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 4,
+            }}
+          >
+            {suggestions.map((s, i) => (
+              <button
+                key={s}
+                id={'wf-ac-opt-' + i}
+                type="button"
+                role="option"
+                aria-selected={i === activeIndex}
+                onClick={() => void submit(s)}
+                onMouseEnter={() => setActiveIndex(i)}
+                onMouseLeave={() => setActiveIndex(-1)}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: 12,
+                  background:
+                    i === activeIndex
+                      ? 'var(--wf-bg2)'
+                      : 'transparent',
+                  border: '1px solid var(--wf-border)',
+                  color:
+                    i === activeIndex
+                      ? 'var(--wf-ink)'
+                      : 'var(--wf-muted)',
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--wf-font-ui)',
+                  transition: 'background 120ms, color 120ms',
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </form>
-
-      <AutocompleteDropdown
-        input={input}
-        foundWordsByRecency={foundWordsByRecency}
-        activeIndex={activeIndex}
-        onSelect={(w) => void submit(w)}
-        onHoverIndex={setActiveIndex}
-        lang={lang}
-      />
     </div>
   )
 }
