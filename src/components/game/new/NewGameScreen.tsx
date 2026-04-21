@@ -162,6 +162,7 @@ export default function NewGameScreen({
                 attemptsCount: gameState.guessCount,
                 foundCount: foundEntries.length,
                 totalRevealableTokens,
+                titleWords: gameState.titleWords,
                 lang,
               }}
             />
@@ -202,6 +203,7 @@ export default function NewGameScreen({
               attemptsCount: gameState.guessCount,
               foundCount: foundEntries.length,
               totalRevealableTokens,
+              titleWords: gameState.titleWords,
               lang,
             }}
           />

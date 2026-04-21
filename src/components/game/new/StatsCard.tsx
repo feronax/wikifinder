@@ -1,12 +1,14 @@
 'use client'
 
 import React from 'react'
+import type { TitleWord } from '@/app/game/types'
 
 interface StatsCardProps {
   elapsed: number
   attemptsCount: number
   foundCount: number
   totalRevealableTokens: number
+  titleWords?: TitleWord[]
   lang: 'fr' | 'en'
 }
 
@@ -17,6 +19,7 @@ const COPY = {
     time: 'TEMPS',
     pct: '% RÉVÉLÉ',
     articleRevealed: 'ARTICLE RÉVÉLÉ',
+    title: 'TITRE',
   },
   en: {
     attempts: 'ATTEMPTS',
@@ -24,6 +27,7 @@ const COPY = {
     time: 'TIME',
     pct: '% REVEALED',
     articleRevealed: 'ARTICLE REVEALED',
+    title: 'TITLE',
   },
 } as const
 
@@ -32,6 +36,7 @@ export default function StatsCard({
   attemptsCount,
   foundCount,
   totalRevealableTokens,
+  titleWords,
   lang,
 }: StatsCardProps) {
   const mm = Math.floor(elapsed / 60)
@@ -60,6 +65,11 @@ export default function StatsCard({
     lineHeight: 1,
     marginTop: 4,
   }
+
+  // Title-progress segments: one per non-stopword title word (Bug 3).
+  const titleSegments = (titleWords ?? []).filter((tw) => !tw.isStopword)
+  const titleFound = titleSegments.filter((tw) => tw.revealed).length
+  const titleTotal = titleSegments.length
 
   return (
     <section
@@ -129,6 +139,55 @@ export default function StatsCard({
           />
         </div>
       </div>
+
+      {titleTotal > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+            }}
+          >
+            <span style={labelStyle}>{t.title}</span>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: 1,
+                color: 'var(--wf-muted)',
+                fontVariantNumeric: 'tabular-nums',
+                fontFamily: 'var(--wf-font-ui)',
+              }}
+            >
+              {titleFound}/{titleTotal}
+            </span>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              gap: 3,
+              marginTop: 6,
+              height: 6,
+            }}
+          >
+            {titleSegments.map((tw) => (
+              <div
+                key={tw.index}
+                data-testid="title-segment"
+                data-revealed={tw.revealed ? 'true' : 'false'}
+                style={{
+                  flex: 1,
+                  height: '100%',
+                  background: tw.revealed ? 'var(--wf-accent)' : 'var(--wf-bg2)',
+                  borderRadius: 2,
+                  transition: 'background 400ms cubic-bezier(.22, 1, .36, 1)',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
