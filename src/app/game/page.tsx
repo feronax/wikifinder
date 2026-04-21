@@ -1084,7 +1084,11 @@ export default function GamePage() {
                         ...prev,
                         tokens: prev.tokens.map(token =>
                             revealedTokenMap.has(token.index)
-                                ? { ...token, value: revealedTokenMap.get(token.index)!, visible: true }
+                                // Keep `visible: false` so ArticleBody routes through
+                                // Mask (which carries `data-word` for click-to-cycle),
+                                // not the pre-revealed plain <span> branch. Mask
+                                // switches to revealed state via foundSet.has(norm).
+                                ? { ...token, value: revealedTokenMap.get(token.index)! }
                                 : token,
                         ),
                         titleWords: prev.titleWords.map(tw =>

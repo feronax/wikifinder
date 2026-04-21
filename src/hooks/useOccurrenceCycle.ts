@@ -57,14 +57,12 @@ export function useOccurrenceCycle(): {
     const next = (prev + 1) % nodes.length
     cursorsRef.current.set(normalizedWord, next)
 
-    const reduced =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-    ;(nodes[next] as HTMLElement).scrollIntoView({
-      behavior: reduced ? 'auto' : 'smooth',
-      block: 'center',
-    })
+    // Use 'auto' (instant) — 'smooth' silently fails on inline elements in
+    // some Chromium contexts with the Phase-10 scroll-margin CSS in play.
+    // Functional > aesthetic: user needs the scroll to actually happen.
+    const rect = (nodes[next] as HTMLElement).getBoundingClientRect()
+    const targetY = rect.top + window.scrollY - window.innerHeight / 2 + rect.height / 2
+    window.scrollTo({ top: targetY, behavior: 'auto' })
 
     setHighlighted({ word: normalizedWord, idx: next })
 

@@ -32,19 +32,31 @@ export default function TriedWordRow({ entry, onCycle }: TriedWordRowProps) {
         color: 'var(--wf-ink)',
         textAlign: 'left',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--wf-border-strong)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--wf-border)' }}
+      onMouseEnter={(e) => {
+        // Only change T/R/B border colors — the amber borderLeft is the visual
+        // anchor for "word is in-article" and must persist on hover/click.
+        e.currentTarget.style.borderTopColor = 'var(--wf-border-strong)'
+        e.currentTarget.style.borderRightColor = 'var(--wf-border-strong)'
+        e.currentTarget.style.borderBottomColor = 'var(--wf-border-strong)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderTopColor = 'var(--wf-border)'
+        e.currentTarget.style.borderRightColor = 'var(--wf-border)'
+        e.currentTarget.style.borderBottomColor = 'var(--wf-border)'
+      }}
     >
       <span style={{ fontWeight: 500 }}>{entry.display}</span>
-      <span style={{
-        fontSize: 11,
-        color: 'var(--wf-accent-ink)',
-        background: 'var(--wf-accent)',
-        padding: '2px 7px',
-        borderRadius: 999,
-        fontWeight: 600,
-        fontVariantNumeric: 'tabular-nums',
-      }}>×{entry.occurrences}</span>
+      {entry.occurrences > 0 && (
+        <span style={{
+          fontSize: 11,
+          color: 'var(--wf-accent-ink)',
+          background: 'var(--wf-accent)',
+          padding: '2px 7px',
+          borderRadius: 999,
+          fontWeight: 600,
+          fontVariantNumeric: 'tabular-nums',
+        }}>×{entry.occurrences}</span>
+      )}
     </button>
   )
 }

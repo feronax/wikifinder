@@ -55,7 +55,7 @@ export default function MobileChipStrip({ found, onChipClick }: MobileChipStripP
           }}
         >
           <span>{entry.display}</span>
-          {entry.occurrences > 1 && (
+          {entry.occurrences > 0 && (
             <span style={{
               fontSize: 12,
               color: 'var(--wf-muted)',

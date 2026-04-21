@@ -45,7 +45,7 @@ describe('useOccurrenceCycle', () => {
     vi.useFakeTimers()
     document.body.innerHTML = ''
     scrollSpy = vi.fn()
-    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+    Object.defineProperty(window, 'scrollTo', {
       writable: true,
       configurable: true,
       value: scrollSpy,
@@ -70,8 +70,12 @@ describe('useOccurrenceCycle', () => {
 
     expect(result.current.highlighted).toEqual({ word: 'pomme', idx: 0 })
     expect(scrollSpy).toHaveBeenCalledTimes(1)
-    expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
-    expect(scrollSpy.mock.instances[0]).toBe(document.getElementById('pomme-0'))
+    // Hook now calls window.scrollTo({top, behavior}) — 'auto' unconditionally
+    // because smooth scroll silently fails on inline elements in some Chromium
+    // contexts (see useOccurrenceCycle.ts comment).
+    expect(scrollSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: 'auto', top: expect.any(Number) }),
+    )
   })
 
   it('wrap-around: 4 consecutive cycles on 3 occurrences yield 0,1,2,0', () => {
@@ -145,7 +149,7 @@ describe('useOccurrenceCycle', () => {
     expect(result.current.highlighted).toBeNull()
   })
 
-  it('prefers-reduced-motion: scrollIntoView called with behavior="auto"', () => {
+  it('scrollTo called with behavior="auto" (unconditional — see hook comment)', () => {
     stubMatchMedia(true)
     const { result } = renderHook(() => useOccurrenceCycle())
     mountFixture([['pomme', 2]])
@@ -154,7 +158,9 @@ describe('useOccurrenceCycle', () => {
       result.current.cycle('pomme')
     })
 
-    expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+    expect(scrollSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: 'auto', top: expect.any(Number) }),
+    )
   })
 
   it('unmount cleanup: no pending timers leak', () => {
