@@ -14,6 +14,59 @@ interface ArticleBodyProps {
     lang: 'fr' | 'en'
 }
 
+/**
+ * Render a single word token into either:
+ *   - plain text (stopword: ink color),
+ *   - revealed text (visible=true, non-stopword: accent + dotted underline),
+ *   - a Mask (otherwise).
+ *
+ * Ported from legacy TokenRenderer.tsx which short-circuits the stopword /
+ * tk.visible cases before producing a masked span. Bug 1 (Phase 9 UAT) was
+ * that every word token went through Mask here, turning stopwords and
+ * server-pre-revealed words into dark squares in the article body.
+ */
+function renderWordToken(
+    tk: Token,
+    pageId: string,
+    foundSet: Set<string>,
+    justRevealedWord: string | null,
+    highlightedWord: string | null,
+    lang: 'fr' | 'en',
+): React.ReactNode {
+    // Stopword: plain ink text. Server sets value to the real token for stopwords.
+    if (tk.isStopword) {
+        return <span key={tk.index}>{tk.value}</span>
+    }
+    // Server pre-revealed (visible=true): render as revealed accent text.
+    if (tk.visible) {
+        return (
+            <span
+                key={tk.index}
+                style={{
+                    color: 'var(--wf-accent)',
+                    textDecoration: 'underline dotted var(--wf-accent)',
+                    textUnderlineOffset: '3px',
+                }}
+            >
+                {tk.value}
+            </span>
+        )
+    }
+    const norm = normalize(tk.value)
+    return (
+        <Mask
+            key={tk.index}
+            word={tk.value}
+            pageId={pageId}
+            tokenIndex={tk.index}
+            revealed={foundSet.has(norm)}
+            justRevealed={norm === justRevealedWord}
+            highlighted={norm === highlightedWord}
+            lang={lang}
+        />
+    )
+}
+
 export default function ArticleBody({
     tokens,
     pageId,
@@ -53,18 +106,8 @@ export default function ArticleBody({
             ) {
                 const tk = tokens[i]
                 if (tk.type === 'word') {
-                    const norm = normalize(tk.value)
                     headingChildren.push(
-                        <Mask
-                            key={tk.index}
-                            word={tk.value}
-                            pageId={pageId}
-                            tokenIndex={tk.index}
-                            revealed={foundSet.has(norm)}
-                            justRevealed={norm === justRevealedWord}
-                            highlighted={norm === highlightedWord}
-                            lang={lang}
-                        />
+                        renderWordToken(tk, pageId, foundSet, justRevealedWord, highlightedWord, lang),
                     )
                 } else if (tk.type === 'space') {
                     headingChildren.push(tk.value)
@@ -92,18 +135,8 @@ export default function ArticleBody({
         }
 
         if (token.type === 'word') {
-            const norm = normalize(token.value)
             elements.push(
-                <Mask
-                    key={token.index}
-                    word={token.value}
-                    pageId={pageId}
-                    tokenIndex={token.index}
-                    revealed={foundSet.has(norm)}
-                    justRevealed={norm === justRevealedWord}
-                    highlighted={norm === highlightedWord}
-                    lang={lang}
-                />
+                renderWordToken(token, pageId, foundSet, justRevealedWord, highlightedWord, lang),
             )
         } else if (token.type === 'space') {
             elements.push(token.value)
