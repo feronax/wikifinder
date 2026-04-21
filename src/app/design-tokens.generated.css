@@ -18,7 +18,7 @@
   --wf-font-head: 'Geist', 'Inter', system-ui, sans-serif;
   --wf-font-body: 'Geist', 'Inter', system-ui, sans-serif;
   --wf-font-ui: 'Geist', 'Inter', system-ui, sans-serif;
-  --wf-font-article: 'Geist', 'Inter', system-ui, sans-serif;
+  --wf-font-article: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
   --wf-density: 1;
 }
 
@@ -40,6 +40,6 @@
   --wf-font-head: 'Geist', 'Inter', system-ui, sans-serif;
   --wf-font-body: 'Geist', 'Inter', system-ui, sans-serif;
   --wf-font-ui: 'Geist', 'Inter', system-ui, sans-serif;
-  --wf-font-article: 'Geist', 'Inter', system-ui, sans-serif;
+  --wf-font-article: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
   --wf-density: 1;
 }

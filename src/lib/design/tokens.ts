@@ -44,9 +44,9 @@ export const tokens: { dark: TokenSet; light: TokenSet } = {
     fontHead: "'Geist', 'Inter', system-ui, sans-serif",
     fontBody: "'Geist', 'Inter', system-ui, sans-serif",
     fontUi: "'Geist', 'Inter', system-ui, sans-serif",
-    // minimal-amber uses Geist for article body (matches design-proto app.jsx minimal theme).
-    // Previously Source Serif 4 diverged from mockup; proto treats fontHead === fontBody === fontArticle in minimal.
-    fontArticle: "'Geist', 'Inter', system-ui, sans-serif",
+    // design/DESIGN-HANDOFF.md §Typography: article body stays in Source Serif 4 —
+    // product signature (UI sans-serif / contenu serif, comme un journal).
+    fontArticle: "'Source Serif 4', 'Source Serif Pro', Georgia, serif",
     density: '1',
   },
   light: {
@@ -67,8 +67,8 @@ export const tokens: { dark: TokenSet; light: TokenSet } = {
     fontHead: "'Geist', 'Inter', system-ui, sans-serif",
     fontBody: "'Geist', 'Inter', system-ui, sans-serif",
     fontUi: "'Geist', 'Inter', system-ui, sans-serif",
-    // minimal-amber: Geist for article body (matches design-proto minimal theme).
-    fontArticle: "'Geist', 'Inter', system-ui, sans-serif",
+    // design/DESIGN-HANDOFF.md §Typography: article body stays in Source Serif 4.
+    fontArticle: "'Source Serif 4', 'Source Serif Pro', Georgia, serif",
     density: '1',
   },
 }

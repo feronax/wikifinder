@@ -9,33 +9,41 @@ describe('computeMaskWidth', () => {
     }
   })
 
-  it('is proportional to token length (no jitter, matches proto mask.jsx:17)', () => {
-    // Width = max(1.4, length × 0.56) per design-proto mask.jsx
-    expect(computeMaskWidth('p', 0, 2)).toBe(1.4) // 2 * 0.56 = 1.12 → floor 1.4
-    expect(computeMaskWidth('p', 0, 3)).toBe(1.68) // 3 * 0.56
-    expect(computeMaskWidth('p', 0, 8)).toBe(4.48) // 8 * 0.56
-    expect(computeMaskWidth('p', 0, 12)).toBe(6.72)
-    // Monotonic above the floor: longer words → wider masks
-    expect(computeMaskWidth('p', 0, 8)).toBeGreaterThan(computeMaskWidth('p', 0, 3))
+  it('stays within ±10% jitter of length × 0.55em (design/DESIGN-HANDOFF.md §3)', () => {
+    // For any length ≥ 3, base = length × 0.55; width ∈ [base×0.9, base×1.1]
+    for (let len = 3; len <= 15; len++) {
+      const base = len * 0.55
+      const lo = base * 0.9
+      const hi = base * 1.1
+      for (let idx = 0; idx < 20; idx++) {
+        const w = computeMaskWidth('page-a', idx, len)
+        expect(w).toBeGreaterThanOrEqual(lo - 1e-9)
+        expect(w).toBeLessThanOrEqual(hi + 1e-9)
+      }
+    }
   })
 
-  it('ignores pageId and tokenIndex (same length → same width everywhere)', () => {
-    const w = computeMaskWidth('page-a', 5, 7)
-    expect(computeMaskWidth('page-b', 99, 7)).toBe(w)
-    expect(computeMaskWidth('different-page', 0, 7)).toBe(w)
+  it('varies by pageId and tokenIndex (seeded jitter)', () => {
+    const widths = new Set<number>()
+    for (let i = 0; i < 20; i++) widths.add(computeMaskWidth('p', i, 8))
+    // Expect at least 2 distinct jittered values across 20 different indices
+    expect(widths.size).toBeGreaterThan(1)
   })
 
-  it('enforces the 1.4em floor for very short words', () => {
-    // 1 * 0.56 = 0.56 → floored to 1.4
-    expect(computeMaskWidth('p', 0, 1)).toBe(1.4)
-    // 2 * 0.56 = 1.12 → floored to 1.4
-    expect(computeMaskWidth('p', 0, 2)).toBe(1.4)
+  it('enforces the 1.4em floor for very short words (before jitter)', () => {
+    // tokenLength 1 or 2: base = max(1.4, length × 0.55) = 1.4;
+    // output = 1.4 × (1 ± 0.10) → [1.26, 1.54]
+    for (let idx = 0; idx < 20; idx++) {
+      const w1 = computeMaskWidth('p', idx, 1)
+      const w2 = computeMaskWidth('p', idx, 2)
+      expect(w1).toBeGreaterThanOrEqual(1.4 * 0.9 - 1e-9)
+      expect(w1).toBeLessThanOrEqual(1.4 * 1.1 + 1e-9)
+      expect(w2).toBeGreaterThanOrEqual(1.4 * 0.9 - 1e-9)
+      expect(w2).toBeLessThanOrEqual(1.4 * 1.1 + 1e-9)
+    }
   })
 
   it('is server-safe (no browser-global references at import time)', () => {
-    // Vitest default env is node — window/document/localStorage are undefined.
-    // If the module accessed any, it would have thrown at import. Sanity-call
-    // the export to ensure runtime path is also globals-free.
     expect(() => computeMaskWidth('ssr-page', 0, 5)).not.toThrow()
   })
 })
