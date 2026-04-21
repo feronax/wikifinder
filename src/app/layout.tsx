@@ -60,7 +60,12 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#5C7A3E',
+  // Browser chrome tint. Picks the minimal-amber bg when the new-design flag
+  // is set; else stays on the legacy green for backwards compat.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fafafa' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0b' },
+  ],
 }
 
 export default async function RootLayout({
