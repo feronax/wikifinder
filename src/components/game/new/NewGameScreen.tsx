@@ -87,11 +87,14 @@ export default function NewGameScreen({
       .reverse()
   }, [gameState.guesses])
 
-  // foundEntries — include occurrences count per word from article tokens
+  // foundEntries — include occurrences count per word from article tokens.
+  // Exclude stopwords: they share normalized forms with guessable words after
+  // accent stripping (e.g. stopword "ne" collides with guess "né"), which
+  // would inflate the chip count with tokens that aren't the user's match.
   const foundEntries = useMemo<FoundWordEntry[]>(() => {
     const occCount = new Map<string, number>()
     for (const t of gameState.tokens) {
-      if (t.type === 'word') {
+      if (t.type === 'word' && !t.isStopword) {
         const n = normalize(t.value)
         occCount.set(n, (occCount.get(n) ?? 0) + 1)
       }

@@ -26,19 +26,27 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
     const effectiveLength = wordLength ?? word.length
 
     if (revealed) {
-        // justRevealed wins over highlighted when both are true (explicit priority).
+        // Default revealed = plain ink so revealed tokens blend with stopwords
+        // and read as prose. Amber + underline only apply when this token is
+        // the CURRENTLY-CYCLING word (highlighted) or just-revealed-by-guess
+        // (justRevealed) — user wants the amber to mark the active click, not
+        // a permanent "you found this" badge.
         const animationStyle: React.CSSProperties = justRevealed
             ? { animation: 'wf-flash 400ms linear, wf-fade 600ms 400ms ease-out' }
             : highlighted
                 ? { animation: 'wf-pulse 500ms cubic-bezier(.4,.4,0,1.2)' }
                 : {}
 
+        const activeAmber = justRevealed || highlighted
+
         return (
             <span
                 data-word={dataWord}
                 style={{
-                    color: 'var(--wf-accent)',
-                    textDecoration: 'underline dotted var(--wf-accent)',
+                    color: activeAmber ? 'var(--wf-accent)' : 'var(--wf-ink)',
+                    textDecoration: activeAmber
+                        ? 'underline dotted var(--wf-accent)'
+                        : 'none',
                     textUnderlineOffset: '3px',
                     transition: 'color 160ms',
                     ...animationStyle,

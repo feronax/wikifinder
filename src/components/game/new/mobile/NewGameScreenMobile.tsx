@@ -110,11 +110,12 @@ export default function NewGameScreenMobile({
       .reverse()
   }, [gameState.guesses])
 
-  // foundEntries — include occurrences count per word from article tokens
+  // foundEntries — exclude stopwords (see NewGameScreen.tsx note: stopword
+  // "ne" collides with guess "né" after normalize() strips accents).
   const foundEntries = useMemo<FoundWordEntry[]>(() => {
     const occCount = new Map<string, number>()
     for (const t of gameState.tokens) {
-      if (t.type === 'word') {
+      if (t.type === 'word' && !t.isStopword) {
         const n = normalize(t.value)
         occCount.set(n, (occCount.get(n) ?? 0) + 1)
       }

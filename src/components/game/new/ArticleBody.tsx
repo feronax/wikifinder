@@ -37,25 +37,12 @@ function renderWordToken(
     if (tk.isStopword) {
         return <span key={tk.index}>{tk.value}</span>
     }
-    // Server pre-revealed (visible=true): render as revealed accent text.
-    if (tk.visible) {
-        return (
-            <span
-                key={tk.index}
-                style={{
-                    color: 'var(--wf-accent)',
-                    textDecoration: 'underline dotted var(--wf-accent)',
-                    textUnderlineOffset: '3px',
-                }}
-            >
-                {tk.value}
-            </span>
-        )
-    }
     const norm = normalize(tk.value)
     // Server hides unrevealed word values by sending `value: ""` and exposing
     // the character count in `tk.length`. Pass that length to Mask so width
     // can remain proportional to the actual word length (mask.jsx:17).
+    // Pre-revealed tokens (tk.visible === true from session restore) also route
+    // through Mask so they carry `data-word` for click-to-cycle scroll.
     const maskLength = (tk.length ?? tk.value.length) || tk.value.length
     return (
         <Mask
@@ -64,7 +51,7 @@ function renderWordToken(
             wordLength={maskLength}
             pageId={pageId}
             tokenIndex={tk.index}
-            revealed={foundSet.has(norm)}
+            revealed={tk.visible || foundSet.has(norm)}
             justRevealed={norm === justRevealedWord}
             highlighted={norm === highlightedWord}
             lang={lang}

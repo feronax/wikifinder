@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 /**
  * Click-to-cycle through occurrences of a single tried-word (GS-07, D-15).
@@ -37,17 +37,7 @@ export function useOccurrenceCycle(): {
   highlighted: { word: string; idx: number } | null
 } {
   const cursorsRef = useRef<Map<string, number>>(new Map())
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [highlighted, setHighlighted] = useState<{ word: string; idx: number } | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current)
-        timerRef.current = null
-      }
-    }
-  }, [])
 
   const cycle = useCallback((normalizedWord: string) => {
     const nodes = document.querySelectorAll(`[data-word="${normalizedWord}"]`)
@@ -57,22 +47,21 @@ export function useOccurrenceCycle(): {
     const next = (prev + 1) % nodes.length
     cursorsRef.current.set(normalizedWord, next)
 
-    // Use 'auto' (instant) — 'smooth' silently fails on inline elements in
-    // some Chromium contexts with the Phase-10 scroll-margin CSS in play.
-    // Functional > aesthetic: user needs the scroll to actually happen.
+    // window.scrollTo with smooth — respects prefers-reduced-motion via the
+    // behavior override. Using explicit targetY avoids the edge case where
+    // scrollIntoView({smooth}) silently no-ops on inline elements with
+    // scroll-margin-block-end active (observed Chromium behavior).
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const rect = (nodes[next] as HTMLElement).getBoundingClientRect()
     const targetY = rect.top + window.scrollY - window.innerHeight / 2 + rect.height / 2
-    window.scrollTo({ top: targetY, behavior: 'auto' })
+    window.scrollTo({ top: targetY, behavior: reduced ? 'auto' : 'smooth' })
 
+    // Highlighted persists (sticky) — amber marks the LAST-CLICKED word in the
+    // article body until the user clicks another chip. The pulse animation
+    // itself is one-shot CSS (500ms), so no JS-side clearing needed.
     setHighlighted({ word: normalizedWord, idx: next })
-
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current)
-    }
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null
-      setHighlighted(null)
-    }, 500)
   }, [])
 
   const resetOthers = useCallback((currentWord: string) => {

@@ -70,11 +70,10 @@ describe('useOccurrenceCycle', () => {
 
     expect(result.current.highlighted).toEqual({ word: 'pomme', idx: 0 })
     expect(scrollSpy).toHaveBeenCalledTimes(1)
-    // Hook now calls window.scrollTo({top, behavior}) — 'auto' unconditionally
-    // because smooth scroll silently fails on inline elements in some Chromium
-    // contexts (see useOccurrenceCycle.ts comment).
+    // Hook calls window.scrollTo({top, behavior}) — smooth by default,
+    // 'auto' under prefers-reduced-motion.
     expect(scrollSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: 'auto', top: expect.any(Number) }),
+      expect.objectContaining({ behavior: 'smooth', top: expect.any(Number) }),
     )
   })
 
@@ -129,27 +128,19 @@ describe('useOccurrenceCycle', () => {
     expect(scrollSpy).not.toHaveBeenCalled()
   })
 
-  it('highlight clears at +500ms (pulse duration)', () => {
+  it('highlight persists (sticky) until another cycle() call replaces it', () => {
     const { result } = renderHook(() => useOccurrenceCycle())
     mountFixture([['pomme', 2]])
 
-    act(() => {
-      result.current.cycle('pomme')
-    })
-    expect(result.current.highlighted).not.toBeNull()
+    act(() => { result.current.cycle('pomme') })
+    expect(result.current.highlighted).toEqual({ word: 'pomme', idx: 0 })
 
-    act(() => {
-      vi.advanceTimersByTime(499)
-    })
-    expect(result.current.highlighted).not.toBeNull()
-
-    act(() => {
-      vi.advanceTimersByTime(1)
-    })
-    expect(result.current.highlighted).toBeNull()
+    // Advance time well beyond the old 500ms window — highlight must stay.
+    act(() => { vi.advanceTimersByTime(5000) })
+    expect(result.current.highlighted).toEqual({ word: 'pomme', idx: 0 })
   })
 
-  it('scrollTo called with behavior="auto" (unconditional — see hook comment)', () => {
+  it('prefers-reduced-motion: scrollTo called with behavior="auto"', () => {
     stubMatchMedia(true)
     const { result } = renderHook(() => useOccurrenceCycle())
     mountFixture([['pomme', 2]])
