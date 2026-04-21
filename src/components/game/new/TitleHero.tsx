@@ -54,47 +54,37 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount }: T
                     lineHeight: 1.2,
                     margin: '8px 0 12px',
                     color: 'var(--wf-ink)',
-                    // Explicit flex wrap so adjacent stopword spans and Mask
-                    // inline-blocks keep even spacing, even when the whitespace
-                    // text node gets visually-collapsed at 40px tracking
-                    // (Bug 2 — "tiny squares" symptom).
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'baseline',
-                    gap: '0.25em',
                 }}
             >
-                {titleWords.map((tw) => {
+                {titleWords.map((tw, i) => {
+                    const sep = i > 0 ? ' ' : ''
                     if (tw.isStopword) {
                         return (
-                            <span key={tw.index} style={{ color: 'var(--wf-ink)' }}>
-                                {tw.value}
-                            </span>
+                            <React.Fragment key={tw.index}>
+                                {sep}
+                                <span style={{ color: 'var(--wf-ink)' }}>{tw.value}</span>
+                            </React.Fragment>
                         )
                     }
-                    // Wrap the mask in a min-width container so short title
-                    // words (length 1-3) don't render as visually-square
-                    // micro-blocks at 40px font-size. min-width: 1.8em at 40px
-                    // ≈ 72px, which preserves a legible rectangular silhouette.
+                    // Wrap Mask in an inline-block min-width span so short
+                    // title words don't render as micro-squares at 40px font.
+                    // Staying in the inline flow (not flex) preserves the
+                    // h1 line-box so masks keep their full 1.1em height.
                     return (
-                        <span
-                            key={tw.index}
-                            style={{
-                                display: 'inline-flex',
-                                minWidth: '1.8em',
-                                alignItems: 'baseline',
-                            }}
-                        >
-                            <Mask
-                                word={tw.value}
-                                pageId={pageId}
-                                tokenIndex={tw.index + TITLE_INDEX_OFFSET}
-                                revealed={tw.revealed}
-                                justRevealed={false}
-                                highlighted={false}
-                                lang={lang}
-                            />
-                        </span>
+                        <React.Fragment key={tw.index}>
+                            {sep}
+                            <span style={{ display: 'inline-block', minWidth: '1.8em' }}>
+                                <Mask
+                                    word={tw.value}
+                                    pageId={pageId}
+                                    tokenIndex={tw.index + TITLE_INDEX_OFFSET}
+                                    revealed={tw.revealed}
+                                    justRevealed={false}
+                                    highlighted={false}
+                                    lang={lang}
+                                />
+                            </span>
+                        </React.Fragment>
                     )
                 })}
             </h1>
