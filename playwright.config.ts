@@ -22,6 +22,7 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'chromium-mobile', use: { ...devices['Pixel 5'] } },
   ],
   webServer: {
     command: process.env.CI ? 'npm run start' : 'npm run dev',
