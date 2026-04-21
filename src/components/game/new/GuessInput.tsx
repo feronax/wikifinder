@@ -71,6 +71,8 @@ export default function GuessInput({
     // Duplicate short-circuit per UI-SPEC §Submit flow #6
     if (triedSet.has(n)) {
       triggerShake()
+      setInput('')
+      setActiveIndex(-1)
       return
     }
 

@@ -87,18 +87,22 @@ export default function RightTriedColumn({ found, missed, onCycle, lang }: Right
                 textTransform: 'uppercase',
                 margin: '4px 0 8px',
               }}>{copy.missed} · {missed.length}</div>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: 0, margin: 0 }}>
                 {missed.map(m => (
-                  <li key={m.normalized} style={{
-                    padding: '5px 10px',
-                    fontSize: 12.5,
+                  <span key={m.normalized} style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '6px 12px',
+                    background: 'transparent',
+                    border: '1px dashed var(--wf-border-strong)',
+                    borderRadius: 999,
                     color: 'var(--wf-faint)',
                     textDecoration: 'line-through',
-                    textDecorationColor: 'var(--wf-border-strong)',
-                    textDecorationThickness: '1px',
-                  }}>{m.display}</li>
+                    fontFamily: 'var(--wf-font-ui)',
+                    fontSize: 13,
+                  }}>{m.display}</span>
                 ))}
-              </ul>
+              </div>
             </>
           )}
         </>
