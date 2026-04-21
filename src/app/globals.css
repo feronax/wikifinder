@@ -341,3 +341,13 @@ button, a {
 .wf-chip-strip-scroller::-webkit-scrollbar {
   display: none;
 }
+
+/* Phase 10: rotate the GuessInput autocomplete dropdown to render upward
+   when nested inside FixedBottomInput. Targets the dropdown by its
+   Phase-9 role attribute (role="listbox") inside the .wf-fixed-bottom-input wrapper. */
+.wf-fixed-bottom-input [role="listbox"] {
+  top: auto !important;
+  bottom: 100%;
+  margin-top: 0 !important;
+  margin-bottom: 8px;
+}
