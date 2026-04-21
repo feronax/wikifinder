@@ -41,6 +41,32 @@
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
+/*
+ * New-design palette bridge — when WF_NEW_DESIGN is on (wf_new_design=1 cookie
+ * propagated to <html data-wf-new-design="1">), map the legacy color tokens
+ * onto the --wf-* minimal-amber palette so EVERY page inherits the new theme,
+ * not just /game. This keeps legacy components (Header, Footer, auth pages,
+ * etc.) from clashing with the new body. Legacy-only tokens like
+ * --bg-secondary / --revealed / --masked fall back to --wf-bg2 since there's
+ * no direct equivalent in the new palette. Source: design/DESIGN-HANDOFF.md §2.
+ */
+[data-wf-new-design="1"] {
+    --bg: var(--wf-bg);
+    --bg-secondary: var(--wf-bg2);
+    --surface: var(--wf-bg2);
+    --border: var(--wf-border);
+    --text: var(--wf-ink);
+    --text-muted: var(--wf-muted);
+    --accent: var(--wf-accent);
+    --accent-dark: var(--wf-accent);
+    --accent-light: var(--wf-accent);
+    --revealed: var(--wf-bg2);
+    --revealed-title: var(--wf-bg2);
+    --masked: var(--wf-mask);
+    --font-sans: var(--wf-font-ui);
+    --radius: var(--wf-radius);
+}
+
 *,
 *::before,
 *::after {

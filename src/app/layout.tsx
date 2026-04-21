@@ -71,8 +71,15 @@ export default async function RootLayout({
   const cookieStore = await cookies()
   const langCookie = cookieStore.get('wf_lang')?.value
   const lang: 'fr' | 'en' = langCookie === 'en' ? 'en' : 'fr'
+  // Propagate WF_NEW_DESIGN flag to <html> so globals.css can swap the legacy
+  // palette to the minimal-amber --wf-* tokens on EVERY page, not just /game.
+  const newDesignOn = cookieStore.get('wf_new_design')?.value === '1'
   return (
-    <html lang={lang} suppressHydrationWarning>
+    <html
+      lang={lang}
+      suppressHydrationWarning
+      {...(newDesignOn ? { 'data-wf-new-design': '1' } : {})}
+    >
       <head>
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
