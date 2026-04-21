@@ -323,3 +323,21 @@ button, a {
 .wf-shake {
     animation: wf-shake 400ms ease-in-out;
 }
+
+/* ===== Phase 10: Mobile rework support ===== */
+
+/* Defensive fallback for browsers without window.visualViewport but with
+   Chromium VirtualKeyboard env vars. The JS hook (useKeyboardInset) always
+   wins when it runs; this exists for very old Android WebView. */
+@supports (bottom: env(keyboard-inset-height, 0px)) {
+  :root {
+    --wf-kb-inset-fallback: env(keyboard-inset-height, 0px);
+  }
+}
+
+/* Hide the horizontal scrollbar on the mobile chip strip under the progress bar.
+   Pairs with inline styles `scrollbar-width: none` (Firefox) + `-ms-overflow-style: none`
+   on the same element. Only Chromium/Safari need the ::-webkit-scrollbar rule. */
+.wf-chip-strip-scroller::-webkit-scrollbar {
+  display: none;
+}
