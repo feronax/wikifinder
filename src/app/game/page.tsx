@@ -24,6 +24,7 @@ import ChallengeButton from '@/components/duel/ChallengeButton'
 import DuelToast from '@/components/duel/DuelToast'
 import { useNewDesignFlag } from '@/lib/feature-flags-client'
 import NewGameScreen from '@/components/game/new/NewGameScreen'
+import NewGameScreenMobile from '@/components/game/new/mobile/NewGameScreenMobile'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
 import { GameState, translations } from './types'
 
@@ -1049,6 +1050,25 @@ export default function GamePage() {
                     guessCount: prev.won ? prev.guessCount : prev.guessCount + 1,
                 }
             })
+        }
+        // Phase 10 (D-01/D-16): JS-branched mobile routing inside the existing
+        // flag-branch. Mobile-viewport users get NewGameScreenMobile (MobileShell
+        // provides its own top bar — NewDesignHeader is suppressed per D-16 and
+        // the legacy-token bridge div is unnecessary since the mobile tree uses
+        // var(--wf-*) tokens natively). Desktop fall-through unchanged.
+        if (isMobile) {
+            return (
+                <NewGameScreenMobile
+                    gameState={gameState}
+                    input={input}
+                    setInput={setInput}
+                    elapsed={frozenElapsed ?? elapsed}
+                    lang={lang}
+                    onLangChange={setLang}
+                    onMiss={handleNewMiss}
+                    onRevealHandled={handleNewReveal}
+                />
+            )
         }
         return (
             <div style={{
