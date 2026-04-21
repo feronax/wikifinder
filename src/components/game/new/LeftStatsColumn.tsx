@@ -9,7 +9,7 @@ interface GuessInputProps {
   setInput: (v: string) => void
   foundWordsByRecency: string[]
   triedSet: Set<string>
-  onReveal: (normalizedWord: string) => void
+  onReveal: (normalizedWord: string, rawWord: string) => void
   onMiss: (word: string) => void
   gameId: string | null
   lang: 'fr' | 'en'

@@ -18,7 +18,7 @@ export interface NewGameScreenProps {
   elapsed: number
   lang: 'fr' | 'en'
   onMiss: (rawWord: string) => void
-  onRevealHandled?: (normalizedWord: string) => void
+  onRevealHandled?: (normalizedWord: string, rawWord: string) => void
 }
 
 // Inline match-media hook — mirrors DOM media-query state for responsive grid.
@@ -108,9 +108,9 @@ export default function NewGameScreen({
 
   // Orchestrator — animation trigger + parent-facing state commit callback.
   const handleReveal = useCallback(
-    (normalizedWord: string) => {
+    (normalizedWord: string, rawWord: string) => {
       reveal.trigger(normalizedWord)
-      onRevealHandled?.(normalizedWord)
+      onRevealHandled?.(normalizedWord, rawWord)
     },
     [reveal, onRevealHandled],
   )

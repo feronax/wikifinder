@@ -10,7 +10,7 @@ interface GuessInputProps {
   setInput: (v: string) => void
   foundWordsByRecency: string[]
   triedSet: Set<string>
-  onReveal: (normalizedWord: string) => void
+  onReveal: (normalizedWord: string, rawWord: string) => void
   onMiss: (word: string) => void
   gameId: string | null
   lang: 'fr' | 'en'
@@ -84,26 +84,13 @@ export default function GuessInput({
 
     if (inArticle) {
       performance.mark('guess:enter')
-      // SYNCHRONOUS state commit — no await before this call
-      onReveal(n)
-      // Parallel POST — fire-and-forget; do NOT await
-      void fetch('/api/game/guess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId, lang, word: raw }),
-      }).catch(() => {
-        /* silent per CLAUDE.md — Sentry catches */
-      })
+      // SYNCHRONOUS state commit — no await before this call.
+      // Server sync is owned by the parent (page.tsx handleNewReveal) so the
+      // /api/game/guess response can apply revealedTokens back to gameState.
+      onReveal(n, raw)
     } else {
       triggerShake()
       onMiss(raw)
-      void fetch('/api/game/guess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId, lang, word: raw }),
-      }).catch(() => {
-        /* silent */
-      })
     }
   }
 

@@ -53,7 +53,7 @@ export interface NewGameScreenMobileProps {
   lang: 'fr' | 'en'
   onLangChange: (next: 'fr' | 'en') => void
   onMiss: (rawWord: string) => void
-  onRevealHandled?: (normalizedWord: string) => void
+  onRevealHandled?: (normalizedWord: string, rawWord: string) => void
 }
 
 export default function NewGameScreenMobile({
@@ -163,9 +163,9 @@ export default function NewGameScreenMobile({
 
   // Reveal + cycle handlers — mirror NewGameScreen.tsx:110-126 verbatim.
   const handleReveal = useCallback(
-    (normalizedWord: string) => {
+    (normalizedWord: string, rawWord: string) => {
       reveal.trigger(normalizedWord)
-      onRevealHandled?.(normalizedWord)
+      onRevealHandled?.(normalizedWord, rawWord)
     },
     [reveal, onRevealHandled],
   )

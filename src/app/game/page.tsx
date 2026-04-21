@@ -1028,16 +1028,89 @@ export default function GamePage() {
     // stay on the legacy tree this phase (Phase 10+ rework). Flag OFF ⇒ branch skipped ⇒
     // legacy tree below renders byte-identically.
     if (newDesignOn && !isSurvival && !duelId) {
-        const handleNewReveal = (normalizedWord: string) => {
+        // Fetch /api/game/guess and apply revealedTokens/revealedTitleIndices to
+        // gameState. Mirrors the legacy submit handler (lines 716-791) — without
+        // this the body words never unmask in the flag-on path because the server
+        // masks non-stopword token values to "" and only the response carries the
+        // real text. Keeps the sacred <50ms optimistic reveal intact: the caller
+        // updates `guesses` and fires `reveal.trigger` BEFORE awaiting this POST.
+        const syncGuessWithServer = async (raw: string, found: boolean) => {
+            if (!gameState) return
+            const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : undefined
+            try {
+                const res = await fetch('/api/game/guess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        gameId: gameState.gameId,
+                        pageId: gameState.pageData.id,
+                        lang,
+                        word: raw,
+                        ...(idempotencyKey ? { idempotencyKey } : {}),
+                    }),
+                })
+                const data = await res.json()
+
+                // Rollback: client said "in article" but server disagrees (Wiktionary miss)
+                if (data.wordNotFound) {
+                    setGameState(prev => prev ? {
+                        ...prev,
+                        guesses: prev.guesses.filter(g => g.word !== raw),
+                        guessCount: prev.won ? prev.guessCount : Math.max(0, prev.guessCount - 1),
+                    } : prev)
+                    return
+                }
+                if (found && !data.isInText && (!data.revealedTokens || data.revealedTokens.length === 0)) {
+                    setGameState(prev => prev ? {
+                        ...prev,
+                        guesses: prev.guesses.map(g => g.word === raw ? { ...g, found: false } : g),
+                    } : prev)
+                    return
+                }
+
+                // Apply revealed tokens + title indices to gameState
+                const revealedTokenMap = new Map<number, string>()
+                for (const rt of (data.revealedTokens || [])) revealedTokenMap.set(rt.index, rt.value)
+                const revealedTitleMap = new Map<number, string>()
+                for (const rt of (data.revealedTitleIndices || [])) revealedTitleMap.set(rt.index, rt.value)
+
+                if (revealedTokenMap.size === 0 && revealedTitleMap.size === 0) return
+
+                setGameState(prev => {
+                    if (!prev) return prev
+                    return {
+                        ...prev,
+                        tokens: prev.tokens.map(token =>
+                            revealedTokenMap.has(token.index)
+                                ? { ...token, value: revealedTokenMap.get(token.index)!, visible: true }
+                                : token,
+                        ),
+                        titleWords: prev.titleWords.map(tw =>
+                            revealedTitleMap.has(tw.index)
+                                ? { ...tw, value: revealedTitleMap.get(tw.index)!, revealed: true }
+                                : tw,
+                        ),
+                        won: data.won || prev.won,
+                    }
+                })
+            } catch {
+                /* silent per CLAUDE.md — Sentry catches */
+            }
+        }
+
+        const handleNewReveal = (normalizedWord: string, rawWord: string) => {
             setGameState(prev => {
                 if (!prev) return prev
                 if (prev.guesses.some(g => normalize(g.word) === normalizedWord)) return prev
                 return {
                     ...prev,
-                    guesses: [{ word: normalizedWord, found: true }, ...prev.guesses],
+                    guesses: [{ word: rawWord, found: true }, ...prev.guesses],
                     guessCount: prev.won ? prev.guessCount : prev.guessCount + 1,
                 }
             })
+            void syncGuessWithServer(rawWord, true)
         }
         const handleNewMiss = (raw: string) => {
             setGameState(prev => {
@@ -1050,6 +1123,7 @@ export default function GamePage() {
                     guessCount: prev.won ? prev.guessCount : prev.guessCount + 1,
                 }
             })
+            void syncGuessWithServer(raw, false)
         }
         // Phase 10 (D-01/D-16): JS-branched mobile routing inside the existing
         // flag-branch. Mobile-viewport users get NewGameScreenMobile (MobileShell

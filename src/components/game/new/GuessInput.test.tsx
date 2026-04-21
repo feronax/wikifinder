@@ -20,7 +20,7 @@ afterEach(() => {
 function Harness(props: {
   initial: string
   triedSet: Set<string>
-  onReveal: (n: string) => void
+  onReveal: (n: string, raw: string) => void
   onMiss: (w: string) => void
   setInputSpy: (v: string) => void
 }) {
