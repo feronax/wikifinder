@@ -351,3 +351,14 @@ button, a {
   margin-top: 0 !important;
   margin-bottom: 8px;
 }
+
+/* Phase 10: D-11 — when keyboard is open, ensure scrollIntoView({ block: 'center' })
+   inside ArticleBody lands the target above the keyboard, not behind it.
+   --wf-kb-inset is written by useKeyboardInset (Plan 02); fixed input height
+   ~76px + 24px breathing room per CONTEXT D-11 total 100px. On desktop
+   (where useKeyboardInset never mounts and --wf-kb-inset is undefined) the
+   calc evaluates to 0px + 100px = 100px — a 100px scroll margin is benign on
+   desktop reveal animations. Keeps useRevealAnimation untouched. */
+[data-word] {
+  scroll-margin-block-end: calc(var(--wf-kb-inset, 0px) + 100px);
+}
