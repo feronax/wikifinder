@@ -272,3 +272,28 @@ button, a {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* === Phase 9 keyframes (WF_NEW_DESIGN) === */
+@keyframes wf-flash {
+    0% { background-color: transparent; }
+    100% { background-color: var(--wf-accent); }
+}
+@keyframes wf-fade {
+    0% { background-color: var(--wf-accent); }
+    100% { background-color: transparent; }
+}
+@keyframes wf-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+@keyframes wf-shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    50% { transform: translateX(4px); }
+    75% { transform: translateX(-4px); }
+    100% { transform: translateX(0); }
+}
+.wf-shake {
+    animation: wf-shake 400ms ease-in-out;
+}
