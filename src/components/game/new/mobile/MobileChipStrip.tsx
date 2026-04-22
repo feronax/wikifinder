@@ -15,6 +15,9 @@ export default function MobileChipStrip({ found, onChipClick }: MobileChipStripP
     <div
       className="wf-chip-strip-scroller"
       style={{
+        position: 'sticky',
+        top: 53,
+        zIndex: 70,
         display: 'flex',
         gap: 6,
         overflowX: 'auto',
@@ -27,6 +30,7 @@ export default function MobileChipStrip({ found, onChipClick }: MobileChipStripP
         whiteSpace: 'nowrap',
         height: 36 + 16,
         background: 'var(--wf-bg)',
+        borderBottom: '1px solid var(--wf-border)',
       }}
     >
       {found.map(entry => (
