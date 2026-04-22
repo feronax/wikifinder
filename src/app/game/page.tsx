@@ -1086,6 +1086,7 @@ export default function GamePage() {
                     }),
                 })
                 const data = await res.json()
+                console.log('[gap-F sync] response', { won: data.won, guessCount: data.guessCount, hasNewBadges: Array.isArray(data.newBadges) && data.newBadges.length > 0, hasSeasonUpdate: !!data.seasonUpdate, prevWonCurrent: prevWonRef.current })
 
                 // Rollback: client said "in article" but server disagrees (Wiktionary miss)
                 if (data.wordNotFound) {
@@ -1141,8 +1142,10 @@ export default function GamePage() {
                 // refetch are byte-for-byte parity with legacy. ALL off the
                 // sacred <50ms optimistic-reveal path (optimistic reveal already
                 // ran via handleNewReveal/handleNewMiss before syncGuessWithServer).
+                console.log('[gap-F sync] branch-eval', { dataWon: data.won, prevWon: prevWonRef.current, willFire: data.won && !prevWonRef.current })
                 if (data.won && !prevWonRef.current) {
                     prevWonRef.current = true
+                    console.log('[gap-F sync] FIRING post-win block')
                     setFrozenElapsed(elapsed)
                     fetch('/api/game/streak')
                         .then(r => r.json())
