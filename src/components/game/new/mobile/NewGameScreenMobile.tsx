@@ -2,10 +2,13 @@
 
 import React, {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react'
+import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { useOccurrenceCycle } from '@/hooks/useOccurrenceCycle'
 import { useKeyboardInset } from '@/hooks/useKeyboardInset'
@@ -69,6 +72,24 @@ export default function NewGameScreenMobile({
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
   const { isOpen: keyboardOpen } = useKeyboardInset()
+
+  // Streak fetch (D-01/D-01a/D-01b): inline — no shared hook. Narrower than
+  // Header.tsx:59-77 (no profile fetch; we only need streak for the pill).
+  // Unauthed / fetch-failure paths leave streak at 0, hiding the pill.
+  const [streak, setStreak] = useState(0)
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        fetch('/api/game/streak')
+          .then((r) => r.json())
+          .then((d) => setStreak(d.streak || 0))
+          .catch(() => {
+            /* silent — streak stays 0 */
+          })
+      }
+    })
+  }, [])
 
   // Derived pageId for deterministic mask-width seeding + mobile-tab persistence.
   const pageId: string = useMemo(() => {
@@ -198,6 +219,7 @@ export default function NewGameScreenMobile({
       keyboardOpen={keyboardOpen}
       lang={lang}
       onLangChange={onLangChange}
+      streak={streak}
     >
       {/* Jeu tab — TitleHero + StatsCard progress + chip strip + ArticleBody */}
       <div ref={jeuRef} style={panelBaseStyle('jeu')}>
