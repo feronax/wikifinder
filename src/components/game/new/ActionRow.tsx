@@ -3,14 +3,15 @@
 import { useState } from 'react'
 import ActionRowButton from './ActionRowButton'
 import GiveUpConfirmDialog from '@/components/game/GiveUpConfirmDialog'
+import HintConfirmDialog from './HintConfirmDialog'
 
 export interface ActionRowProps {
   lang: 'fr' | 'en'
   won: boolean
   gameId: string | null
   pageId: string
-  hintsUsed?: number
-  onHintClick: () => void
+  hintsUsed: number
+  onHintRevealed: (response: { revealedTokens: Array<{ index: number; value: string }>; hintsUsed: number }) => void
   onGiveUpConfirmed: (revealData: unknown) => void
   onDuelCreate: () => Promise<void>
 }
@@ -18,13 +19,15 @@ export interface ActionRowProps {
 export default function ActionRow({
   lang,
   won,
+  gameId,
   pageId,
-  hintsUsed = 0,
-  onHintClick,
+  hintsUsed,
+  onHintRevealed,
   onGiveUpConfirmed,
   onDuelCreate,
 }: ActionRowProps) {
   const [giveUpOpen, setGiveUpOpen] = useState(false)
+  const [hintOpen, setHintOpen] = useState(false)
   const hintsLeft = Math.max(0, 3 - hintsUsed)
 
   const indiceLabel = lang === 'fr' ? 'Indice' : 'Hint'
@@ -53,6 +56,19 @@ export default function ActionRow({
           confirm: 'Give up',
           cancel: 'Cancel',
         }
+
+  async function handleHintConfirm() {
+    const resp = await fetch('/api/game/hint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId, pageId, lang }),
+    })
+    if (!resp.ok) return
+    const body = await resp.json()
+    if (body.revealedTokens && typeof body.hintsUsed === 'number') {
+      onHintRevealed(body)
+    }
+  }
 
   async function handleGiveUpConfirm() {
     try {
@@ -91,8 +107,8 @@ export default function ActionRow({
         <ActionRowButton
           label={indiceLabel}
           subtext={indiceSubtext}
-          disabled={true}
-          onClick={onHintClick}
+          disabled={hintsUsed >= 3 || won}
+          onClick={() => setHintOpen(true)}
         />
         <ActionRowButton
           label={abandonnerLabel}
@@ -108,6 +124,12 @@ export default function ActionRow({
         t={giveUpT}
         onConfirm={handleGiveUpConfirm}
         onCancel={() => setGiveUpOpen(false)}
+      />
+      <HintConfirmDialog
+        open={hintOpen}
+        onClose={() => setHintOpen(false)}
+        lang={lang}
+        onConfirm={handleHintConfirm}
       />
     </>
   )
