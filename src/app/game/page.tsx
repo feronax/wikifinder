@@ -102,6 +102,11 @@ export default function GamePage() {
     const [inputHistoryIndex, setInputHistoryIndex] = useState<number>(-1)
     const [hintTokenIndex, setHintTokenIndex] = useState<number | null>(null)
     const [streak, setStreak] = useState<number | null>(null)
+    // Phase 10.3 P5/P6 — hintsUsed counter for the new-design ActionRow Indice
+    // button. Incremented from the POST /api/game/hint response via
+    // handleHintRevealed. Cosmetic-only score deduction (RESEARCH Pitfall 3)
+    // is applied inside ResultModal via Math.max(0, baseScore - hintsUsed*500).
+    const [hintsUsed, setHintsUsed] = useState<number>(0)
     const [shareCopied, setShareCopied] = useState(false)
     const [challengeCopied, setChallengeCopied] = useState(false)
     const [justRevealedTokens, setJustRevealedTokens] = useState<Set<number>>(new Set())
@@ -1040,6 +1045,29 @@ export default function GamePage() {
         // masks non-stopword token values to "" and only the response carries the
         // real text. Keeps the sacred <50ms optimistic reveal intact: the caller
         // updates `guesses` and fires `reveal.trigger` BEFORE awaiting this POST.
+        // Phase 10.3-06 — Hint response handler. Merges one revealed body-token
+        // into gameState.tokens (same shape as the syncGuessWithServer merge at
+        // lines 1087-1107 — `{ ...token, value: ... }`; new-design tree derives
+        // the revealed state via foundSet.has(norm) inside Mask, not a token
+        // field) and bumps hintsUsed. Cosmetic 500pt deduction applied in
+        // ResultModal at render time (RESEARCH Pitfall 3).
+        const handleHintRevealed = (response: { revealedTokens: Array<{ index: number; value: string }>; hintsUsed: number }) => {
+            const revealedMap = new Map<number, string>()
+            for (const rt of response.revealedTokens) revealedMap.set(rt.index, rt.value)
+            setGameState(prev => {
+                if (!prev) return prev
+                return {
+                    ...prev,
+                    tokens: prev.tokens.map(token =>
+                        revealedMap.has(token.index)
+                            ? { ...token, value: revealedMap.get(token.index)! }
+                            : token,
+                    ),
+                }
+            })
+            setHintsUsed(response.hintsUsed)
+        }
+
         const syncGuessWithServer = async (raw: string, found: boolean) => {
             if (!gameState) return
             const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -1167,6 +1195,65 @@ export default function GamePage() {
             })
             void syncGuessWithServer(raw, false)
         }
+        // Phase 10.3-06 — Abandonner (Give-up) handler shared by desktop ActionRow
+        // and mobile Actions drawer. Merges /api/game/reveal payload, freezes
+        // chrono, flips won (P1's prevWonRef guard won't fire because this path
+        // doesn't go through /api/game/guess — intentional: no confetti on give-up
+        // per design).
+        const handleGiveUpConfirmed = (revealData: unknown) => {
+            const data = revealData as { revealedAll?: Array<{ index: number; value: string }> }
+            const revealedMap = new Map<number, string>()
+            for (const t of (data.revealedAll || [])) revealedMap.set(t.index, t.value)
+            setFrozenElapsed(elapsed)
+            setGameState(prev => prev ? {
+                ...prev,
+                tokens: prev.tokens.map(token =>
+                    revealedMap.has(token.index)
+                        ? { ...token, value: revealedMap.get(token.index)!, visible: true }
+                        : token,
+                ),
+                titleWords: prev.titleWords.map(tw => ({ ...tw, revealed: true })),
+                won: true,
+            } : prev)
+        }
+
+        // Phase 10.3-06 — Duel creation handler shared by desktop + mobile.
+        // Byte-identical to the 10.3-03 inline onDuelCreate (see page.tsx legacy
+        // ChallengeButton.onCreate at the equivalent legacy block). Uses the
+        // page-level duelToast state already declared in P1.
+        const handleDuelCreate = async () => {
+            try {
+                const res = await fetch('/api/duel/create', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ lang, idempotencyKey: crypto.randomUUID() }),
+                })
+                const body = await res.json()
+                if (res.ok && body?.duelUrl) {
+                    const url = `${window.location.origin}${body.duelUrl}`
+                    const nav = navigator as Navigator & { share?: (d: { url?: string }) => Promise<void> }
+                    try {
+                        if (typeof nav.share === 'function') await nav.share({ url })
+                        else if (navigator.clipboard) await navigator.clipboard.writeText(url)
+                    } catch { /* user cancelled */ }
+                    setDuelToast({
+                        variant: 'success',
+                        message: lang === 'fr' ? 'Lien de duel copié' : 'Duel link copied',
+                    })
+                } else {
+                    setDuelToast({
+                        variant: 'error',
+                        message: lang === 'fr' ? 'Impossible de créer le duel' : 'Could not create duel',
+                    })
+                }
+            } catch {
+                setDuelToast({
+                    variant: 'error',
+                    message: lang === 'fr' ? 'Erreur réseau' : 'Network error',
+                })
+            }
+        }
+
         // Phase 10 (D-01/D-16): JS-branched mobile routing inside the existing
         // flag-branch. Mobile-viewport users get NewGameScreenMobile (MobileShell
         // provides its own top bar — NewDesignHeader is suppressed per D-16 and
@@ -1184,6 +1271,13 @@ export default function GamePage() {
                         onLangChange={setLang}
                         onMiss={handleNewMiss}
                         onRevealHandled={handleNewReveal}
+                        won={gameState.won}
+                        gameId={gameState.gameId}
+                        pageId={gameState.pageData.id}
+                        hintsUsed={hintsUsed}
+                        onHintRevealed={handleHintRevealed}
+                        onGiveUpConfirmed={handleGiveUpConfirmed}
+                        onDuelCreate={handleDuelCreate}
                     />
                     {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
                         so ChallengeButton's onCreate (wired in P3) has a toast
@@ -1232,64 +1326,10 @@ export default function GamePage() {
                     won={gameState.won}
                     gameId={gameState.gameId}
                     pageId={gameState.pageData.id}
-                    hintsUsed={0}
-                    onHintClick={() => { /* P5: open HintConfirmDialog */ }}
-                    onGiveUpConfirmed={(revealData) => {
-                        // Abandonner flow (RESEARCH Pitfall 4 Option A): merge
-                        // revealed tokens, freeze chrono, flip won locally. The
-                        // P1 prevWonRef transition guard then fires confetti /
-                        // streak / badges on the next render pass via the
-                        // existing D-01 block inside syncGuessWithServer — but
-                        // since we're not going through that path here, we
-                        // manually trigger the same side-effects via the
-                        // transition guard.
-                        const data = revealData as { revealedAll?: Array<{ index: number; value: string }> }
-                        const revealedMap = new Map<number, string>()
-                        for (const t of (data.revealedAll || [])) revealedMap.set(t.index, t.value)
-                        setFrozenElapsed(elapsed)
-                        setGameState(prev => prev ? {
-                            ...prev,
-                            tokens: prev.tokens.map(token =>
-                                revealedMap.has(token.index)
-                                    ? { ...token, value: revealedMap.get(token.index)!, visible: true }
-                                    : token,
-                            ),
-                            titleWords: prev.titleWords.map(tw => ({ ...tw, revealed: true })),
-                            won: true,
-                        } : prev)
-                    }}
-                    onDuelCreate={async () => {
-                        try {
-                            const res = await fetch('/api/duel/create', {
-                                method: 'POST',
-                                headers: { 'content-type': 'application/json' },
-                                body: JSON.stringify({ lang, idempotencyKey: crypto.randomUUID() }),
-                            })
-                            const body = await res.json()
-                            if (res.ok && body?.duelUrl) {
-                                const url = `${window.location.origin}${body.duelUrl}`
-                                const nav = navigator as Navigator & { share?: (d: { url?: string }) => Promise<void> }
-                                try {
-                                    if (typeof nav.share === 'function') await nav.share({ url })
-                                    else if (navigator.clipboard) await navigator.clipboard.writeText(url)
-                                } catch { /* user cancelled */ }
-                                setDuelToast({
-                                    variant: 'success',
-                                    message: lang === 'fr' ? 'Lien de duel copié' : 'Duel link copied',
-                                })
-                            } else {
-                                setDuelToast({
-                                    variant: 'error',
-                                    message: lang === 'fr' ? 'Impossible de créer le duel' : 'Could not create duel',
-                                })
-                            }
-                        } catch {
-                            setDuelToast({
-                                variant: 'error',
-                                message: lang === 'fr' ? 'Erreur réseau' : 'Network error',
-                            })
-                        }
-                    }}
+                    hintsUsed={hintsUsed}
+                    onHintRevealed={handleHintRevealed}
+                    onGiveUpConfirmed={handleGiveUpConfirmed}
+                    onDuelCreate={handleDuelCreate}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen
