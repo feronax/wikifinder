@@ -26,8 +26,8 @@ export interface NewGameScreenProps {
   won: boolean
   gameId: string | null
   pageId: string
-  hintsUsed?: number
-  onHintClick: () => void
+  hintsUsed: number
+  onHintRevealed: (response: { revealedTokens: Array<{ index: number; value: string }>; hintsUsed: number }) => void
   onGiveUpConfirmed: (revealData: unknown) => void
   onDuelCreate: () => Promise<void>
   // Phase 10.3 P4 — ResultModal plumbing. `streak` is prop-drilled from
@@ -70,8 +70,8 @@ export default function NewGameScreen({
   won,
   gameId,
   pageId: actionPageId,
-  hintsUsed = 0,
-  onHintClick,
+  hintsUsed,
+  onHintRevealed,
   onGiveUpConfirmed,
   onDuelCreate,
   streak = null,
@@ -211,7 +211,7 @@ export default function NewGameScreen({
                 gameId,
                 pageId: actionPageId,
                 hintsUsed,
-                onHintClick,
+                onHintRevealed,
                 onGiveUpConfirmed,
                 onDuelCreate,
               }}
@@ -262,7 +262,7 @@ export default function NewGameScreen({
               gameId,
               pageId: actionPageId,
               hintsUsed,
-              onHintClick,
+              onHintRevealed,
               onGiveUpConfirmed,
               onDuelCreate,
             }}
