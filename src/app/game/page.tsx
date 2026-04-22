@@ -1184,6 +1184,15 @@ export default function GamePage() {
         // ChallengeButton.onCreate at the equivalent legacy block). Uses the
         // page-level duelToast state already declared in P1.
         const handleDuelCreate = async () => {
+            if (!username) {
+                setDuelToast({
+                    variant: 'error',
+                    message: lang === 'fr'
+                        ? 'Connectez-vous pour défier un ami'
+                        : 'Sign in to challenge a friend',
+                })
+                return
+            }
             try {
                 const res = await fetch('/api/duel/create', {
                     method: 'POST',
