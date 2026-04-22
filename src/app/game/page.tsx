@@ -1082,11 +1082,18 @@ export default function GamePage() {
                         pageId: gameState.pageData.id,
                         lang,
                         word: raw,
+                        // Required for anonymous win-detection: server's
+                        // api/game/guess branch for unauthenticated users
+                        // (route.ts:197-201) relies on clientPreviousGuesses
+                        // to compute `won` against multi-word titles. Authed
+                        // users have this reconstructed from DB, so sending
+                        // the array is harmless for them. Restores parity
+                        // with the legacy guess path at page.tsx:724.
+                        previousGuesses: gameState.guesses.map(g => g.word),
                         ...(idempotencyKey ? { idempotencyKey } : {}),
                     }),
                 })
                 const data = await res.json()
-                console.log('[gap-F sync] response', { won: data.won, guessCount: data.guessCount, hasNewBadges: Array.isArray(data.newBadges) && data.newBadges.length > 0, hasSeasonUpdate: !!data.seasonUpdate, prevWonCurrent: prevWonRef.current })
 
                 // Rollback: client said "in article" but server disagrees (Wiktionary miss)
                 if (data.wordNotFound) {
@@ -1142,10 +1149,8 @@ export default function GamePage() {
                 // refetch are byte-for-byte parity with legacy. ALL off the
                 // sacred <50ms optimistic-reveal path (optimistic reveal already
                 // ran via handleNewReveal/handleNewMiss before syncGuessWithServer).
-                console.log('[gap-F sync] branch-eval', { dataWon: data.won, prevWon: prevWonRef.current, willFire: data.won && !prevWonRef.current })
                 if (data.won && !prevWonRef.current) {
                     prevWonRef.current = true
-                    console.log('[gap-F sync] FIRING post-win block')
                     setFrozenElapsed(elapsed)
                     fetch('/api/game/streak')
                         .then(r => r.json())
