@@ -12,10 +12,9 @@ import type { GameState } from '@/app/game/types'
 // option a) + guarded "Lire sur Wikipédia" link. Phase 12 will polish
 // chrome / motion / typography.
 //
-// Score math (D-05 + RESEARCH Pitfall 3): cosmetic-only hint deduction,
-// computed per render — no new GameState field, no new state hook.
-//   baseScore = calculateScore(guessCount, won)
-//   score     = Math.max(0, baseScore - hintsUsed * 500)
+// Score math (D-05): authoritative display score is calculateScore(guessCount, won)
+// from @/lib/scoring — pure function, no state shadow. Hint deduction path removed
+// in 10.3-08 along with the hint button (Gaps B + E).
 
 export interface ResultModalProps {
   open: boolean
@@ -24,7 +23,6 @@ export interface ResultModalProps {
   chrono: string // pre-formatted chrono, e.g. "02:34"
   streak: number | null // number | null per DailyShareCard Pitfall 2
   lang: 'fr' | 'en'
-  hintsUsed?: number // default 0 — P5 will thread the live value in
 }
 
 export default function ResultModal({
@@ -34,12 +32,10 @@ export default function ResultModal({
   chrono,
   streak,
   lang,
-  hintsUsed = 0,
 }: ResultModalProps) {
-  // Score at render time (D-05). Hints deduction is cosmetic only — the
-  // server-side score is the authoritative leaderboard value.
-  const baseScore = calculateScore(gameState.guessCount, gameState.won)
-  const score = Math.max(0, baseScore - hintsUsed * 500)
+  // Score at render time (D-05). Pure derivation — matches the server-side
+  // scoring used for the leaderboard.
+  const score = calculateScore(gameState.guessCount, gameState.won)
 
   // Wikipedia link comes straight from pageData (D-06 + RESEARCH Q2). The
   // `pageData` type is `any` per game/types.ts, so guard against null/undef.

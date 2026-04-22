@@ -20,15 +20,8 @@ export interface NewGameScreenProps {
   lang: 'fr' | 'en'
   onMiss: (rawWord: string) => void
   onRevealHandled?: (normalizedWord: string, rawWord: string) => void
-  // Phase 10.3 P3 — desktop ActionRow props (threaded from page.tsx new-design branch).
-  // Mobile viewport continues to render NewGameScreenMobile which does not yet
-  // surface these actions (P5 ships the mobile BurgerDrawer Actions section).
-  won: boolean
-  gameId: string | null
-  pageId: string
-  hintsUsed: number
-  onHintRevealed: (response: { revealedTokens: Array<{ index: number; value: string }>; hintsUsed: number }) => void
-  onGiveUpConfirmed: (revealData: unknown) => void
+  // Phase 10.3-08 — desktop ActionRow reduced to single Défier button.
+  // Indice + Abandonner removed per UAT scope change (Gaps B + C).
   onDuelCreate: () => Promise<void>
   // Phase 10.3 P4 — ResultModal plumbing. `streak` is prop-drilled from
   // page.tsx (the P1 win-trigger already populates page-level `streak`
@@ -67,12 +60,6 @@ export default function NewGameScreen({
   lang,
   onMiss,
   onRevealHandled,
-  won,
-  gameId,
-  pageId: actionPageId,
-  hintsUsed,
-  onHintRevealed,
-  onGiveUpConfirmed,
   onDuelCreate,
   streak = null,
 }: NewGameScreenProps) {
@@ -207,12 +194,6 @@ export default function NewGameScreen({
               }}
               actionRowProps={{
                 lang,
-                won,
-                gameId,
-                pageId: actionPageId,
-                hintsUsed,
-                onHintRevealed,
-                onGiveUpConfirmed,
                 onDuelCreate,
               }}
             />
@@ -258,12 +239,6 @@ export default function NewGameScreen({
             }}
             actionRowProps={{
               lang,
-              won,
-              gameId,
-              pageId: actionPageId,
-              hintsUsed,
-              onHintRevealed,
-              onGiveUpConfirmed,
               onDuelCreate,
             }}
           />
@@ -297,7 +272,6 @@ export default function NewGameScreen({
       chrono={chrono}
       streak={streak}
       lang={lang}
-      hintsUsed={hintsUsed}
     />
     </>
   )
