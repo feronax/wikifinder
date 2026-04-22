@@ -6,6 +6,7 @@ import { useOccurrenceCycle } from '@/hooks/useOccurrenceCycle'
 import LeftStatsColumn from '@/components/game/new/LeftStatsColumn'
 import CenterArticle from '@/components/game/new/CenterArticle'
 import RightTriedColumn from '@/components/game/new/RightTriedColumn'
+import ResultModal from './ResultModal'
 import { normalize } from '@/lib/matching'
 import type { GameState } from '@/app/game/types'
 import type { FoundWordEntry } from '@/components/game/new/TriedWordRow'
@@ -29,6 +30,19 @@ export interface NewGameScreenProps {
   onHintClick: () => void
   onGiveUpConfirmed: (revealData: unknown) => void
   onDuelCreate: () => Promise<void>
+  // Phase 10.3 P4 — ResultModal plumbing. `streak` is prop-drilled from
+  // page.tsx (the P1 win-trigger already populates page-level `streak`
+  // state). Kept optional for backward-compat on non-authed paths.
+  streak?: number | null
+}
+
+// Local chrono formatter — mm:ss (e.g. 125 -> "2:05"). Mirrors
+// GuessInput.tsx:31 shape; kept inline to avoid a shared helper per
+// Phase 10.2 D-01b (prop-drill, no shared hooks).
+function formatChrono(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 // Inline match-media hook — mirrors DOM media-query state for responsive grid.
@@ -60,7 +74,13 @@ export default function NewGameScreen({
   onHintClick,
   onGiveUpConfirmed,
   onDuelCreate,
+  streak = null,
 }: NewGameScreenProps) {
+  // Phase 10.3 P4 — ResultModal open-state. Opened by the new TitleHero
+  // "Voir le résultat" banner via onOpenResult. TitleHero is consumed
+  // indirectly via CenterArticle; pass onOpenResult through to it below.
+  const [resultOpen, setResultOpen] = useState(false)
+  const chrono = formatChrono(elapsed)
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
 
@@ -147,6 +167,7 @@ export default function NewGameScreen({
   const gridTemplateColumns = isTablet ? '1fr 280px' : '260px 1fr 280px'
 
   return (
+    <>
     <div
       style={{
         display: 'grid',
@@ -205,6 +226,7 @@ export default function NewGameScreen({
             highlightedWord={cycle.highlighted?.word ?? null}
             lang={lang}
             attemptsCount={gameState.guessCount}
+            onOpenResult={() => setResultOpen(true)}
           />
           <RightTriedColumn
             found={foundEntries}
@@ -254,6 +276,7 @@ export default function NewGameScreen({
             highlightedWord={cycle.highlighted?.word ?? null}
             lang={lang}
             attemptsCount={gameState.guessCount}
+            onOpenResult={() => setResultOpen(true)}
           />
           <RightTriedColumn
             found={foundEntries}
@@ -264,5 +287,18 @@ export default function NewGameScreen({
         </>
       )}
     </div>
+    {/* Phase 10.3 P4 — ResultModal rendered as sibling of the main grid so
+        its z-index overlays everything. `open` gate keeps it null-rendered
+        until the user clicks the TitleHero "Voir le résultat" banner. */}
+    <ResultModal
+      open={resultOpen}
+      onClose={() => setResultOpen(false)}
+      gameState={gameState}
+      chrono={chrono}
+      streak={streak}
+      lang={lang}
+      hintsUsed={hintsUsed}
+    />
+    </>
   )
 }

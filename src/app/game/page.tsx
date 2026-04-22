@@ -1223,6 +1223,11 @@ export default function GamePage() {
                     lang={lang}
                     onMiss={handleNewMiss}
                     onRevealHandled={handleNewReveal}
+                    // Phase 10.3 P4 — thread streak into NewGameScreen so
+                    // ResultModal can display it (via DailyShareCard). Page-
+                    // level `streak` state is populated by the P1 win-trigger
+                    // in syncGuessWithServer (null until fetched).
+                    streak={streak}
                     // Phase 10.3 P3 — desktop ActionRow props.
                     won={gameState.won}
                     gameId={gameState.gameId}
