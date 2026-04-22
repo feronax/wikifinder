@@ -53,6 +53,7 @@ export interface MobileShellProps {
   keyboardOpen: boolean
   lang: 'fr' | 'en'
   onLangChange: (next: 'fr' | 'en') => void
+  streak?: number
   children: React.ReactNode
 }
 
@@ -62,6 +63,7 @@ export default function MobileShell({
   keyboardOpen,
   lang,
   onLangChange,
+  streak = 0,
   children,
 }: MobileShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -138,37 +140,57 @@ export default function MobileShell({
           alignItems: 'center',
         }}
       >
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Open navigation"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            padding: 4,
-            cursor: 'pointer',
-            color: 'var(--wf-ink)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Menu size={24} aria-hidden="true" />
-        </button>
+        {/* LEFT GROUP: burger + Wikifinder wordmark (D-05 restyle) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open navigation"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: 4,
+              cursor: 'pointer',
+              color: 'var(--wf-ink)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Menu size={24} aria-hidden="true" />
+          </button>
 
-        <span
-          style={{
-            fontFamily: 'var(--wf-font-head)',
-            fontSize: 18,
-            fontWeight: 600,
-            letterSpacing: '-0.02em',
-            color: 'var(--wf-ink)',
-          }}
-        >
-          Wikifinder
-        </span>
+          <span
+            style={{
+              fontFamily: 'var(--wf-font-head)',
+              fontSize: 18,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              color: 'var(--wf-ink)',
+            }}
+          >
+            Wikifinder
+          </span>
+        </div>
 
-        {renderLangPill('sm')}
+        {/* RIGHT SLOT: conditional streak pill (D-02, D-04).
+            Empty when streak === 0 or unauthed — justify-content:space-between
+            handles the 2-child collapse naturally. Emoji-first order is
+            intentional (D-02a; opposite of desktop Header.tsx). */}
+        {streak > 0 ? (
+          <span
+            style={{
+              padding: '3px 8px',
+              borderRadius: 999,
+              border: '1px solid var(--wf-border)',
+              background: 'var(--wf-bg2)',
+              fontSize: 12,
+              color: 'var(--wf-muted)',
+            }}
+          >
+            🔥 {streak}
+          </span>
+        ) : null}
       </header>
 
       <main
