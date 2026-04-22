@@ -1174,16 +1174,28 @@ export default function GamePage() {
         // var(--wf-*) tokens natively). Desktop fall-through unchanged.
         if (isMobile) {
             return (
-                <NewGameScreenMobile
-                    gameState={gameState}
-                    input={input}
-                    setInput={setInput}
-                    elapsed={frozenElapsed ?? elapsed}
-                    lang={lang}
-                    onLangChange={setLang}
-                    onMiss={handleNewMiss}
-                    onRevealHandled={handleNewReveal}
-                />
+                <>
+                    <NewGameScreenMobile
+                        gameState={gameState}
+                        input={input}
+                        setInput={setInput}
+                        elapsed={frozenElapsed ?? elapsed}
+                        lang={lang}
+                        onLangChange={setLang}
+                        onMiss={handleNewMiss}
+                        onRevealHandled={handleNewReveal}
+                    />
+                    {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
+                        so ChallengeButton's onCreate (wired in P3) has a toast
+                        to render. Uses existing page-level duelToast state. */}
+                    {duelToast && (
+                        <DuelToast
+                            variant={duelToast.variant}
+                            message={duelToast.message}
+                            onDismiss={() => setDuelToast(null)}
+                        />
+                    )}
+                </>
             )
         }
         return (
@@ -1212,6 +1224,16 @@ export default function GamePage() {
                     onMiss={handleNewMiss}
                     onRevealHandled={handleNewReveal}
                 />
+                {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
+                    ChallengeButton.onCreate (wired in P3). Sibling of the screen
+                    so it overlays irrespective of NewGameScreen's internal layout. */}
+                {duelToast && (
+                    <DuelToast
+                        variant={duelToast.variant}
+                        message={duelToast.message}
+                        onDismiss={() => setDuelToast(null)}
+                    />
+                )}
             </div>
         )
     }
