@@ -207,8 +207,6 @@ export default function NewGameScreenMobile({
 
   const panelBaseStyle = (tab: MobileTab): React.CSSProperties => ({
     display: tab === activeTab ? 'block' : 'none',
-    overflowY: 'auto',
-    height: '100%',
     paddingBottom: panelPaddingBottom,
   })
 

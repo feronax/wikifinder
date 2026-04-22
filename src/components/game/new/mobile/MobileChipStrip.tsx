@@ -16,7 +16,7 @@ export default function MobileChipStrip({ found, onChipClick }: MobileChipStripP
       className="wf-chip-strip-scroller"
       style={{
         position: 'sticky',
-        top: 53,
+        top: 57,
         zIndex: 70,
         display: 'flex',
         gap: 6,
