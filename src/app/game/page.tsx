@@ -136,6 +136,12 @@ export default function GamePage() {
     // behind any prior in-flight POST. Optimistic UI fires BEFORE this chain
     // is touched (sacred latency); the chain only throttles the network call.
     const submitChainRef = useRef<Promise<unknown>>(Promise.resolve())
+    // Phase 10.3 D-01: single-fire guard for the new-design win-trigger block
+    // inside syncGuessWithServer. The legacy path uses an inline alreadyWon
+    // closure (page.tsx:794); the new-design path runs through a different
+    // code route so it needs its own terminal-state ref. Never reset —
+    // winning a game is terminal for the session.
+    const prevWonRef = useRef(false)
 
     // Timer
     useEffect(() => {
@@ -1099,6 +1105,38 @@ export default function GamePage() {
                         won: data.won || prev.won,
                     }
                 })
+
+                // Phase 10.3 D-01: post-win side-effects, transplanted from the
+                // legacy block at page.tsx:794-821. Single-fire guarded by
+                // prevWonRef so remount / idempotency replay / tab re-focus
+                // cannot double-fire. Confetti recipe + badge stagger + streak
+                // refetch are byte-for-byte parity with legacy. ALL off the
+                // sacred <50ms optimistic-reveal path (optimistic reveal already
+                // ran via handleNewReveal/handleNewMiss before syncGuessWithServer).
+                if (data.won && !prevWonRef.current) {
+                    prevWonRef.current = true
+                    setFrozenElapsed(elapsed)
+                    fetch('/api/game/streak')
+                        .then(r => r.json())
+                        .then(d => setStreak(d.streak || 0))
+                        .catch(() => { /* silent per CLAUDE.md */ })
+                    void import('canvas-confetti').then(({ default: confetti }) => {
+                        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
+                        safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
+                        safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
+                    })
+                    if (data.newBadges && data.newBadges.length > 0) {
+                        data.newBadges.forEach((badge: { key: string; name: string; icon: string; rarity: string }, idx: number) => {
+                            safeSetTimeout(() => {
+                                setBadgeNotifications(prev => [...prev, badge])
+                                safeSetTimeout(() => {
+                                    setBadgeNotifications(prev => prev.filter(b => b.key !== badge.key))
+                                }, 3200)
+                            }, idx * 800)
+                        })
+                    }
+                    if (data.seasonUpdate) setSeasonUpdate(data.seasonUpdate)
+                }
             } catch {
                 /* silent per CLAUDE.md — Sentry catches */
             }
