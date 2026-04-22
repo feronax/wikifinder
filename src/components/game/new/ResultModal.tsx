@@ -23,6 +23,25 @@ export interface ResultModalProps {
   chrono: string // pre-formatted chrono, e.g. "02:34"
   streak: number | null // number | null per DailyShareCard Pitfall 2
   lang: 'fr' | 'en'
+  // Phase 10.3-09 (Gap A) — pseudo + badge identity row. `username` null
+  // when anonymous → pseudo row is skipped entirely (modal renders clean).
+  // `favoriteBadge` null when user has no equipped badge → emoji adornment
+  // is omitted but the pseudo text still renders.
+  username?: string | null
+  favoriteBadge?: string | null
+}
+
+// Phase 10.3-09 — inline emoji map, duplicated from leaderboard/page.tsx
+// (lines 390-397 / 549-556) per Rule 2 minimize-scope: match the existing
+// precedent rather than extracting a shared module. If a future phase DRYs
+// this up, that is a separate task.
+const badgeIcons: Record<string, string> = {
+  first_win: '👣', word_master: '💬', bilingual: '🌐', explorer: '🔍',
+  scholar: '📚', challenger: '⚔️', streak_3: '🔥', sherlock: '🕵️',
+  streak_7: '🔥', veteran: '🎖️', speedrunner: '⚡', genius: '🧠',
+  streak_30: '🌋', legend: '👑', founder: '🏛️',
+  season_bronze: '🟤', season_silver: '⚪', season_gold: '🟡',
+  season_platinum: '💎', season_diamond: '💠',
 }
 
 export default function ResultModal({
@@ -32,6 +51,8 @@ export default function ResultModal({
   chrono,
   streak,
   lang,
+  username = null,
+  favoriteBadge = null,
 }: ResultModalProps) {
   // Score at render time (D-05). Pure derivation — matches the server-side
   // scoring used for the leaderboard.
@@ -98,6 +119,32 @@ export default function ResultModal({
       >
         {lang === 'fr' ? 'Article trouvé !' : 'Article found!'}
       </h2>
+
+      {/* Phase 10.3-09 (Gap A) — pseudo + badge identity row. Hidden for
+          anonymous users (username === null). Badge emoji omitted when
+          favoriteBadge is null; pseudo still renders. Placement: directly
+          under the heading, above the 3-stat row, per plan default. */}
+      {username && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 8,
+            fontFamily: 'var(--wf-font-ui)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--wf-ink)',
+          }}
+        >
+          <span>{username}</span>
+          {favoriteBadge && badgeIcons[favoriteBadge] && (
+            <span title={favoriteBadge} style={{ fontSize: 16 }}>
+              {badgeIcons[favoriteBadge]}
+            </span>
+          )}
+        </div>
+      )}
 
       <div
         style={{

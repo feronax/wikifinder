@@ -97,6 +97,7 @@ export default function GamePage() {
     const [elapsed, setElapsed] = useState(0)
     const [user, setUser] = useState<any>(null)
     const [username, setUsername] = useState<string | null>(null)
+    const [favoriteBadge, setFavoriteBadge] = useState<string | null>(null)
     const [clickedWord, setClickedWord] = useState<{ word: string, index: number } | null>(null)
     const [inputHistory, setInputHistory] = useState<string[]>([])
     const [inputHistoryIndex, setInputHistoryIndex] = useState<number>(-1)
@@ -173,10 +174,13 @@ export default function GamePage() {
             if (data.user) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('username')
+                    .select('username, favorite_badge')
                     .eq('id', data.user.id)
                     .single()
-                if (profile) setUsername(profile.username)
+                if (profile) {
+                    setUsername(profile.username)
+                    setFavoriteBadge(profile.favorite_badge || null)
+                }
             }
             setAuthReady(true)
         }).catch(() => {
@@ -1230,6 +1234,8 @@ export default function GamePage() {
                         onMiss={handleNewMiss}
                         onRevealHandled={handleNewReveal}
                         onDuelCreate={handleDuelCreate}
+                        username={username}
+                        favoriteBadge={favoriteBadge}
                     />
                     {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
                         so ChallengeButton's onCreate (wired in P3) has a toast
@@ -1275,6 +1281,8 @@ export default function GamePage() {
                     // in syncGuessWithServer (null until fetched).
                     streak={streak}
                     onDuelCreate={handleDuelCreate}
+                    username={username}
+                    favoriteBadge={favoriteBadge}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen

@@ -61,6 +61,9 @@ export interface NewGameScreenMobileProps {
   // Phase 10.3-08 — mobile Actions reduced to single Défier button
   // (Indice + Abandonner removed per UAT scope change, Gaps B + C).
   onDuelCreate: () => Promise<void>
+  // Phase 10.3-09 (Gap A) — pseudo + badge row in ResultModal.
+  username?: string | null
+  favoriteBadge?: string | null
 }
 
 export default function NewGameScreenMobile({
@@ -73,6 +76,8 @@ export default function NewGameScreenMobile({
   onMiss,
   onRevealHandled,
   onDuelCreate,
+  username = null,
+  favoriteBadge = null,
 }: NewGameScreenMobileProps) {
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
@@ -331,6 +336,8 @@ export default function NewGameScreenMobile({
       chrono={chrono}
       streak={streak}
       lang={lang}
+      username={username}
+      favoriteBadge={favoriteBadge}
     />
     </>
   )

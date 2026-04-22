@@ -27,6 +27,11 @@ export interface NewGameScreenProps {
   // page.tsx (the P1 win-trigger already populates page-level `streak`
   // state). Kept optional for backward-compat on non-authed paths.
   streak?: number | null
+  // Phase 10.3-09 (Gap A) — pseudo + badge row in ResultModal.
+  // `username` null when anonymous → pseudo row is hidden.
+  // `favoriteBadge` null when user has no equipped badge → emoji is omitted.
+  username?: string | null
+  favoriteBadge?: string | null
 }
 
 // Local chrono formatter — mm:ss (e.g. 125 -> "2:05"). Mirrors
@@ -62,6 +67,8 @@ export default function NewGameScreen({
   onRevealHandled,
   onDuelCreate,
   streak = null,
+  username = null,
+  favoriteBadge = null,
 }: NewGameScreenProps) {
   // Phase 10.3 P4 — ResultModal open-state. Opened by the new TitleHero
   // "Voir le résultat" banner via onOpenResult. TitleHero is consumed
@@ -272,6 +279,8 @@ export default function NewGameScreen({
       chrono={chrono}
       streak={streak}
       lang={lang}
+      username={username}
+      favoriteBadge={favoriteBadge}
     />
     </>
   )
