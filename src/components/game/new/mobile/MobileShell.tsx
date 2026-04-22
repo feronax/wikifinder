@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import BurgerDrawer from '@/components/game/new/mobile/BurgerDrawer'
 import BottomTabBar from '@/components/game/new/mobile/BottomTabBar'
+import ActionRowButton from '@/components/game/new/ActionRowButton'
 import type { MobileTab } from '@/hooks/useMobileTab'
 
 /**
@@ -54,6 +55,14 @@ export interface MobileShellProps {
   lang: 'fr' | 'en'
   onLangChange: (next: 'fr' | 'en') => void
   streak?: number
+  // Phase 10.3-06 — mobile Actions section in BurgerDrawer (Indice /
+  // Abandonner / Défier). Owner (NewGameScreenMobile) opens the confirm
+  // dialogs + owns the duel-create handler via these callbacks.
+  hintsUsed: number
+  won: boolean
+  onHintOpen: () => void
+  onGiveUpOpen: () => void
+  onDuelCreate: () => Promise<void>
   children: React.ReactNode
 }
 
@@ -64,6 +73,11 @@ export default function MobileShell({
   lang,
   onLangChange,
   streak = 0,
+  hintsUsed,
+  won,
+  onHintOpen,
+  onGiveUpOpen,
+  onDuelCreate,
   children,
 }: MobileShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -283,6 +297,42 @@ export default function MobileShell({
             )
           })}
         </nav>
+
+        {/* Phase 10.3-06 — mobile Actions section (D-04 + PATTERNS.md lines
+            336-356). Placed between the nav links and the FR/EN pill section:
+            navigation → actions → settings. Each onClick calls closeDrawer()
+            before invoking the action (D-15 auto-close pattern).
+            BurgerDrawer.tsx stays untouched (RESEARCH Pitfall 5). */}
+        <div
+          style={{
+            padding: '16px 20px',
+            borderTop: '1px solid var(--wf-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <ActionRowButton
+            label={lang === 'fr' ? 'Indice' : 'Hint'}
+            subtext={
+              lang === 'fr'
+                ? `-500 pts · ${Math.max(0, 3 - hintsUsed)} restant${Math.max(0, 3 - hintsUsed) > 1 ? 's' : ''}`
+                : `-500 pts · ${Math.max(0, 3 - hintsUsed)} left`
+            }
+            disabled={hintsUsed >= 3 || won}
+            onClick={() => { closeDrawer(); onHintOpen() }}
+          />
+          <ActionRowButton
+            label={lang === 'fr' ? 'Abandonner' : 'Give up'}
+            variant="destructive"
+            disabled={won}
+            onClick={() => { closeDrawer(); onGiveUpOpen() }}
+          />
+          <ActionRowButton
+            label={lang === 'fr' ? 'Défier un ami' : 'Challenge a friend'}
+            onClick={async () => { closeDrawer(); await onDuelCreate() }}
+          />
+        </div>
 
         <div
           style={{
