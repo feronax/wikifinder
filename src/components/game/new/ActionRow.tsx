@@ -7,7 +7,7 @@ import GiveUpConfirmDialog from '@/components/game/GiveUpConfirmDialog'
 export interface ActionRowProps {
   lang: 'fr' | 'en'
   won: boolean
-  gameId: string
+  gameId: string | null
   pageId: string
   hintsUsed?: number
   onHintClick: () => void

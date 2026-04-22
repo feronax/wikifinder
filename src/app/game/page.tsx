@@ -1223,6 +1223,68 @@ export default function GamePage() {
                     lang={lang}
                     onMiss={handleNewMiss}
                     onRevealHandled={handleNewReveal}
+                    // Phase 10.3 P3 — desktop ActionRow props.
+                    won={gameState.won}
+                    gameId={gameState.gameId}
+                    pageId={gameState.pageData.id}
+                    hintsUsed={0}
+                    onHintClick={() => { /* P5: open HintConfirmDialog */ }}
+                    onGiveUpConfirmed={(revealData) => {
+                        // Abandonner flow (RESEARCH Pitfall 4 Option A): merge
+                        // revealed tokens, freeze chrono, flip won locally. The
+                        // P1 prevWonRef transition guard then fires confetti /
+                        // streak / badges on the next render pass via the
+                        // existing D-01 block inside syncGuessWithServer — but
+                        // since we're not going through that path here, we
+                        // manually trigger the same side-effects via the
+                        // transition guard.
+                        const data = revealData as { revealedAll?: Array<{ index: number; value: string }> }
+                        const revealedMap = new Map<number, string>()
+                        for (const t of (data.revealedAll || [])) revealedMap.set(t.index, t.value)
+                        setFrozenElapsed(elapsed)
+                        setGameState(prev => prev ? {
+                            ...prev,
+                            tokens: prev.tokens.map(token =>
+                                revealedMap.has(token.index)
+                                    ? { ...token, value: revealedMap.get(token.index)!, visible: true }
+                                    : token,
+                            ),
+                            titleWords: prev.titleWords.map(tw => ({ ...tw, revealed: true })),
+                            won: true,
+                        } : prev)
+                    }}
+                    onDuelCreate={async () => {
+                        try {
+                            const res = await fetch('/api/duel/create', {
+                                method: 'POST',
+                                headers: { 'content-type': 'application/json' },
+                                body: JSON.stringify({ lang, idempotencyKey: crypto.randomUUID() }),
+                            })
+                            const body = await res.json()
+                            if (res.ok && body?.duelUrl) {
+                                const url = `${window.location.origin}${body.duelUrl}`
+                                const nav = navigator as Navigator & { share?: (d: { url?: string }) => Promise<void> }
+                                try {
+                                    if (typeof nav.share === 'function') await nav.share({ url })
+                                    else if (navigator.clipboard) await navigator.clipboard.writeText(url)
+                                } catch { /* user cancelled */ }
+                                setDuelToast({
+                                    variant: 'success',
+                                    message: lang === 'fr' ? 'Lien de duel copié' : 'Duel link copied',
+                                })
+                            } else {
+                                setDuelToast({
+                                    variant: 'error',
+                                    message: lang === 'fr' ? 'Impossible de créer le duel' : 'Could not create duel',
+                                })
+                            }
+                        } catch {
+                            setDuelToast({
+                                variant: 'error',
+                                message: lang === 'fr' ? 'Erreur réseau' : 'Network error',
+                            })
+                        }
+                    }}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen

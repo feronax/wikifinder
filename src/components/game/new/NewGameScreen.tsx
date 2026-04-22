@@ -19,6 +19,16 @@ export interface NewGameScreenProps {
   lang: 'fr' | 'en'
   onMiss: (rawWord: string) => void
   onRevealHandled?: (normalizedWord: string, rawWord: string) => void
+  // Phase 10.3 P3 — desktop ActionRow props (threaded from page.tsx new-design branch).
+  // Mobile viewport continues to render NewGameScreenMobile which does not yet
+  // surface these actions (P5 ships the mobile BurgerDrawer Actions section).
+  won: boolean
+  gameId: string | null
+  pageId: string
+  hintsUsed?: number
+  onHintClick: () => void
+  onGiveUpConfirmed: (revealData: unknown) => void
+  onDuelCreate: () => Promise<void>
 }
 
 // Inline match-media hook — mirrors DOM media-query state for responsive grid.
@@ -43,6 +53,13 @@ export default function NewGameScreen({
   lang,
   onMiss,
   onRevealHandled,
+  won,
+  gameId,
+  pageId: actionPageId,
+  hintsUsed = 0,
+  onHintClick,
+  onGiveUpConfirmed,
+  onDuelCreate,
 }: NewGameScreenProps) {
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
@@ -167,6 +184,16 @@ export default function NewGameScreen({
                 totalRevealableTokens,
                 lang,
               }}
+              actionRowProps={{
+                lang,
+                won,
+                gameId,
+                pageId: actionPageId,
+                hintsUsed,
+                onHintClick,
+                onGiveUpConfirmed,
+                onDuelCreate,
+              }}
             />
           </div>
           <CenterArticle
@@ -206,6 +233,16 @@ export default function NewGameScreen({
               foundCount: foundEntries.length,
               totalRevealableTokens,
               lang,
+            }}
+            actionRowProps={{
+              lang,
+              won,
+              gameId,
+              pageId: actionPageId,
+              hintsUsed,
+              onHintClick,
+              onGiveUpConfirmed,
+              onDuelCreate,
             }}
           />
           <CenterArticle

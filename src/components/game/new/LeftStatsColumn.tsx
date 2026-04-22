@@ -3,6 +3,7 @@
 import React from 'react'
 import GuessInput from '@/components/game/new/GuessInput'
 import StatsCard from '@/components/game/new/StatsCard'
+import ActionRow, { type ActionRowProps } from '@/components/game/new/ActionRow'
 
 interface GuessInputProps {
   input: string
@@ -27,11 +28,13 @@ interface StatsCardProps {
 interface LeftStatsColumnProps {
   guessInputProps: GuessInputProps
   statsProps: StatsCardProps
+  actionRowProps?: ActionRowProps
 }
 
 export default function LeftStatsColumn({
   guessInputProps,
   statsProps,
+  actionRowProps,
 }: LeftStatsColumnProps) {
   return (
     <aside
@@ -47,6 +50,7 @@ export default function LeftStatsColumn({
     >
       <GuessInput {...guessInputProps} />
       <StatsCard {...statsProps} />
+      {actionRowProps && <ActionRow {...actionRowProps} />}
     </aside>
   )
 }
