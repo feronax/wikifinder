@@ -4,6 +4,7 @@ import { DM_Sans, DM_Serif_Display, Geist, Source_Serif_4 } from 'next/font/goog
 import FeedbackButton from '@/components/FeedbackButton'
 import ThemeProvider from '@/components/ThemeProvider'
 import LangProvider from '@/components/LangProvider'
+import { NewDesignProvider } from '@/lib/feature-flags-client'
 import './globals.css'
 import './design-tokens.generated.css'
 import ScrollToTop from '@/components/ScrollToTop'
@@ -118,22 +119,24 @@ export default async function RootLayout({
       </head>
       <body className={`${dmSans.variable} ${dmSerif.variable} ${geist.variable} ${sourceSerif4.variable}`} suppressHydrationWarning>
         <GoogleTagManager gtmId="GTM-M2QGSL7C" />
-        <ThemeProvider>
-          <LangProvider initialLang={lang}>
-            <ErrorBoundary>
-              <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                <div style={{ flex: 1 }}>
-                  {children}
+        <NewDesignProvider value={newDesignOn}>
+          <ThemeProvider>
+            <LangProvider initialLang={lang}>
+              <ErrorBoundary>
+                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                  <div style={{ flex: 1 }}>
+                    {children}
+                  </div>
+                  <Footer />
                 </div>
-                <Footer />
-              </div>
-            </ErrorBoundary>
-            <ScrollToTop />
-            <FeedbackButton />
-            <InstallBanner />
-            <ServiceWorkerRegistrar />
-          </LangProvider>
-        </ThemeProvider>
+              </ErrorBoundary>
+              <ScrollToTop />
+              <FeedbackButton />
+              <InstallBanner />
+              <ServiceWorkerRegistrar />
+            </LangProvider>
+          </ThemeProvider>
+        </NewDesignProvider>
       </body>
     </html>
   )
