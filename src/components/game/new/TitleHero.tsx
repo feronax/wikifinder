@@ -9,6 +9,10 @@ interface TitleHeroProps {
     pageId: string
     lang: 'fr' | 'en'
     attemptsCount: number
+    // Phase 10.3 P4 — when provided and `won` is true, the banner renders
+    // as a clickable button that invokes this callback (opens ResultModal).
+    // Backward-compatible: if omitted, the banner is hidden (render-guard).
+    onOpenResult?: () => void
 }
 
 // Offset title token indices by a large constant so title-mask PRNG seeds
@@ -16,7 +20,7 @@ interface TitleHeroProps {
 // determinism preserved).
 const TITLE_INDEX_OFFSET = 1_000_000
 
-export default function TitleHero({ titleWords, pageId, lang, attemptsCount }: TitleHeroProps) {
+export default function TitleHero({ titleWords, pageId, lang, attemptsCount, onOpenResult }: TitleHeroProps) {
     const total = titleWords.filter(w => !w.isStopword).length
     const found = titleWords.filter(w => !w.isStopword && w.revealed).length
     const pct = total === 0 ? 0 : (found / total) * 100
@@ -110,20 +114,30 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount }: T
                 />
             </div>
 
-            {won && (
-                <div
+            {won && onOpenResult && (
+                <button
+                    type="button"
+                    onClick={onOpenResult}
                     style={{
                         marginTop: 12,
+                        padding: '10px 14px',
                         fontSize: 14,
-                        fontWeight: 500,
+                        fontWeight: 600,
                         color: 'var(--wf-accent)',
                         fontFamily: 'var(--wf-font-ui)',
+                        background: 'transparent',
+                        border: '1px solid var(--wf-accent)',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
                     }}
                 >
                     {lang === 'fr'
-                        ? 'Titre trouvé en ' + attemptsCount + ' tentatives'
-                        : 'Title found in ' + attemptsCount + ' attempts'}
-                </div>
+                        ? `Voir le résultat — en ${attemptsCount} tentatives →`
+                        : `View result — in ${attemptsCount} attempts →`}
+                </button>
             )}
         </section>
     )
