@@ -20,6 +20,7 @@ import TitleHero from '@/components/game/new/TitleHero'
 import ArticleBody from '@/components/game/new/ArticleBody'
 import StatsCard from '@/components/game/new/StatsCard'
 import RightTriedColumn from '@/components/game/new/RightTriedColumn'
+import ResultModal from '@/components/game/new/ResultModal'
 import type { FoundWordEntry } from '@/components/game/new/TriedWordRow'
 import type { MissedWordEntry } from '@/components/game/new/RightTriedColumn'
 import { normalize } from '@/lib/matching'
@@ -72,6 +73,12 @@ export default function NewGameScreenMobile({
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
   const { isOpen: keyboardOpen } = useKeyboardInset()
+
+  // Phase 10.3 P4 — ResultModal open-state (mirror of desktop NewGameScreen).
+  // Opened by the TitleHero "Voir le résultat" banner in the Jeu tab via
+  // onOpenResult; rendered as sibling of MobileShell so z-index 200 overlays
+  // both the 3-tab panels and the FixedBottomInput.
+  const [resultOpen, setResultOpen] = useState(false)
 
   // Streak fetch (D-01/D-01a/D-01b): inline — no shared hook. Narrower than
   // Header.tsx:59-77 (no profile fetch; we only need streak for the pill).
@@ -210,7 +217,13 @@ export default function NewGameScreenMobile({
     paddingBottom: panelPaddingBottom,
   })
 
+  // Inline chrono formatter — mm:ss (mirror of NewGameScreen.formatChrono).
+  const chronoM = Math.floor(elapsed / 60)
+  const chronoS = elapsed % 60
+  const chrono = `${chronoM}:${chronoS.toString().padStart(2, '0')}`
+
   return (
+    <>
     <MobileShell
       activeTab={activeTab}
       onTabChange={handleTabChange}
@@ -227,6 +240,7 @@ export default function NewGameScreenMobile({
             pageId={pageId}
             lang={lang}
             attemptsCount={gameState.guessCount}
+            onOpenResult={() => setResultOpen(true)}
           />
           <StatsCard
             elapsed={elapsed}
@@ -276,6 +290,7 @@ export default function NewGameScreenMobile({
             pageId={pageId}
             lang={lang}
             attemptsCount={gameState.guessCount}
+            onOpenResult={() => setResultOpen(true)}
           />
           <StatsCard
             elapsed={elapsed}
@@ -300,5 +315,19 @@ export default function NewGameScreenMobile({
         disabled={gameState.won}
       />
     </MobileShell>
+    {/* Phase 10.3 P4 — ResultModal rendered as top-level sibling of
+        MobileShell so its z-index 200 overlays every tab panel and the
+        FixedBottomInput. Opened by the TitleHero "Voir le résultat"
+        banner; closed via Esc, backdrop click, or close-X. */}
+    <ResultModal
+      open={resultOpen}
+      onClose={() => setResultOpen(false)}
+      gameState={gameState}
+      chrono={chrono}
+      streak={streak}
+      lang={lang}
+      hintsUsed={0}
+    />
+    </>
   )
 }
