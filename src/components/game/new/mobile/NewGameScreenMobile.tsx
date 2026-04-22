@@ -21,6 +21,8 @@ import ArticleBody from '@/components/game/new/ArticleBody'
 import StatsCard from '@/components/game/new/StatsCard'
 import RightTriedColumn from '@/components/game/new/RightTriedColumn'
 import ResultModal from '@/components/game/new/ResultModal'
+import HintConfirmDialog from '@/components/game/new/HintConfirmDialog'
+import GiveUpConfirmDialog from '@/components/game/GiveUpConfirmDialog'
 import type { FoundWordEntry } from '@/components/game/new/TriedWordRow'
 import type { MissedWordEntry } from '@/components/game/new/RightTriedColumn'
 import { normalize } from '@/lib/matching'
@@ -58,6 +60,15 @@ export interface NewGameScreenMobileProps {
   onLangChange: (next: 'fr' | 'en') => void
   onMiss: (rawWord: string) => void
   onRevealHandled?: (normalizedWord: string, rawWord: string) => void
+  // Phase 10.3-06 — mobile Actions (Indice / Abandonner / Défier).
+  // Parent owns game-level state; mobile orchestrator owns dialog state.
+  won: boolean
+  gameId: string | null
+  pageId: string
+  hintsUsed: number
+  onHintRevealed: (response: { revealedTokens: Array<{ index: number; value: string }>; hintsUsed: number }) => void
+  onGiveUpConfirmed: (revealData: unknown) => void
+  onDuelCreate: () => Promise<void>
 }
 
 export default function NewGameScreenMobile({
@@ -69,6 +80,13 @@ export default function NewGameScreenMobile({
   onLangChange,
   onMiss,
   onRevealHandled,
+  won,
+  gameId,
+  pageId: actionPageId,
+  hintsUsed,
+  onHintRevealed,
+  onGiveUpConfirmed,
+  onDuelCreate,
 }: NewGameScreenMobileProps) {
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
@@ -79,6 +97,12 @@ export default function NewGameScreenMobile({
   // onOpenResult; rendered as sibling of MobileShell so z-index 200 overlays
   // both the 3-tab panels and the FixedBottomInput.
   const [resultOpen, setResultOpen] = useState(false)
+  // Phase 10.3-06 — mobile Actions dialog state. MobileShell drawer buttons
+  // invoke onHintOpen / onGiveUpOpen which flip these flags; the dialogs
+  // themselves render at the top-level Fragment so z-index overlays the
+  // drawer + tab panels + FixedBottomInput.
+  const [hintOpen, setHintOpen] = useState(false)
+  const [giveUpOpen, setGiveUpOpen] = useState(false)
 
   // Streak fetch (D-01/D-01a/D-01b): inline — no shared hook. Narrower than
   // Header.tsx:59-77 (no profile fetch; we only need streak for the pill).
@@ -231,6 +255,11 @@ export default function NewGameScreenMobile({
       lang={lang}
       onLangChange={onLangChange}
       streak={streak}
+      hintsUsed={hintsUsed}
+      won={won}
+      onHintOpen={() => setHintOpen(true)}
+      onGiveUpOpen={() => setGiveUpOpen(true)}
+      onDuelCreate={onDuelCreate}
     >
       {/* Jeu tab — TitleHero + StatsCard progress + chip strip + ArticleBody */}
       <div ref={jeuRef} style={panelBaseStyle('jeu')}>
@@ -326,7 +355,65 @@ export default function NewGameScreenMobile({
       chrono={chrono}
       streak={streak}
       lang={lang}
-      hintsUsed={0}
+      hintsUsed={hintsUsed}
+    />
+    {/* Phase 10.3-06 — Hint + GiveUp dialogs hoisted to top-level Fragment
+        so z-index 200 (ModalShell) overlays the drawer + tab panels +
+        FixedBottomInput. State is owned locally; parent owns merge + POST
+        lifecycle via onHintRevealed / onGiveUpConfirmed callbacks. */}
+    <HintConfirmDialog
+      open={hintOpen}
+      onClose={() => setHintOpen(false)}
+      lang={lang}
+      onConfirm={async () => {
+        const resp = await fetch('/api/game/hint', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameId, pageId: actionPageId, lang }),
+        })
+        if (!resp.ok) return
+        const body = await resp.json()
+        if (body.revealedTokens && typeof body.hintsUsed === 'number') {
+          onHintRevealed(body)
+        }
+      }}
+    />
+    <GiveUpConfirmDialog
+      open={giveUpOpen}
+      livesRemaining={1}
+      t={
+        lang === 'fr'
+          ? {
+              title: 'Abandonner la partie ?',
+              body: () => "L'article sera révélé et votre partie sera terminée.",
+              confirm: 'Abandonner',
+              cancel: 'Annuler',
+            }
+          : {
+              title: 'Give up?',
+              body: () => 'The article will be revealed and your game will end.',
+              confirm: 'Give up',
+              cancel: 'Cancel',
+            }
+      }
+      onConfirm={async () => {
+        try {
+          const resp = await fetch('/api/game/reveal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pageId: actionPageId, lang }),
+          })
+          if (resp.ok) {
+            const revealData = await resp.json()
+            onGiveUpConfirmed(revealData)
+          }
+        } catch {
+          /* silent per CLAUDE.md — Sentry catches */
+        } finally {
+          setGiveUpOpen(false)
+        }
+      }}
+      onCancel={() => setGiveUpOpen(false)}
     />
     </>
   )
