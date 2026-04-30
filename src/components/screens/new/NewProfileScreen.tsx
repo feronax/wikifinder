@@ -178,7 +178,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
                 width: '100%',
                 height: h,
                 background: 'var(--wf-bg2)',
-                borderRadius: 'var(--wf-radiusCard)',
+                borderRadius: 'var(--wf-radius-card)',
                 marginBottom: 16,
               }}
             />
@@ -274,7 +274,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
           style={{
             background: 'var(--wf-surface)',
             border: '1px solid var(--wf-border)',
-            borderRadius: 'var(--wf-radiusCard)',
+            borderRadius: 'var(--wf-radius-card)',
             padding: isMobile ? 12 : 20,
             marginBottom: 16,
             display: 'flex',
@@ -289,14 +289,14 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
               height: isMobile ? 52 : 78,
               borderRadius: '50%',
               background:
-                'linear-gradient(135deg, var(--wf-accent), var(--wf-borderStrong))',
+                'linear-gradient(135deg, var(--wf-accent), var(--wf-border-strong))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontFamily: 'var(--wf-font-head)',
               fontSize: isMobile ? 22 : 30,
               fontWeight: 700,
-              color: 'var(--wf-accentInk)',
+              color: 'var(--wf-accent-ink)',
               textTransform: 'uppercase',
             }}
           >
@@ -368,7 +368,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
                 fontWeight: 500,
                 color: 'var(--wf-ink)',
                 background: 'transparent',
-                border: '1px solid var(--wf-borderStrong)',
+                border: '1px solid var(--wf-border-strong)',
                 borderRadius: 'var(--wf-radius)',
                 cursor: 'pointer',
               }}
@@ -383,7 +383,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
           style={{
             background: 'var(--wf-surface)',
             border: '1px solid var(--wf-border)',
-            borderRadius: 'var(--wf-radiusCard)',
+            borderRadius: 'var(--wf-radius-card)',
             padding: isMobile ? 14 : 20,
             marginBottom: 16,
           }}
@@ -436,7 +436,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
             style={{
               background: 'var(--wf-surface)',
               border: '1px solid var(--wf-border)',
-              borderRadius: 'var(--wf-radiusCard)',
+              borderRadius: 'var(--wf-radius-card)',
               padding: isMobile ? 14 : 20,
             }}
           >
@@ -476,7 +476,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
             style={{
               background: 'var(--wf-surface)',
               border: '1px solid var(--wf-border)',
-              borderRadius: 'var(--wf-radiusCard)',
+              borderRadius: 'var(--wf-radius-card)',
               padding: isMobile ? 14 : 20,
               display: 'flex',
               flexDirection: 'column',
@@ -528,7 +528,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
                     width: 16,
                     height: 16,
                     borderRadius: '50%',
-                    background: reminderOn ? 'var(--wf-accentInk)' : 'var(--wf-muted)',
+                    background: reminderOn ? 'var(--wf-accent-ink)' : 'var(--wf-muted)',
                     transition: 'left 180ms cubic-bezier(.4,.4,0,1.2)',
                   }}
                 />
@@ -542,7 +542,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
           style={{
             background: 'var(--wf-surface)',
             border: '1px solid var(--wf-border)',
-            borderRadius: 'var(--wf-radiusCard)',
+            borderRadius: 'var(--wf-radius-card)',
             padding: isMobile ? 14 : 20,
             marginBottom: 16,
           }}
@@ -562,7 +562,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'var(--wf-surface)',
-            border: '1px solid var(--wf-borderStrong)',
+            border: '1px solid var(--wf-border-strong)',
             borderRadius: 'var(--wf-radius)',
             padding: '10px 20px',
             fontFamily: 'var(--wf-font-ui)',

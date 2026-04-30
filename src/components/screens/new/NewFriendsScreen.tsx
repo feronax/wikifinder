@@ -66,6 +66,9 @@ const COPY = {
     listError: 'Impossible de charger vos amis. Réessayer.',
     retry: 'Réessayer',
     isFollowed: 'Suivi',
+    followCta: 'Suivre',
+    followAuthError: 'Connectez-vous pour suivre un joueur',
+    followGenericError: 'Impossible de suivre. Réessayer.',
   },
   en: {
     title: 'Friends',
@@ -92,6 +95,9 @@ const COPY = {
     listError: "Couldn't load your friends. Retry.",
     retry: 'Retry',
     isFollowed: 'Following',
+    followCta: 'Follow',
+    followAuthError: 'Sign in to follow a player',
+    followGenericError: "Couldn't follow. Retry.",
   },
 }
 
@@ -127,6 +133,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
   const [friendsError, setFriendsError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<ToastMsg>(null)
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
 
   // Resolve current user + username (Défier anon-guard input).
   useEffect(() => {
@@ -189,6 +196,10 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
           const data = await res.json()
           setResults(data.results ?? [])
           setSearchError(false)
+        } else if (res.status === 401) {
+          // Anon search: show empty results + non-blocking toast hint, no error banner.
+          setResults([])
+          setSearchError(false)
         } else {
           setSearchError(true)
           setResults([])
@@ -207,6 +218,39 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
     const id = setTimeout(() => setToast(null), 3000)
     return () => clearTimeout(id)
   }, [toast])
+
+  async function handleFollow(userId: string) {
+    if (!username) {
+      setToast({ variant: 'error', message: t.followAuthError })
+      return
+    }
+    if (followingIds.has(userId)) return
+    setFollowingIds(prev => new Set(prev).add(userId))
+    try {
+      const res = await fetch('/api/follows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followeeId: userId }),
+      })
+      if (res.ok) {
+        // Optimistic UI: mark as followed in current results, refetch friends list.
+        setResults(prev =>
+          prev.map(r => (r.user_id === userId ? { ...r, is_followed: true } : r))
+        )
+        loadFriends()
+      } else {
+        setToast({ variant: 'error', message: t.followGenericError })
+      }
+    } catch {
+      setToast({ variant: 'error', message: t.followGenericError })
+    } finally {
+      setFollowingIds(prev => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
+    }
+  }
 
   async function handleDefier() {
     if (!username) {
@@ -274,7 +318,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
           borderRadius: '50%',
           background:
             'color-mix(in oklch, var(--wf-accent) 35%, var(--wf-bg2))',
-          color: 'var(--wf-accentInk)',
+          color: 'var(--wf-accent-ink)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -332,7 +376,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
           fontWeight: 500,
           color: 'var(--wf-muted)',
           background: 'transparent',
-          border: '1px solid var(--wf-borderStrong)',
+          border: '1px solid var(--wf-border-strong)',
           borderRadius: 'var(--wf-radius)',
           cursor: 'pointer',
           whiteSpace: 'nowrap',
@@ -364,7 +408,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
           borderRadius: '50%',
           background:
             'color-mix(in oklch, var(--wf-accent) 35%, var(--wf-bg2))',
-          color: 'var(--wf-accentInk)',
+          color: 'var(--wf-accent-ink)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -387,7 +431,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
       >
         {r.pseudonym}
       </div>
-      {r.is_followed && (
+      {r.is_followed ? (
         <span
           style={{
             fontSize: 11,
@@ -401,6 +445,25 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
         >
           {t.isFollowed}
         </span>
+      ) : (
+        <button
+          onClick={() => handleFollow(r.user_id)}
+          disabled={followingIds.has(r.user_id)}
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: 'var(--wf-font-ui)',
+            color: 'var(--wf-accent-ink)',
+            background: 'var(--wf-accent)',
+            padding: '6px 14px',
+            border: 'none',
+            borderRadius: 999,
+            cursor: followingIds.has(r.user_id) ? 'wait' : 'pointer',
+            opacity: followingIds.has(r.user_id) ? 0.6 : 1,
+          }}
+        >
+          {t.followCta}
+        </button>
       )}
     </div>
   )
@@ -430,7 +493,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
             position: 'relative',
             background: 'var(--wf-surface)',
             border: '1px solid var(--wf-border)',
-            borderRadius: 'var(--wf-radiusCard)',
+            borderRadius: 'var(--wf-radius-card)',
             padding: isMobile ? 14 : 20,
             marginBottom: 16,
           }}
@@ -482,7 +545,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
                 marginTop: 6,
                 background: 'var(--wf-surface)',
                 border: '1px solid var(--wf-border)',
-                borderRadius: 'var(--wf-radiusCard)',
+                borderRadius: 'var(--wf-radius-card)',
                 zIndex: 50,
                 boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
                 overflow: 'hidden',
@@ -523,7 +586,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
             style={{
               background: 'var(--wf-surface)',
               border: '1px solid var(--wf-border)',
-              borderRadius: 'var(--wf-radiusCard)',
+              borderRadius: 'var(--wf-radius-card)',
               overflow: 'hidden',
             }}
           >
@@ -577,7 +640,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'var(--wf-surface)',
-            border: '1px solid var(--wf-borderStrong)',
+            border: '1px solid var(--wf-border-strong)',
             borderRadius: 'var(--wf-radius)',
             padding: '10px 20px',
             fontFamily: 'var(--wf-font-ui)',
@@ -616,7 +679,7 @@ function FollowList(props: {
         style={{
           background: 'var(--wf-surface)',
           border: '1px solid var(--wf-border)',
-          borderRadius: 'var(--wf-radiusCard)',
+          borderRadius: 'var(--wf-radius-card)',
           padding: isMobile ? 14 : 20,
         }}
       >
@@ -671,7 +734,7 @@ function FollowList(props: {
         style={{
           background: 'var(--wf-surface)',
           border: '1px solid var(--wf-border)',
-          borderRadius: 'var(--wf-radiusCard)',
+          borderRadius: 'var(--wf-radius-card)',
           padding: isMobile ? 14 : 20,
           textAlign: 'center',
         }}
@@ -696,7 +759,7 @@ function FollowList(props: {
             fontWeight: 500,
             color: 'var(--wf-ink)',
             background: 'transparent',
-            border: '1px solid var(--wf-borderStrong)',
+            border: '1px solid var(--wf-border-strong)',
             borderRadius: 'var(--wf-radius)',
             cursor: 'pointer',
           }}
@@ -740,7 +803,7 @@ function FollowList(props: {
       style={{
         background: 'var(--wf-surface)',
         border: '1px solid var(--wf-border)',
-        borderRadius: 'var(--wf-radiusCard)',
+        borderRadius: 'var(--wf-radius-card)',
         overflow: 'hidden',
       }}
     >

@@ -201,7 +201,7 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
               fontWeight: 500,
               color: 'var(--wf-ink)',
               background: 'transparent',
-              border: '1px solid var(--wf-borderStrong)',
+              border: '1px solid var(--wf-border-strong)',
               borderRadius: 'var(--wf-radius)',
               cursor: 'pointer',
             }}
@@ -268,7 +268,7 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
                 padding: '6px 14px',
                 fontSize: isMobile ? 12 : 13,
                 fontWeight: 500,
-                color: tab === k ? 'var(--wf-accentInk)' : 'var(--wf-muted)',
+                color: tab === k ? 'var(--wf-accent-ink)' : 'var(--wf-muted)',
                 background: tab === k ? 'var(--wf-accent)' : 'transparent',
                 border: 'none',
                 borderRadius: 'calc(var(--wf-radius) - 2px)',
@@ -290,7 +290,7 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
                   width: '100%',
                   height: 56,
                   background: 'var(--wf-bg2)',
-                  borderRadius: 'var(--wf-radiusCard)',
+                  borderRadius: 'var(--wf-radius-card)',
                   marginBottom: 8,
                 }}
               />
@@ -360,7 +360,7 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
                         border: isSelf
                           ? '1px solid var(--wf-accent)'
                           : '1px solid var(--wf-border)',
-                        borderRadius: 'var(--wf-radiusCard)',
+                        borderRadius: 'var(--wf-radius-card)',
                         padding: isMobile ? 10 : 14,
                         display: 'flex',
                         flexDirection: 'column',
@@ -409,7 +409,7 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
               style={{
                 background: 'var(--wf-surface)',
                 border: '1px solid var(--wf-border)',
-                borderRadius: 'var(--wf-radiusCard)',
+                borderRadius: 'var(--wf-radius-card)',
                 padding: 6,
                 fontFamily: 'var(--wf-font-ui)',
               }}

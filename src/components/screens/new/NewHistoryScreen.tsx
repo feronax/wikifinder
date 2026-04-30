@@ -13,6 +13,7 @@
 import { useEffect, useState } from 'react'
 import { calculateScore, useIsMobile } from '@/lib/utils'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
+import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 type HistoryEntry = {
   page_id: string
@@ -97,8 +98,16 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
     }
   }
 
+  // Anonymous-user guard: redirect to login (matches LegacyHistoryScreen behavior).
   useEffect(() => {
-    load()
+    const supabase = createSupabaseBrowserClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
+        window.location.href = '/auth/login'
+        return
+      }
+      load()
+    })
   }, [])
 
   const containerPadding = isMobile ? '4px 0 60px' : '32px 24px 80px'
@@ -125,7 +134,7 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
                 width: '100%',
                 height: 72,
                 background: 'var(--wf-bg2)',
-                borderRadius: 'var(--wf-radiusCard)',
+                borderRadius: 'var(--wf-radius-card)',
                 marginBottom: 10,
               }}
             />
@@ -160,7 +169,7 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
               fontWeight: 500,
               color: 'var(--wf-ink)',
               background: 'transparent',
-              border: '1px solid var(--wf-borderStrong)',
+              border: '1px solid var(--wf-border-strong)',
               borderRadius: 'var(--wf-radius)',
               cursor: 'pointer',
             }}
@@ -245,7 +254,7 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
                 padding: '10px 20px',
                 fontSize: 13,
                 fontWeight: 500,
-                color: 'var(--wf-accentInk)',
+                color: 'var(--wf-accent-ink)',
                 background: 'var(--wf-accent)',
                 borderRadius: 'var(--wf-radius)',
                 textDecoration: 'none',
@@ -261,7 +270,7 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
               style={{
                 background: 'var(--wf-surface)',
                 border: '1px solid var(--wf-border)',
-                borderRadius: 'var(--wf-radiusCard)',
+                borderRadius: 'var(--wf-radius-card)',
                 padding: isMobile ? 14 : 20,
                 marginBottom: isMobile ? 16 : 24,
               }}
@@ -299,7 +308,7 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
                         cell.state === 'empty'
                           ? '1px solid var(--wf-border)'
                           : cell.state === 'playing'
-                            ? '1px solid var(--wf-borderStrong)'
+                            ? '1px solid var(--wf-border-strong)'
                             : 'none',
                     }}
                   />
@@ -331,7 +340,7 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
                       alignItems: 'center',
                       gap: 12,
                       padding: isMobile ? '10px 12px' : '14px 18px',
-                      borderRadius: 'var(--wf-radiusCard)',
+                      borderRadius: 'var(--wf-radius-card)',
                       background: 'var(--wf-surface)',
                       border: '1px solid var(--wf-border)',
                       borderLeft: completed
@@ -425,10 +434,10 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
                         fontWeight: 500,
                         borderRadius: 'var(--wf-radius)',
                         background: ctaFilled ? 'var(--wf-accent)' : 'transparent',
-                        color: ctaFilled ? 'var(--wf-accentInk)' : 'var(--wf-muted)',
+                        color: ctaFilled ? 'var(--wf-accent-ink)' : 'var(--wf-muted)',
                         border: ctaFilled
                           ? '1px solid var(--wf-accent)'
-                          : '1px solid var(--wf-borderStrong)',
+                          : '1px solid var(--wf-border-strong)',
                         whiteSpace: 'nowrap',
                       }}
                     >

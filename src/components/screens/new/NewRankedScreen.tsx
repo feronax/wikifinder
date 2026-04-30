@@ -129,7 +129,7 @@ export default function NewRankedScreen({ lang = 'fr' }: Props) {
           style={{
             background: 'var(--wf-surface)',
             border: '1px solid var(--wf-border)',
-            borderRadius: 'var(--wf-radiusCard)',
+            borderRadius: 'var(--wf-radius-card)',
             padding: 6,
           }}
         >
@@ -159,7 +159,7 @@ export default function NewRankedScreen({ lang = 'fr' }: Props) {
                   style={{
                     height: 44,
                     background: 'var(--wf-bg2)',
-                    borderRadius: 'var(--wf-radiusCard)',
+                    borderRadius: 'var(--wf-radius-card)',
                   }}
                 />
               ))}
