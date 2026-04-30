@@ -113,6 +113,11 @@ export default function GamePage() {
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
     const [duelToast, setDuelToast] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
     const [duelId, setDuelId] = useState<string | null>(null)
+    // Phase 11 gap-fix: distinguish ?duel= URL param from a successfully loaded
+    // duel-mode game. The "Duel terminé" banner must only show when the actual
+    // server-side game is mode='duel' — otherwise a stale duel param + an
+    // existing daily game produces a misleading banner on the daily completion.
+    const [isDuelGame, setIsDuelGame] = useState(false)
 
     // Survival mode state (Plan 03-04 — only populated when mode=survival)
     const [isSurvival, setIsSurvival] = useState(false)
@@ -216,6 +221,7 @@ export default function GamePage() {
             return
         }
         setDuelId(null)
+        setIsDuelGame(false)
         loadGame(lang, dateParam || undefined)
     }, [lang, authReady])
 
@@ -230,6 +236,7 @@ export default function GamePage() {
         setRevealAll(false)
         setClickedWord(null)
         setHintTokenIndex(null)
+        setIsDuelGame(false)
         try {
             const startRes = await fetch(`/api/game/start?duel=${encodeURIComponent(roomId)}`, {
                 method: 'POST',
@@ -276,6 +283,8 @@ export default function GamePage() {
                 pageData: data,
                 gameId,
             })
+            // Mark this as a confirmed duel-mode game (server-side mode='duel').
+            setIsDuelGame(game?.mode === 'duel')
             if (data.wordHashSet) setWordHashSet(data.wordHashSet)
             const start = new Date(game.started_at || Date.now())
             setStartedAt(start)
@@ -1464,7 +1473,7 @@ export default function GamePage() {
                         </div>
                     )}
 
-                    {won && duelId && (
+                    {won && duelId && isDuelGame && (
                         <div style={{
                             marginTop: 24, marginBottom: 16, padding: 16, borderRadius: 8,
                             backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--accent)',
