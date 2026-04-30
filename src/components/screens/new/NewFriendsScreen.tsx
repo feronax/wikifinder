@@ -136,18 +136,19 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
 
   // Resolve current user + username (Défier anon-guard input).
+  // Anonymous users redirect to /auth/login (matches NewHistoryScreen + Legacy behavior).
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', data.user.id)
-          .single()
-        setUsername(profile?.username ?? data.user.email ?? null)
-      } else {
-        setUsername(null)
+      if (!data.user) {
+        window.location.href = '/auth/login'
+        return
       }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', data.user.id)
+        .single()
+      setUsername(profile?.username ?? data.user.email ?? null)
       setAuthReady(true)
     })
   }, [])
