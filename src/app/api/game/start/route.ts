@@ -51,6 +51,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (existing) {
+    if (user) {
+      // Phase 11 / FR-04 — presence write (fire-and-forget; see 11-05-PLAN.md).
+      void supabaseAdmin
+        .from('profiles')
+        .update({ last_activity_at: new Date().toISOString() })
+        .eq('id', user.id)
+    }
     return NextResponse.json({ saved: true, game: existing })
   }
 
@@ -85,6 +92,14 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (user) {
+    // Phase 11 / FR-04 — presence write (fire-and-forget; see 11-05-PLAN.md).
+    void supabaseAdmin
+      .from('profiles')
+      .update({ last_activity_at: new Date().toISOString() })
+      .eq('id', user.id)
+  }
 
   return NextResponse.json({ saved: true, game })
 }
@@ -137,6 +152,13 @@ async function handleDuelStart(req: NextRequest, duelId: string) {
       .limit(1)
       .maybeSingle()
     if (existing) {
+      if (user) {
+        // Phase 11 / FR-04 — presence write (fire-and-forget; see 11-05-PLAN.md).
+        void supabaseAdmin
+          .from('profiles')
+          .update({ last_activity_at: new Date().toISOString() })
+          .eq('id', user.id)
+      }
       return NextResponse.json({ saved: true, game: existing })
     }
 
@@ -178,6 +200,14 @@ async function handleDuelStart(req: NextRequest, duelId: string) {
     if (updErr) {
       Sentry.captureException(updErr, { tags: { context: 'api/game/start', phase: 'duel-bind-game' } })
       // Non-fatal: the games row exists; a subsequent /api/duel/[id] lookup can heal.
+    }
+
+    if (user) {
+      // Phase 11 / FR-04 — presence write (fire-and-forget; see 11-05-PLAN.md).
+      void supabaseAdmin
+        .from('profiles')
+        .update({ last_activity_at: new Date().toISOString() })
+        .eq('id', user.id)
     }
 
     return NextResponse.json({ saved: true, game })

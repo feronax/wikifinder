@@ -22,6 +22,10 @@ import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay'
 import PushOptInSheet from '@/components/notifications/PushOptInSheet'
 import ChallengeButton from '@/components/duel/ChallengeButton'
 import DuelToast from '@/components/duel/DuelToast'
+import { useNewDesignFlag } from '@/lib/feature-flags-client'
+import NewGameScreen from '@/components/game/new/NewGameScreen'
+import NewGameScreenMobile from '@/components/game/new/mobile/NewGameScreenMobile'
+import NewDesignHeader from '@/components/game/new/NewDesignHeader'
 import { GameState, translations } from './types'
 
 // Survival-mode translations (UI-SPEC §Copywriting Contract — FR + EN parity)
@@ -93,6 +97,7 @@ export default function GamePage() {
     const [elapsed, setElapsed] = useState(0)
     const [user, setUser] = useState<any>(null)
     const [username, setUsername] = useState<string | null>(null)
+    const [favoriteBadge, setFavoriteBadge] = useState<string | null>(null)
     const [clickedWord, setClickedWord] = useState<{ word: string, index: number } | null>(null)
     const [inputHistory, setInputHistory] = useState<string[]>([])
     const [inputHistoryIndex, setInputHistoryIndex] = useState<number>(-1)
@@ -108,6 +113,11 @@ export default function GamePage() {
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
     const [duelToast, setDuelToast] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
     const [duelId, setDuelId] = useState<string | null>(null)
+    // Phase 11 gap-fix: distinguish ?duel= URL param from a successfully loaded
+    // duel-mode game. The "Duel terminé" banner must only show when the actual
+    // server-side game is mode='duel' — otherwise a stale duel param + an
+    // existing daily game produces a misleading banner on the daily completion.
+    const [isDuelGame, setIsDuelGame] = useState(false)
 
     // Survival mode state (Plan 03-04 — only populated when mode=survival)
     const [isSurvival, setIsSurvival] = useState(false)
@@ -132,6 +142,12 @@ export default function GamePage() {
     // behind any prior in-flight POST. Optimistic UI fires BEFORE this chain
     // is touched (sacred latency); the chain only throttles the network call.
     const submitChainRef = useRef<Promise<unknown>>(Promise.resolve())
+    // Phase 10.3 D-01: single-fire guard for the new-design win-trigger block
+    // inside syncGuessWithServer. The legacy path uses an inline alreadyWon
+    // closure (page.tsx:794); the new-design path runs through a different
+    // code route so it needs its own terminal-state ref. Never reset —
+    // winning a game is terminal for the session.
+    const prevWonRef = useRef(false)
 
     // Timer
     useEffect(() => {
@@ -155,6 +171,7 @@ export default function GamePage() {
     const t = translations[lang]
 
     const [authReady, setAuthReady] = useState(false)
+    const newDesignOn = useNewDesignFlag()
 
     useEffect(() => {
         supabase.auth.getUser().then(async ({ data }) => {
@@ -162,10 +179,13 @@ export default function GamePage() {
             if (data.user) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('username')
+                    .select('username, favorite_badge')
                     .eq('id', data.user.id)
                     .single()
-                if (profile) setUsername(profile.username)
+                if (profile) {
+                    setUsername(profile.username)
+                    setFavoriteBadge(profile.favorite_badge || null)
+                }
             }
             setAuthReady(true)
         }).catch(() => {
@@ -201,6 +221,7 @@ export default function GamePage() {
             return
         }
         setDuelId(null)
+        setIsDuelGame(false)
         loadGame(lang, dateParam || undefined)
     }, [lang, authReady])
 
@@ -215,6 +236,7 @@ export default function GamePage() {
         setRevealAll(false)
         setClickedWord(null)
         setHintTokenIndex(null)
+        setIsDuelGame(false)
         try {
             const startRes = await fetch(`/api/game/start?duel=${encodeURIComponent(roomId)}`, {
                 method: 'POST',
@@ -261,6 +283,8 @@ export default function GamePage() {
                 pageData: data,
                 gameId,
             })
+            // Mark this as a confirmed duel-mode game (server-side mode='duel').
+            setIsDuelGame(game?.mode === 'duel')
             if (data.wordHashSet) setWordHashSet(data.wordHashSet)
             const start = new Date(game.started_at || Date.now())
             setStartedAt(start)
@@ -1018,6 +1042,280 @@ export default function GamePage() {
         width: tw.isStopword ? Math.max(20, (tw.length || 3) * 13) : Math.max(40, (tw.length || 4) * 18),
     }))
 
+    // Phase 9 flag-branch (D-01/D-02). When WF_NEW_DESIGN is ON and a daily game is loaded,
+    // render the NewGameScreen tree. Scope: daily game screen only — survival + duel paths
+    // stay on the legacy tree this phase (Phase 10+ rework). Flag OFF ⇒ branch skipped ⇒
+    // legacy tree below renders byte-identically.
+    if (newDesignOn && !isSurvival && !duelId) {
+        // Fetch /api/game/guess and apply revealedTokens/revealedTitleIndices to
+        // gameState. Mirrors the legacy submit handler (lines 716-791) — without
+        // this the body words never unmask in the flag-on path because the server
+        // masks non-stopword token values to "" and only the response carries the
+        // real text. Keeps the sacred <50ms optimistic reveal intact: the caller
+        // updates `guesses` and fires `reveal.trigger` BEFORE awaiting this POST.
+        const syncGuessWithServer = async (raw: string, found: boolean) => {
+            if (!gameState) return
+            const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : undefined
+            try {
+                const res = await fetch('/api/game/guess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        gameId: gameState.gameId,
+                        pageId: gameState.pageData.id,
+                        lang,
+                        word: raw,
+                        // Required for anonymous win-detection: server's
+                        // api/game/guess branch for unauthenticated users
+                        // (route.ts:197-201) relies on clientPreviousGuesses
+                        // to compute `won` against multi-word titles. Authed
+                        // users have this reconstructed from DB, so sending
+                        // the array is harmless for them. Restores parity
+                        // with the legacy guess path at page.tsx:724.
+                        previousGuesses: gameState.guesses.map(g => g.word),
+                        ...(idempotencyKey ? { idempotencyKey } : {}),
+                    }),
+                })
+                const data = await res.json()
+
+                // Rollback: client said "in article" but server disagrees (Wiktionary miss)
+                if (data.wordNotFound) {
+                    setGameState(prev => prev ? {
+                        ...prev,
+                        guesses: prev.guesses.filter(g => g.word !== raw),
+                        guessCount: prev.won ? prev.guessCount : Math.max(0, prev.guessCount - 1),
+                    } : prev)
+                    return
+                }
+                if (found && !data.isInText && (!data.revealedTokens || data.revealedTokens.length === 0)) {
+                    setGameState(prev => prev ? {
+                        ...prev,
+                        guesses: prev.guesses.map(g => g.word === raw ? { ...g, found: false } : g),
+                    } : prev)
+                    return
+                }
+
+                // Apply revealed tokens + title indices to gameState
+                const revealedTokenMap = new Map<number, string>()
+                for (const rt of (data.revealedTokens || [])) revealedTokenMap.set(rt.index, rt.value)
+                const revealedTitleMap = new Map<number, string>()
+                for (const rt of (data.revealedTitleIndices || [])) revealedTitleMap.set(rt.index, rt.value)
+
+                if (revealedTokenMap.size === 0 && revealedTitleMap.size === 0) return
+
+                setGameState(prev => {
+                    if (!prev) return prev
+                    return {
+                        ...prev,
+                        tokens: prev.tokens.map(token =>
+                            revealedTokenMap.has(token.index)
+                                // Keep `visible: false` so ArticleBody routes through
+                                // Mask (which carries `data-word` for click-to-cycle),
+                                // not the pre-revealed plain <span> branch. Mask
+                                // switches to revealed state via foundSet.has(norm).
+                                ? { ...token, value: revealedTokenMap.get(token.index)! }
+                                : token,
+                        ),
+                        titleWords: prev.titleWords.map(tw =>
+                            revealedTitleMap.has(tw.index)
+                                ? { ...tw, value: revealedTitleMap.get(tw.index)!, revealed: true }
+                                : tw,
+                        ),
+                        won: data.won || prev.won,
+                    }
+                })
+
+                // Phase 10.3 D-01: post-win side-effects, transplanted from the
+                // legacy block at page.tsx:794-821. Single-fire guarded by
+                // prevWonRef so remount / idempotency replay / tab re-focus
+                // cannot double-fire. Confetti recipe + badge stagger + streak
+                // refetch are byte-for-byte parity with legacy. ALL off the
+                // sacred <50ms optimistic-reveal path (optimistic reveal already
+                // ran via handleNewReveal/handleNewMiss before syncGuessWithServer).
+                if (data.won && !prevWonRef.current) {
+                    prevWonRef.current = true
+                    setFrozenElapsed(elapsed)
+                    fetch('/api/game/streak')
+                        .then(r => r.json())
+                        .then(d => setStreak(d.streak || 0))
+                        .catch(() => { /* silent per CLAUDE.md */ })
+                    void import('canvas-confetti').then(({ default: confetti }) => {
+                        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
+                        safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300)
+                        safeSetTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5, x: 0.7 } }), 600)
+                    })
+                    if (data.newBadges && data.newBadges.length > 0) {
+                        data.newBadges.forEach((badge: { key: string; name: string; icon: string; rarity: string }, idx: number) => {
+                            safeSetTimeout(() => {
+                                setBadgeNotifications(prev => [...prev, badge])
+                                safeSetTimeout(() => {
+                                    setBadgeNotifications(prev => prev.filter(b => b.key !== badge.key))
+                                }, 3200)
+                            }, idx * 800)
+                        })
+                    }
+                    if (data.seasonUpdate) setSeasonUpdate(data.seasonUpdate)
+                }
+            } catch {
+                /* silent per CLAUDE.md — Sentry catches */
+            }
+        }
+
+        const handleNewReveal = (normalizedWord: string, rawWord: string) => {
+            setGameState(prev => {
+                if (!prev) return prev
+                if (prev.guesses.some(g => normalize(g.word) === normalizedWord)) return prev
+                return {
+                    ...prev,
+                    guesses: [{ word: rawWord, found: true }, ...prev.guesses],
+                    guessCount: prev.won ? prev.guessCount : prev.guessCount + 1,
+                }
+            })
+            void syncGuessWithServer(rawWord, true)
+        }
+        const handleNewMiss = (raw: string) => {
+            setGameState(prev => {
+                if (!prev) return prev
+                const n = normalize(raw)
+                if (prev.guesses.some(g => normalize(g.word) === n)) return prev
+                return {
+                    ...prev,
+                    guesses: [{ word: raw, found: false }, ...prev.guesses],
+                    guessCount: prev.won ? prev.guessCount : prev.guessCount + 1,
+                }
+            })
+            void syncGuessWithServer(raw, false)
+        }
+        // Phase 10.3-06 — Duel creation handler shared by desktop + mobile.
+        // Byte-identical to the 10.3-03 inline onDuelCreate (see page.tsx legacy
+        // ChallengeButton.onCreate at the equivalent legacy block). Uses the
+        // page-level duelToast state already declared in P1.
+        const handleDuelCreate = async () => {
+            if (!username) {
+                setDuelToast({
+                    variant: 'error',
+                    message: lang === 'fr'
+                        ? 'Connectez-vous pour défier un ami'
+                        : 'Sign in to challenge a friend',
+                })
+                return
+            }
+            try {
+                const res = await fetch('/api/duel/create', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ lang, idempotencyKey: crypto.randomUUID() }),
+                })
+                const body = await res.json()
+                if (res.ok && body?.duelUrl) {
+                    const url = `${window.location.origin}${body.duelUrl}`
+                    const nav = navigator as Navigator & { share?: (d: { url?: string }) => Promise<void> }
+                    try {
+                        if (typeof nav.share === 'function') await nav.share({ url })
+                        else if (navigator.clipboard) await navigator.clipboard.writeText(url)
+                    } catch { /* user cancelled */ }
+                    setDuelToast({
+                        variant: 'success',
+                        message: lang === 'fr' ? 'Lien de duel copié' : 'Duel link copied',
+                    })
+                } else {
+                    setDuelToast({
+                        variant: 'error',
+                        message: lang === 'fr' ? 'Impossible de créer le duel' : 'Could not create duel',
+                    })
+                }
+            } catch {
+                setDuelToast({
+                    variant: 'error',
+                    message: lang === 'fr' ? 'Erreur réseau' : 'Network error',
+                })
+            }
+        }
+
+        // Phase 10 (D-01/D-16): JS-branched mobile routing inside the existing
+        // flag-branch. Mobile-viewport users get NewGameScreenMobile (MobileShell
+        // provides its own top bar — NewDesignHeader is suppressed per D-16 and
+        // the legacy-token bridge div is unnecessary since the mobile tree uses
+        // var(--wf-*) tokens natively). Desktop fall-through unchanged.
+        if (isMobile) {
+            return (
+                <>
+                    <NewGameScreenMobile
+                        gameState={gameState}
+                        input={input}
+                        setInput={setInput}
+                        elapsed={frozenElapsed ?? elapsed}
+                        lang={lang}
+                        onLangChange={setLang}
+                        onMiss={handleNewMiss}
+                        onRevealHandled={handleNewReveal}
+                        onDuelCreate={handleDuelCreate}
+                        username={username}
+                        favoriteBadge={favoriteBadge}
+                    />
+                    {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
+                        so ChallengeButton's onCreate (wired in P3) has a toast
+                        to render. Uses existing page-level duelToast state. */}
+                    {duelToast && (
+                        <DuelToast
+                            variant={duelToast.variant}
+                            message={duelToast.message}
+                            onDismiss={() => setDuelToast(null)}
+                        />
+                    )}
+                </>
+            )
+        }
+        return (
+            <div style={{
+                fontFamily: 'var(--wf-font-ui)',
+                minHeight: '100vh',
+                background: 'var(--wf-bg)',
+                // Override legacy --bg/--surface/--border tokens inside the
+                // new-design tree so the legacy <Header> adopts the minimal-amber
+                // palette and blends with the new body (fixes slate-vs-black seam).
+                // Legacy Header source is unmodified — D-02 preserved.
+                ['--bg' as string]: 'var(--wf-bg)',
+                ['--surface' as string]: 'var(--wf-bg2)',
+                ['--border' as string]: 'var(--wf-border)',
+                ['--text' as string]: 'var(--wf-ink)',
+                ['--text-muted' as string]: 'var(--wf-muted)',
+                ['--accent' as string]: 'var(--wf-accent)',
+            }}>
+                <NewDesignHeader lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+                <NewGameScreen
+                    gameState={gameState}
+                    input={input}
+                    setInput={setInput}
+                    elapsed={frozenElapsed ?? elapsed}
+                    lang={lang}
+                    onMiss={handleNewMiss}
+                    onRevealHandled={handleNewReveal}
+                    // Phase 10.3 P4 — thread streak into NewGameScreen so
+                    // ResultModal can display it (via DailyShareCard). Page-
+                    // level `streak` state is populated by the P1 win-trigger
+                    // in syncGuessWithServer (null until fetched).
+                    streak={streak}
+                    onDuelCreate={handleDuelCreate}
+                    username={username}
+                    favoriteBadge={favoriteBadge}
+                />
+                {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
+                    ChallengeButton.onCreate (wired in P3). Sibling of the screen
+                    so it overlays irrespective of NewGameScreen's internal layout. */}
+                {duelToast && (
+                    <DuelToast
+                        variant={duelToast.variant}
+                        message={duelToast.message}
+                        onDismiss={() => setDuelToast(null)}
+                    />
+                )}
+            </div>
+        )
+    }
+
     return (
         <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
             {!isSurvival && <OnboardingOverlay lang={lang} />}
@@ -1175,9 +1473,9 @@ export default function GamePage() {
                         </div>
                     )}
 
-                    {won && duelId && (
+                    {won && duelId && isDuelGame && (
                         <div style={{
-                            marginBottom: 16, padding: 16, borderRadius: 8,
+                            marginTop: 24, marginBottom: 16, padding: 16, borderRadius: 8,
                             backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--accent)',
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                         }}>

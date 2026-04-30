@@ -21,17 +21,20 @@ function formatRelative(iso: string, lang: 'fr' | 'en'): string {
 export default function DuelWaitingPanel({
   opponentUsername, expiresAt, lang, onRefresh, onShareLink,
 }: DuelWaitingPanelProps) {
+  const friendLabel = opponentUsername && opponentUsername.trim().length > 0
+    ? opponentUsername
+    : (lang === 'fr' ? 'Ton ami' : 'Your friend')
   const t = lang === 'fr'
     ? {
         heading: 'En attente de ton ami',
-        body: `Ton score est enregistré. ${opponentUsername} doit encore terminer.`,
+        body: `Ton score est enregistré. ${friendLabel} doit encore terminer.`,
         expires: 'Expire dans',
         refresh: 'Actualiser',
         share: 'Repartager le lien',
       }
     : {
         heading: 'Waiting for your friend',
-        body: `Your score is locked in. ${opponentUsername} hasn't finished yet.`,
+        body: `Your score is locked in. ${friendLabel} hasn't finished yet.`,
         expires: 'Expires in',
         refresh: 'Refresh',
         share: 'Share the link again',

@@ -4,6 +4,7 @@ import { DM_Sans, DM_Serif_Display, Geist, Source_Serif_4 } from 'next/font/goog
 import FeedbackButton from '@/components/FeedbackButton'
 import ThemeProvider from '@/components/ThemeProvider'
 import LangProvider from '@/components/LangProvider'
+import { NewDesignProvider } from '@/lib/feature-flags-client'
 import './globals.css'
 import './design-tokens.generated.css'
 import ScrollToTop from '@/components/ScrollToTop'
@@ -60,7 +61,12 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#5C7A3E',
+  // Browser chrome tint. Picks the minimal-amber bg when the new-design flag
+  // is set; else stays on the legacy green for backwards compat.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fafafa' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0b' },
+  ],
 }
 
 export default async function RootLayout({
@@ -71,8 +77,15 @@ export default async function RootLayout({
   const cookieStore = await cookies()
   const langCookie = cookieStore.get('wf_lang')?.value
   const lang: 'fr' | 'en' = langCookie === 'en' ? 'en' : 'fr'
+  // Propagate WF_NEW_DESIGN flag to <html> so globals.css can swap the legacy
+  // palette to the minimal-amber --wf-* tokens on EVERY page, not just /game.
+  const newDesignOn = cookieStore.get('wf_new_design')?.value === '1'
   return (
-    <html lang={lang} suppressHydrationWarning>
+    <html
+      lang={lang}
+      suppressHydrationWarning
+      {...(newDesignOn ? { 'data-wf-new-design': '1' } : {})}
+    >
       <head>
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -106,22 +119,24 @@ export default async function RootLayout({
       </head>
       <body className={`${dmSans.variable} ${dmSerif.variable} ${geist.variable} ${sourceSerif4.variable}`} suppressHydrationWarning>
         <GoogleTagManager gtmId="GTM-M2QGSL7C" />
-        <ThemeProvider>
-          <LangProvider initialLang={lang}>
-            <ErrorBoundary>
-              <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                <div style={{ flex: 1 }}>
-                  {children}
+        <NewDesignProvider value={newDesignOn}>
+          <ThemeProvider>
+            <LangProvider initialLang={lang}>
+              <ErrorBoundary>
+                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                  <div style={{ flex: 1 }}>
+                    {children}
+                  </div>
+                  <Footer />
                 </div>
-                <Footer />
-              </div>
-            </ErrorBoundary>
-            <ScrollToTop />
-            <FeedbackButton />
-            <InstallBanner />
-            <ServiceWorkerRegistrar />
-          </LangProvider>
-        </ThemeProvider>
+              </ErrorBoundary>
+              <ScrollToTop />
+              <FeedbackButton />
+              <InstallBanner />
+              <ServiceWorkerRegistrar />
+            </LangProvider>
+          </ThemeProvider>
+        </NewDesignProvider>
       </body>
     </html>
   )

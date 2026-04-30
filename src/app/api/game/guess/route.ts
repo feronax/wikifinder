@@ -260,5 +260,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Phase 11 / FR-04 — presence write (D-04, D-05, D-11 sacred-latency).
+  // MUST be fire-and-forget: zero await, zero .then, zero .catch. The <50ms reveal
+  // latency CI gate lives here — do not regress. See Pitfall 1 in 11-RESEARCH.md.
+  if (user) {
+    void supabaseAdmin
+      .from('profiles')
+      .update({ last_activity_at: new Date().toISOString() })
+      .eq('id', user.id)
+  }
+
   return NextResponse.json(responseBody)
 }

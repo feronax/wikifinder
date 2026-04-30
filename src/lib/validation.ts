@@ -90,6 +90,11 @@ export const FeedQuerySchema = z.object({
   lang: LangSchema.optional(),
 }).optional()
 
+// Phase 11 / FR-01 — friends search query validation.
+export const FriendsSearchSchema = z.object({
+  q: z.string().min(2).max(32),
+})
+
 /**
  * Parse et valide un body JSON. Retourne `{ data }` ou `{ error: Response }`.
  * Usage :

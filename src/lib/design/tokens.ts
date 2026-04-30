@@ -44,6 +44,8 @@ export const tokens: { dark: TokenSet; light: TokenSet } = {
     fontHead: "'Geist', 'Inter', system-ui, sans-serif",
     fontBody: "'Geist', 'Inter', system-ui, sans-serif",
     fontUi: "'Geist', 'Inter', system-ui, sans-serif",
+    // design/DESIGN-HANDOFF.md §Typography: article body stays in Source Serif 4 —
+    // product signature (UI sans-serif / contenu serif, comme un journal).
     fontArticle: "'Source Serif 4', 'Source Serif Pro', Georgia, serif",
     density: '1',
   },
@@ -65,6 +67,7 @@ export const tokens: { dark: TokenSet; light: TokenSet } = {
     fontHead: "'Geist', 'Inter', system-ui, sans-serif",
     fontBody: "'Geist', 'Inter', system-ui, sans-serif",
     fontUi: "'Geist', 'Inter', system-ui, sans-serif",
+    // design/DESIGN-HANDOFF.md §Typography: article body stays in Source Serif 4.
     fontArticle: "'Source Serif 4', 'Source Serif Pro', Georgia, serif",
     density: '1',
   },

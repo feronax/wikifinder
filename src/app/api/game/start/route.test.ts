@@ -51,6 +51,15 @@ vi.mock('@/lib/supabase-admin', () => ({
           }),
         }
       }
+      if (table === 'profiles') {
+        // Phase 11 / FR-04 — fire-and-forget presence write. Mock the chain so it
+        // doesn't throw synchronously and bubble into the 500 catch in handleDuelStart.
+        return {
+          update: vi.fn(() => ({
+            eq: vi.fn(async () => ({ error: null })),
+          })),
+        }
+      }
       if (table === 'games') {
         return {
           select: vi.fn(() => ({
