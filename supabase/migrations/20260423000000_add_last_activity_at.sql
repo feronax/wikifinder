@@ -15,10 +15,12 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS last_activity_at timestamptz;
 
 -- Partial index for presence "online" queries (≤5 min window per D-05).
--- Filtered to last 7 days to keep index small.
+-- Filtered to non-null entries (most rows are NULL until first play) to keep
+-- index small. Cannot use now()-based predicate — Postgres requires IMMUTABLE
+-- functions in index predicates (42P17).
 CREATE INDEX IF NOT EXISTS idx_profiles_last_activity_recent
   ON public.profiles (last_activity_at DESC)
-  WHERE last_activity_at > now() - interval '7 days';
+  WHERE last_activity_at IS NOT NULL;
 
 -- Invariant: column must exist after migration.
 DO $$
