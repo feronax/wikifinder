@@ -1,8 +1,11 @@
 'use client'
-// Phase 11 / D-10 — thin flag-gate shim. Legacy body extracted byte-identical
-// to ./LegacyHistoryScreen.tsx. Plan 09 will add the isNew ? New : Legacy branch.
+// Phase 11 / D-10 — flag-gate branch. Legacy body preserved byte-identical in ./LegacyHistoryScreen.tsx.
+import { useNewDesignFlag } from '@/lib/feature-flags-client'
+import NewHistoryScreen from '@/components/screens/new/NewHistoryScreen'
 import LegacyHistoryScreen from './LegacyHistoryScreen'
 
 export default function HistoryPage() {
-  return <LegacyHistoryScreen />
+  const isNew = useNewDesignFlag()
+  if (!isNew) return <LegacyHistoryScreen />
+  return <NewHistoryScreen lang="fr" />
 }

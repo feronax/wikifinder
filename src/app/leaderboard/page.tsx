@@ -1,8 +1,11 @@
 'use client'
-// Phase 11 / D-10 — thin flag-gate shim. Legacy body extracted byte-identical
-// to ./LegacyLeaderboardScreen.tsx. Plan 09 will add the isNew ? New : Legacy branch.
+// Phase 11 / D-10 — flag-gate branch. Legacy body preserved byte-identical in ./LegacyLeaderboardScreen.tsx.
+import { useNewDesignFlag } from '@/lib/feature-flags-client'
+import NewLeaderboardScreen from '@/components/screens/new/NewLeaderboardScreen'
 import LegacyLeaderboardScreen from './LegacyLeaderboardScreen'
 
 export default function LeaderboardPage() {
-  return <LegacyLeaderboardScreen />
+  const isNew = useNewDesignFlag()
+  if (!isNew) return <LegacyLeaderboardScreen />
+  return <NewLeaderboardScreen lang="fr" />
 }
