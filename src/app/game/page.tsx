@@ -1466,7 +1466,7 @@ export default function GamePage() {
 
                     {won && duelId && (
                         <div style={{
-                            marginBottom: 16, padding: 16, borderRadius: 8,
+                            marginTop: 24, marginBottom: 16, padding: 16, borderRadius: 8,
                             backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--accent)',
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                         }}>
