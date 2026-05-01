@@ -58,7 +58,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  // maximumScale removed — disabling zoom violates WCAG 1.4.4 (Resize Text)
+  // and was the only `meta-viewport` axe-core violation across all pages.
+  // Users who need to pinch-zoom for legibility now can.
   // Browser chrome tint. Picks the minimal-amber bg when the new-design flag
   // is set; else stays on the legacy green for backwards compat.
   themeColor: [
