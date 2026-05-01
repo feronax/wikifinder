@@ -22,7 +22,6 @@ import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay'
 import PushOptInSheet from '@/components/notifications/PushOptInSheet'
 import ChallengeButton from '@/components/duel/ChallengeButton'
 import DuelToast from '@/components/duel/DuelToast'
-import { useNewDesignFlag } from '@/lib/feature-flags-client'
 import NewGameScreen from '@/components/game/new/NewGameScreen'
 import NewGameScreenMobile from '@/components/game/new/mobile/NewGameScreenMobile'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
@@ -183,12 +182,13 @@ export default function GamePage() {
     }, [])
 
     // Phase 12 / Plan 05 — first-visit auto-show OnboardingModal when
-    // wf_onboarded_v1 localStorage gate is absent (D-06). Gated by the
-    // newDesignOn flag so the legacy OnboardingOverlay still owns the
-    // !newDesignOn branch (D-19 strict swap). Mount-once: empty dep
-    // array. SSR-safe: localStorage read inside the effect only.
+    // wf_onboarded_v1 localStorage gate is absent (D-06). Phase 13/06:
+    // flag-purge — the legacy OnboardingOverlay still owns the
+    // survival/duel branch (auto-show suppressed there to avoid double
+    // mount). Mount-once: empty dep array. SSR-safe: localStorage read
+    // inside the effect only.
     useEffect(() => {
-        if (!newDesignOn) return
+        if (isSurvival || duelId) return
         if (typeof window === 'undefined') return
         try {
             if (localStorage.getItem('wf_onboarded_v1') !== '1') {
@@ -203,7 +203,6 @@ export default function GamePage() {
     const t = translations[lang]
 
     const [authReady, setAuthReady] = useState(false)
-    const newDesignOn = useNewDesignFlag()
 
     useEffect(() => {
         supabase.auth.getUser().then(async ({ data }) => {
@@ -1093,7 +1092,7 @@ export default function GamePage() {
     // render the NewGameScreen tree. Scope: daily game screen only — survival + duel paths
     // stay on the legacy tree this phase (Phase 10+ rework). Flag OFF ⇒ branch skipped ⇒
     // legacy tree below renders byte-identically.
-    if (newDesignOn && !isSurvival && !duelId) {
+    if (!isSurvival && !duelId) {
         // Fetch /api/game/guess and apply revealedTokens/revealedTitleIndices to
         // gameState. Mirrors the legacy submit handler (lines 716-791) — without
         // this the body words never unmask in the flag-on path because the server
