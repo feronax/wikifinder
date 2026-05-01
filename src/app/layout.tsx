@@ -131,7 +131,13 @@ export default async function RootLayout({
                 </div>
               </ErrorBoundary>
               <ScrollToTop />
-              <FeedbackButton />
+              {/* Phase 12 / Plan 05 — D-15: legacy corner FeedbackButton
+                  is hidden when the new-design flag is on. The new
+                  FeedbackModal (mounted by app/game/page.tsx in the
+                  newDesignOn branch) replaces it via the burger menu
+                  entry point. D-19 keeps the file on disk; deletion
+                  + flag removal are deferred to Phase 13. */}
+              {!newDesignOn && <FeedbackButton />}
               <InstallBanner />
               <ServiceWorkerRegistrar />
             </LangProvider>

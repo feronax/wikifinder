@@ -26,6 +26,8 @@ import { useNewDesignFlag } from '@/lib/feature-flags-client'
 import NewGameScreen from '@/components/game/new/NewGameScreen'
 import NewGameScreenMobile from '@/components/game/new/mobile/NewGameScreenMobile'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
+import OnboardingModal from '@/components/game/new/modals/OnboardingModal'
+import FeedbackModal from '@/components/game/new/modals/FeedbackModal'
 import { GameState, translations } from './types'
 
 // Survival-mode translations (UI-SPEC §Copywriting Contract — FR + EN parity)
@@ -112,6 +114,15 @@ export default function GamePage() {
     const [badgeNotifications, setBadgeNotifications] = useState<{ key: string; name: string; icon: string; rarity: string }[]>([])
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
     const [duelToast, setDuelToast] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
+    // Phase 12 / Plan 05 — modal open-state for the new-design tree.
+    // Hoisted to the top with sibling useState hooks (rules-of-hooks);
+    // unused on the legacy/!newDesignOn path. Pitfall 5: setState here
+    // does NOT bubble re-renders through ArticleBody during reveals —
+    // the values only change on modal open/close (post-win or burger
+    // tap), never during the sacred guess pipeline. Reveal-latency CI
+    // gate (e2e/daily-game-new-ui.spec.ts) is the binding non-regression.
+    const [onboardingOpen, setOnboardingOpen] = useState(false)
+    const [feedbackOpen, setFeedbackOpen] = useState(false)
     const [duelId, setDuelId] = useState<string | null>(null)
     // Phase 11 gap-fix: distinguish ?duel= URL param from a successfully loaded
     // duel-mode game. The "Duel terminé" banner must only show when the actual
@@ -164,6 +175,22 @@ export default function GamePage() {
         return () => {
             if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
         }
+    }, [])
+
+    // Phase 12 / Plan 05 — first-visit auto-show OnboardingModal when
+    // wf_onboarded_v1 localStorage gate is absent (D-06). Gated by the
+    // newDesignOn flag so the legacy OnboardingOverlay still owns the
+    // !newDesignOn branch (D-19 strict swap). Mount-once: empty dep
+    // array. SSR-safe: localStorage read inside the effect only.
+    useEffect(() => {
+        if (!newDesignOn) return
+        if (typeof window === 'undefined') return
+        try {
+            if (localStorage.getItem('wf_onboarded_v1') !== '1') {
+                setOnboardingOpen(true)
+            }
+        } catch { /* private mode / quota — silent per CLAUDE.md */ }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
@@ -1254,6 +1281,9 @@ export default function GamePage() {
                         onDuelCreate={handleDuelCreate}
                         username={username}
                         favoriteBadge={favoriteBadge}
+                        onOpenOnboarding={() => setOnboardingOpen(true)}
+                        onOpenFeedback={() => setFeedbackOpen(true)}
+                        revealAll={revealAll}
                     />
                     {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
                         so ChallengeButton's onCreate (wired in P3) has a toast
@@ -1265,6 +1295,21 @@ export default function GamePage() {
                             onDismiss={() => setDuelToast(null)}
                         />
                     )}
+                    {/* Phase 12 / Plan 05 — new-design modals mounted as
+                        page-level siblings (Pattern S7). Strict swap (D-18):
+                        these only appear in the newDesignOn branch; legacy
+                        OnboardingOverlay still mounts in !newDesignOn. */}
+                    <OnboardingModal
+                        open={onboardingOpen}
+                        onClose={() => setOnboardingOpen(false)}
+                        lang={lang}
+                    />
+                    <FeedbackModal
+                        open={feedbackOpen}
+                        onClose={() => setFeedbackOpen(false)}
+                        lang={lang}
+                        gameState={gameState}
+                    />
                 </>
             )
         }
@@ -1301,6 +1346,9 @@ export default function GamePage() {
                     onDuelCreate={handleDuelCreate}
                     username={username}
                     favoriteBadge={favoriteBadge}
+                    onOpenOnboarding={() => setOnboardingOpen(true)}
+                    onOpenFeedback={() => setFeedbackOpen(true)}
+                    revealAll={revealAll}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen
@@ -1312,6 +1360,20 @@ export default function GamePage() {
                         onDismiss={() => setDuelToast(null)}
                     />
                 )}
+                {/* Phase 12 / Plan 05 — new-design modals mounted as
+                    page-level siblings (Pattern S7). D-18 strict swap:
+                    only in the newDesignOn branch. */}
+                <OnboardingModal
+                    open={onboardingOpen}
+                    onClose={() => setOnboardingOpen(false)}
+                    lang={lang}
+                />
+                <FeedbackModal
+                    open={feedbackOpen}
+                    onClose={() => setFeedbackOpen(false)}
+                    lang={lang}
+                    gameState={gameState}
+                />
             </div>
         )
     }
