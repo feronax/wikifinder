@@ -1235,12 +1235,62 @@ export default function GamePage() {
             void syncGuessWithServer(raw, false)
         }
         // Phase 13 / Plan 04 (D-12, MOD-03) — defeat "Voir la solution" CTA
-        // handler. Flips page-level `revealAll` to true, which fires Phase 12
-        // Plan 05's dormant defeat-trigger inside NewGameScreen[Mobile]
-        // (revealAll && !won → ResultModal opens automatically). Sacred:
-        // does NOT modify setRevealAll itself nor the L1613 TitleDisplay
-        // lambda body; this is a zero-cost closure that runs only on click.
-        const handleRevealSolution = () => setRevealAll(true)
+        // handler. Reveals the full article + title client-side, freezes the
+        // timer, and flips revealAll which trips Phase 12 Plan 05's dormant
+        // defeat-trigger inside NewGameScreen[Mobile] (revealAll && !won →
+        // ResultModal opens automatically).
+        const handleRevealSolution = async () => {
+            if (!gameState) return
+            // Freeze the chrono — this is end-of-game, same as winning.
+            setFrozenElapsed(elapsed)
+
+            // Fetch the full body + title token values via /api/game/reveal,
+            // reusing allWordsCache when available.
+            let bodyMap = allWordsCache
+            let titleMap: Map<number, string> | null = null
+            try {
+                const res = await fetch('/api/game/reveal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pageId: gameState.pageData.id, lang }),
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    if (!bodyMap) {
+                        bodyMap = new Map<number, string>()
+                        for (const t of data.revealedAll) bodyMap.set(t.index, t.value)
+                        setAllWordsCache(bodyMap)
+                    }
+                    titleMap = new Map<number, string>()
+                    for (const tw of (data.revealedTitleAll || [])) titleMap.set(tw.index, tw.value)
+                }
+            } catch {}
+
+            // Apply both maps to gameState in one setState so the article
+            // body, the TitleHero and the ResultModal all read the revealed
+            // shape on the same render.
+            setGameState(prev => {
+                if (!prev) return prev
+                const nextTokens = bodyMap
+                    ? prev.tokens.map(token =>
+                        bodyMap!.has(token.index)
+                            ? { ...token, value: bodyMap!.get(token.index)!, visible: true }
+                            : token,
+                    )
+                    : prev.tokens
+                const nextTitleWords = titleMap
+                    ? prev.titleWords.map(tw =>
+                        titleMap!.has(tw.index)
+                            ? { ...tw, value: titleMap!.get(tw.index)!, revealed: true }
+                            : { ...tw, revealed: true },
+                    )
+                    : prev.titleWords.map(tw => ({ ...tw, revealed: true }))
+                return { ...prev, tokens: nextTokens, titleWords: nextTitleWords }
+            })
+
+            // Open the defeat ResultModal via the existing dormant trigger.
+            setRevealAll(true)
+        }
 
         // Phase 13 / Plan 04 (D-12) — defeat predicate. Visible only when
         // (a) the user has not won, (b) revealAll hasn't already been
