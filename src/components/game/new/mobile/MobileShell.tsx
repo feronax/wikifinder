@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, Flame } from 'lucide-react'
 import BurgerDrawer from '@/components/game/new/mobile/BurgerDrawer'
 import BottomTabBar from '@/components/game/new/mobile/BottomTabBar'
 import ActionRowButton from '@/components/game/new/ActionRowButton'
@@ -197,9 +197,12 @@ export default function MobileShell({
               background: 'var(--wf-bg2)',
               fontSize: 12,
               color: 'var(--wf-muted)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
             }}
           >
-            🔥 {streak}
+            <Flame size={14} /> {streak}
           </span>
         ) : null}
       </header>
