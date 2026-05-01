@@ -64,6 +64,16 @@ export interface NewGameScreenMobileProps {
   // Phase 10.3-09 (Gap A) — pseudo + badge row in ResultModal.
   username?: string | null
   favoriteBadge?: string | null
+  // Phase 12 / Plan 05 — pass-through callbacks for OnboardingModal +
+  // FeedbackModal entry points; opened by MobileShell burger drawer
+  // items. Required (page.tsx always supplies them in the newDesignOn
+  // branch).
+  onOpenOnboarding: () => void
+  onOpenFeedback: () => void
+  // Phase 12 / Plan 05 — defeat-state ResultModal trigger. Page-level
+  // `revealAll` flag is plumbed through so the orchestrator can
+  // auto-open the result modal when revealAll && !won (Open Q1 b).
+  revealAll?: boolean
 }
 
 export default function NewGameScreenMobile({
@@ -78,6 +88,9 @@ export default function NewGameScreenMobile({
   onDuelCreate,
   username = null,
   favoriteBadge = null,
+  onOpenOnboarding,
+  onOpenFeedback,
+  revealAll = false,
 }: NewGameScreenMobileProps) {
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
@@ -88,6 +101,20 @@ export default function NewGameScreenMobile({
   // onOpenResult; rendered as sibling of MobileShell so z-index 200 overlays
   // both the 3-tab panels and the FixedBottomInput.
   const [resultOpen, setResultOpen] = useState(false)
+
+  // Phase 12 / Plan 05 — defeat-state ResultModal auto-open trigger
+  // (Open Q1 recommendation b). When the page-level `revealAll` flag
+  // flips true and the user hasn't won, surface the defeat ResultModal
+  // exactly once. Hooks-strict: prev-prop-in-state guards against
+  // re-firing when the modal is later closed manually.
+  const [revealAllSeen, setRevealAllSeen] = useState(false)
+  if (revealAll && !gameState.won && !revealAllSeen) {
+    setRevealAllSeen(true)
+    setResultOpen(true)
+  }
+  if (!revealAll && revealAllSeen) {
+    setRevealAllSeen(false)
+  }
 
   // Streak fetch (D-01/D-01a/D-01b): inline — no shared hook. Narrower than
   // Header.tsx:59-77 (no profile fetch; we only need streak for the pill).
@@ -241,6 +268,8 @@ export default function NewGameScreenMobile({
       onLangChange={onLangChange}
       streak={streak}
       onDuelCreate={onDuelCreate}
+      onOpenOnboarding={onOpenOnboarding}
+      onOpenFeedback={onOpenFeedback}
     >
       {/* Jeu tab — TitleHero + StatsCard progress + chip strip + ArticleBody */}
       <div ref={jeuRef} style={panelBaseStyle('jeu')}>

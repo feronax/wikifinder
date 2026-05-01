@@ -58,6 +58,10 @@ export interface MobileShellProps {
   // Phase 10.3-08 — mobile Actions section reduced to single Défier button
   // (Indice + Abandonner removed per UAT scope change, Gaps B + C).
   onDuelCreate: () => Promise<void>
+  // Phase 12 / Plan 05 — burger entry points for OnboardingModal +
+  // FeedbackModal (D-15 D-03). Required props on this shell.
+  onOpenOnboarding: () => void
+  onOpenFeedback: () => void
   children: React.ReactNode
 }
 
@@ -69,6 +73,8 @@ export default function MobileShell({
   onLangChange,
   streak = 0,
   onDuelCreate,
+  onOpenOnboarding,
+  onOpenFeedback,
   children,
 }: MobileShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -150,7 +156,7 @@ export default function MobileShell({
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            aria-label="Open navigation"
+            aria-label="Open menu"
             style={{
               background: 'transparent',
               border: 'none',
@@ -302,6 +308,56 @@ export default function MobileShell({
             gap: 8,
           }}
         >
+          {/* Phase 12 / Plan 05 — burger entry points (D-15, D-03).
+              Pattern S6: closeDrawer() BEFORE onOpenX() synchronously so
+              the drawer focus-trap releases before the modal opens
+              (Pitfall 6 mitigation). Raw <button> instead of
+              ActionRowButton so we can attach data-testid for the
+              Plan-01 specs. */}
+          <button
+            type="button"
+            data-testid="burger-howtoplay"
+            onClick={() => { closeDrawer(); onOpenOnboarding() }}
+            aria-label={lang === 'fr' ? 'Comment jouer' : 'How to play'}
+            style={{
+              padding: '12px 24px',
+              minHeight: 44,
+              borderRadius: 8,
+              border: '1px solid var(--wf-border)',
+              backgroundColor: 'transparent',
+              color: 'var(--wf-ink)',
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--wf-font-ui)',
+              textAlign: 'left',
+              width: '100%',
+            }}
+          >
+            {lang === 'fr' ? 'Comment jouer' : 'How to play'}
+          </button>
+          <button
+            type="button"
+            data-testid="burger-feedback"
+            onClick={() => { closeDrawer(); onOpenFeedback() }}
+            aria-label={lang === 'fr' ? 'Signaler un problème' : 'Send feedback'}
+            style={{
+              padding: '12px 24px',
+              minHeight: 44,
+              borderRadius: 8,
+              border: '1px solid var(--wf-border)',
+              backgroundColor: 'transparent',
+              color: 'var(--wf-ink)',
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--wf-font-ui)',
+              textAlign: 'left',
+              width: '100%',
+            }}
+          >
+            {lang === 'fr' ? 'Signaler un problème' : 'Send feedback'}
+          </button>
           <ActionRowButton
             label={lang === 'fr' ? 'Défier un ami' : 'Challenge a friend'}
             onClick={async () => { closeDrawer(); await onDuelCreate() }}

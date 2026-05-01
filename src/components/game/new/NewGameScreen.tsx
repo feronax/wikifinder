@@ -32,6 +32,14 @@ export interface NewGameScreenProps {
   // `favoriteBadge` null when user has no equipped badge → emoji is omitted.
   username?: string | null
   favoriteBadge?: string | null
+  // Phase 12 / Plan 05 — burger entry callbacks for parity with mobile.
+  // Desktop has no overflow menu yet (deferred surface per RESEARCH
+  // "Component Responsibilities"); props plumbed for prop-shape parity
+  // so page.tsx can pass them uniformly to both screens.
+  onOpenOnboarding?: () => void
+  onOpenFeedback?: () => void
+  // Phase 12 / Plan 05 — defeat-state ResultModal trigger.
+  revealAll?: boolean
 }
 
 // Local chrono formatter — mm:ss (e.g. 125 -> "2:05"). Mirrors
@@ -69,11 +77,27 @@ export default function NewGameScreen({
   streak = null,
   username = null,
   favoriteBadge = null,
+  revealAll = false,
 }: NewGameScreenProps) {
   // Phase 10.3 P4 — ResultModal open-state. Opened by the new TitleHero
   // "Voir le résultat" banner via onOpenResult. TitleHero is consumed
   // indirectly via CenterArticle; pass onOpenResult through to it below.
   const [resultOpen, setResultOpen] = useState(false)
+
+  // Phase 12 / Plan 05 — defeat-state ResultModal auto-open trigger
+  // (Open Q1 recommendation b). When page-level `revealAll` flips true
+  // and the user hasn't won, open the result modal exactly once. The
+  // prev-prop-in-state pattern (React docs §"Adjusting state when a
+  // prop changes") guards against re-firing if the modal is closed.
+  const [revealAllSeen, setRevealAllSeen] = useState(false)
+  if (revealAll && !gameState.won && !revealAllSeen) {
+    setRevealAllSeen(true)
+    setResultOpen(true)
+  }
+  if (!revealAll && revealAllSeen) {
+    setRevealAllSeen(false)
+  }
+
   const chrono = formatChrono(elapsed)
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
