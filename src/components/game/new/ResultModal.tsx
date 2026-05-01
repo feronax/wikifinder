@@ -54,9 +54,33 @@ export default function ResultModal({
   username = null,
   favoriteBadge = null,
 }: ResultModalProps) {
-  // Score at render time (D-05). Pure derivation — matches the server-side
-  // scoring used for the leaderboard.
-  const score = calculateScore(gameState.guessCount, gameState.won)
+  // Score at render time (D-05). Pitfall 4 (Phase 12 RESEARCH): never compute
+  // score on the defeat branch — D-08 explicitly says no score row on loss.
+  // Calling calculateScore with won=false returns 0 anyway, but we keep the
+  // computation gated behind `gameState.won` so future scoring changes can't
+  // accidentally surface non-zero defeat scores.
+  const score = gameState.won ? calculateScore(gameState.guessCount, gameState.won) : 0
+
+  // Phase 12 / Plan 04 (MOD-02 D-08): defeat-branch revealed-% stat. Computed
+  // from local tokens — body words = type==='word' && !isStopword. Visible
+  // tokens (stopwords / always-visible) and tokens with a `value` populated
+  // count as revealed. Token type uses `value: string` (always present per
+  // game/types.ts), so we treat empty-string as the masked sentinel.
+  const revealedPct = (() => {
+    const bodyWords = gameState.tokens.filter(
+      (t) => t.type === 'word' && !t.isStopword,
+    )
+    if (bodyWords.length === 0) return 100
+    const revealed = bodyWords.filter(
+      (t) => t.visible === true || (t.value !== undefined && t.value !== ''),
+    ).length
+    return Math.round((revealed / bodyWords.length) * 100)
+  })()
+
+  // Defeat heading: neutral "Article : {title}" / "Article: {title}" (D-09).
+  // Title reconstructed from titleWords — same accessor used by the share
+  // card's masked-title strip (line 89 above).
+  const revealedTitle = gameState.titleWords.map((tw) => tw.value).join(' ')
 
   // Wikipedia link comes straight from pageData (D-06 + RESEARCH Q2). The
   // `pageData` type is `any` per game/types.ts, so guard against null/undef.
@@ -105,8 +129,10 @@ export default function ResultModal({
 
   return (
     <ModalShell open={open} onClose={onClose} ariaLabelledBy="result-modal-heading">
+      <div data-testid="result-modal">
       <h2
         id="result-modal-heading"
+        data-testid="result-heading"
         style={{
           margin: 0,
           marginRight: 40, // leave room for the close-X
@@ -117,14 +143,18 @@ export default function ResultModal({
           lineHeight: 1.2,
         }}
       >
-        {lang === 'fr' ? 'Article trouvé !' : 'Article found!'}
+        {gameState.won
+          ? (lang === 'fr' ? 'Article trouvé !' : 'Article found!')
+          : (lang === 'fr' ? `Article : ${revealedTitle}` : `Article: ${revealedTitle}`)}
       </h2>
 
       {/* Phase 10.3-09 (Gap A) — pseudo + badge identity row. Hidden for
           anonymous users (username === null). Badge emoji omitted when
           favoriteBadge is null; pseudo still renders. Placement: directly
-          under the heading, above the 3-stat row, per plan default. */}
-      {username && (
+          under the heading, above the 3-stat row, per plan default.
+          Phase 12 / Plan 04: hidden on defeat branch (D-08 — identity row
+          is rank/score-adjacent surface). */}
+      {gameState.won && username && (
         <div
           style={{
             display: 'flex',
@@ -154,11 +184,11 @@ export default function ResultModal({
           marginTop: 16,
         }}
       >
-        <div>
+        <div data-testid="result-stat-tries">
           <div style={labelStyle}>{lang === 'fr' ? 'Tentatives' : 'Attempts'}</div>
           <div style={numberStyle}>{gameState.guessCount}</div>
         </div>
-        <div>
+        <div data-testid="result-stat-time">
           <div style={labelStyle}>{lang === 'fr' ? 'Temps' : 'Time'}</div>
           <div
             style={{
@@ -169,13 +199,73 @@ export default function ResultModal({
             {chrono}
           </div>
         </div>
-        <div>
-          <div style={labelStyle}>{lang === 'fr' ? 'Points' : 'Score'}</div>
-          <div style={numberStyle}>{score}</div>
-        </div>
+        {gameState.won && (
+          <div data-testid="result-stat-score">
+            <div style={labelStyle}>{lang === 'fr' ? 'Points' : 'Score'}</div>
+            <div style={numberStyle}>{score}</div>
+          </div>
+        )}
+        {!gameState.won && (
+          <div data-testid="result-stat-revealed">
+            <div style={labelStyle}>{lang === 'fr' ? 'Révélé' : 'Revealed'}</div>
+            <div style={numberStyle}>{revealedPct}%</div>
+          </div>
+        )}
       </div>
 
-      <div style={{ marginTop: 20 }}>
+      {/* Phase 12 / Plan 04 (D-07): win-only Rejouer + Voir classement CTAs.
+          Routes per RESEARCH Open Q3 (/leaderboard) and Open Q4 (/ranked). */}
+      {gameState.won && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <a
+            data-testid="result-cta-rejouer"
+            href="/ranked"
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              padding: '10px 14px',
+              minHeight: 44,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--wf-accent)',
+              color: 'var(--wf-accent-ink, #ffffff)',
+              borderRadius: 8,
+              textDecoration: 'none',
+              fontFamily: 'var(--wf-font-ui)',
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            {lang === 'fr' ? 'Rejouer' : 'Play again'}
+          </a>
+          <a
+            data-testid="result-cta-leaderboard"
+            href="/leaderboard"
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              padding: '10px 14px',
+              minHeight: 44,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              color: 'var(--wf-ink)',
+              border: '1px solid var(--wf-border)',
+              borderRadius: 8,
+              textDecoration: 'none',
+              fontFamily: 'var(--wf-font-ui)',
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            {lang === 'fr' ? 'Voir classement' : 'Leaderboard'}
+          </a>
+        </div>
+      )}
+
+      <div data-testid="result-share-button" style={{ marginTop: 20 }}>
         <DailyShareCard
           streak={streak}
           score={score}
@@ -185,6 +275,8 @@ export default function ResultModal({
           shareText={shareText}
           altText={altText}
           label={shareLabel}
+          won={gameState.won}
+          guesses={gameState.guessCount}
         />
       </div>
 
@@ -212,6 +304,7 @@ export default function ResultModal({
           {lang === 'fr' ? 'Lire sur Wikipédia' : 'Read on Wikipedia'}
         </a>
       )}
+      </div>
     </ModalShell>
   )
 }
