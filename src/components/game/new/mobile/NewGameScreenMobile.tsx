@@ -156,12 +156,13 @@ export default function NewGameScreenMobile({
     return s
   }, [gameState.guesses])
 
-  // foundWordsByRecency: found guesses raw .word, most-recent-first
+  // foundWordsByRecency: found guesses raw .word, most-recent-first.
+  // gameState.guesses is already newest-first (page.tsx prepends new entries
+  // via [{word, found}, ...prev.guesses]) — no .reverse() needed.
   const foundWordsByRecency = useMemo(() => {
     return gameState.guesses
       .filter((g) => g.found)
       .map((g) => g.word)
-      .reverse()
   }, [gameState.guesses])
 
   // triedSet: normalized values for ALL guesses (found + missed) — duplicate guard
@@ -171,12 +172,17 @@ export default function NewGameScreenMobile({
     return s
   }, [gameState.guesses])
 
-  // missed entries (most recent first)
+  // triedWordsByRecency: ALL guesses (found + missed) raw .word, most-recent-first.
+  // Source for ArrowUp/Down history navigation in GuessInput.
+  const triedWordsByRecency = useMemo(() => {
+    return gameState.guesses.map((g) => g.word)
+  }, [gameState.guesses])
+
+  // missed entries (most recent first) — gameState.guesses is already newest-first
   const missed = useMemo<MissedWordEntry[]>(() => {
     return gameState.guesses
       .filter((g) => !g.found)
       .map((g) => ({ display: g.word, normalized: normalize(g.word) }))
-      .reverse()
   }, [gameState.guesses])
 
   // foundEntries — exclude stopwords (see NewGameScreen.tsx note: stopword
@@ -352,6 +358,7 @@ export default function NewGameScreenMobile({
         input={input}
         setInput={setInput}
         foundWordsByRecency={foundWordsByRecency}
+        triedWordsByRecency={triedWordsByRecency}
         triedSet={triedSet}
         onReveal={handleReveal}
         onMiss={onMiss}

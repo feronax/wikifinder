@@ -124,12 +124,13 @@ export default function NewGameScreen({
     return s
   }, [gameState.guesses])
 
-  // foundWordsByRecency: found guesses raw .word, most-recent-first
+  // foundWordsByRecency: found guesses raw .word, most-recent-first.
+  // gameState.guesses is already newest-first (new entries are prepended in
+  // page.tsx via [{word, found}, ...prev.guesses]) — no .reverse() needed.
   const foundWordsByRecency = useMemo(() => {
     return gameState.guesses
       .filter((g) => g.found)
       .map((g) => g.word)
-      .reverse()
   }, [gameState.guesses])
 
   // triedSet: normalized values for ALL guesses (found + missed) — duplicate guard
@@ -139,12 +140,17 @@ export default function NewGameScreen({
     return s
   }, [gameState.guesses])
 
-  // missed entries (most recent first)
+  // triedWordsByRecency: ALL guesses (found + missed) raw .word, most-recent-first.
+  // Source for ArrowUp/Down history navigation in GuessInput.
+  const triedWordsByRecency = useMemo(() => {
+    return gameState.guesses.map((g) => g.word)
+  }, [gameState.guesses])
+
+  // missed entries (most recent first) — gameState.guesses is already newest-first
   const missed = useMemo<MissedWordEntry[]>(() => {
     return gameState.guesses
       .filter((g) => !g.found)
       .map((g) => ({ display: g.word, normalized: normalize(g.word) }))
-      .reverse()
   }, [gameState.guesses])
 
   // foundEntries — include occurrences count per word from article tokens.
@@ -214,6 +220,7 @@ export default function NewGameScreen({
                 input,
                 setInput,
                 foundWordsByRecency,
+                triedWordsByRecency,
                 triedSet,
                 onReveal: handleReveal,
                 onMiss,
@@ -259,6 +266,7 @@ export default function NewGameScreen({
               input,
               setInput,
               foundWordsByRecency,
+              triedWordsByRecency,
               triedSet,
               onReveal: handleReveal,
               onMiss,
