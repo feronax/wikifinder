@@ -1,10 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import { DM_Sans, DM_Serif_Display, Geist, Source_Serif_4 } from 'next/font/google'
-import FeedbackButton from '@/components/FeedbackButton'
 import ThemeProvider from '@/components/ThemeProvider'
 import LangProvider from '@/components/LangProvider'
-import { NewDesignProvider } from '@/lib/feature-flags-client'
 import './globals.css'
 import './design-tokens.generated.css'
 import ScrollToTop from '@/components/ScrollToTop'
@@ -77,14 +75,15 @@ export default async function RootLayout({
   const cookieStore = await cookies()
   const langCookie = cookieStore.get('wf_lang')?.value
   const lang: 'fr' | 'en' = langCookie === 'en' ? 'en' : 'fr'
-  // Propagate WF_NEW_DESIGN flag to <html> so globals.css can swap the legacy
-  // palette to the minimal-amber --wf-* tokens on EVERY page, not just /game.
-  const newDesignOn = cookieStore.get('wf_new_design')?.value === '1'
+  // Phase 13 / Plan 06 — POL-05 flag-flip: legacy purge complete. New design
+  // is now the only render path; the `wf_new_design` cookie/env flag is
+  // deprecated (env still set in Vercel prod for the deploy window per D-13;
+  // harmless thereafter). The inline anti-FOUC theme-bootstrap script below
+  // (TH-02) remains the source of truth for `data-theme` on first paint.
   return (
     <html
       lang={lang}
       suppressHydrationWarning
-      {...(newDesignOn ? { 'data-wf-new-design': '1' } : {})}
     >
       <head>
         <link rel="icon" type="image/png" href="/favicon.png" />
@@ -119,30 +118,21 @@ export default async function RootLayout({
       </head>
       <body className={`${dmSans.variable} ${dmSerif.variable} ${geist.variable} ${sourceSerif4.variable}`} suppressHydrationWarning>
         <GoogleTagManager gtmId="GTM-M2QGSL7C" />
-        <NewDesignProvider value={newDesignOn}>
-          <ThemeProvider>
-            <LangProvider initialLang={lang}>
-              <ErrorBoundary>
-                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                  <div style={{ flex: 1 }}>
-                    {children}
-                  </div>
-                  <Footer />
+        <ThemeProvider>
+          <LangProvider initialLang={lang}>
+            <ErrorBoundary>
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                <div style={{ flex: 1 }}>
+                  {children}
                 </div>
-              </ErrorBoundary>
-              <ScrollToTop />
-              {/* Phase 12 / Plan 05 — D-15: legacy corner FeedbackButton
-                  is hidden when the new-design flag is on. The new
-                  FeedbackModal (mounted by app/game/page.tsx in the
-                  newDesignOn branch) replaces it via the burger menu
-                  entry point. D-19 keeps the file on disk; deletion
-                  + flag removal are deferred to Phase 13. */}
-              {!newDesignOn && <FeedbackButton />}
-              <InstallBanner />
-              <ServiceWorkerRegistrar />
-            </LangProvider>
-          </ThemeProvider>
-        </NewDesignProvider>
+                <Footer />
+              </div>
+            </ErrorBoundary>
+            <ScrollToTop />
+            <InstallBanner />
+            <ServiceWorkerRegistrar />
+          </LangProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
