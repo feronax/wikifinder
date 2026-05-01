@@ -1,12 +1,10 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import Header from './Header'
-import { useNewDesignFlag } from '@/lib/feature-flags-client'
 import { useTheme } from './ThemeProvider'
 
-vi.mock('@/lib/feature-flags-client', () => ({
-  useNewDesignFlag: vi.fn(),
-}))
+// Phase 13 / Plan 06 — POL-05 flag-flip: useNewDesignFlag mocking removed.
+// New design is now the only render path; tests reflect the post-purge surface.
 
 vi.mock('./ThemeProvider', () => ({
   useTheme: vi.fn(),
@@ -32,43 +30,8 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/game',
 }))
 
-describe('Header — flag OFF (legacy render, W2 regression)', () => {
+describe('Header — new design (post-flag-flip)', () => {
   beforeEach(() => {
-    vi.mocked(useNewDesignFlag).mockReturnValue(false)
-    vi.mocked(useTheme).mockReturnValue({
-      mode: 'light',
-      theme: 'light',
-      setMode: vi.fn(),
-      toggle: vi.fn(),
-      tokens: {} as never,
-    } as never)
-  })
-
-  afterEach(() => {
-    cleanup()
-  })
-
-  it('renders legacy FR and EN pill buttons', () => {
-    render(<Header lang='fr' onLangChange={vi.fn()} />)
-    expect(screen.getByRole('button', { name: /^fr$/i })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /^en$/i })).toBeTruthy()
-  })
-
-  it('renders the legacy emoji theme-toggle button (🌙 when mode=light)', () => {
-    render(<Header lang='fr' onLangChange={vi.fn()} />)
-    const emojiBtn = screen.getByRole('button', { name: /🌙/ })
-    expect(emojiBtn).toBeTruthy()
-  })
-
-  it('does NOT render the new <ModeToggle /> testid', () => {
-    render(<Header lang='fr' onLangChange={vi.fn()} />)
-    expect(screen.queryByTestId('mode-toggle')).toBeNull()
-  })
-})
-
-describe('Header — flag ON (new design)', () => {
-  beforeEach(() => {
-    vi.mocked(useNewDesignFlag).mockReturnValue(true)
     vi.mocked(useTheme).mockReturnValue({
       mode: 'light',
       theme: 'light',
