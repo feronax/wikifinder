@@ -123,6 +123,11 @@ export default function GamePage() {
     // gate (e2e/daily-game-new-ui.spec.ts) is the binding non-regression.
     const [onboardingOpen, setOnboardingOpen] = useState(false)
     const [feedbackOpen, setFeedbackOpen] = useState(false)
+    // Phase 13 / Plan 03 — POL-02 ARIA announcer (D-05/D-06). Single page-
+    // level state fed by both the body-token reveal site and the title-letter
+    // reveal site. Synchronous setState IS the debounce: each guess produces
+    // exactly one new string and the live region announces on string change.
+    const [revealAnnouncement, setRevealAnnouncement] = useState<string>('')
     const [duelId, setDuelId] = useState<string | null>(null)
     // Phase 11 gap-fix: distinguish ?duel= URL param from a successfully loaded
     // duel-mode game. The "Duel terminé" banner must only show when the actual
@@ -813,9 +818,24 @@ export default function GamePage() {
                         // Animations
                         setJustRevealedTokens(new Set(revealedTokenMap.keys()))
                         safeSetTimeout(() => setJustRevealedTokens(new Set()), 700)
+                        // Phase 13 ARIA announcer — debounced one-shot per guess (D-05/D-06)
+                        const _revealCount = revealedTokens.length
+                        const _firstWord = revealedTokens[0]?.value ?? ''
+                        setRevealAnnouncement(
+                            _revealCount === 1
+                                ? (lang === 'fr' ? `Révélé : ${_firstWord}` : `Revealed: ${_firstWord}`)
+                                : (lang === 'fr' ? `Révélé : ${_revealCount} mots` : `Revealed: ${_revealCount} words`)
+                        )
                         if (revealedTitleIndices && revealedTitleIndices.length > 0) {
                             setJustRevealedTitle(new Set<number>(revealedTitleIndices.map((rt: { index: number }) => rt.index)))
                             safeSetTimeout(() => setJustRevealedTitle(new Set()), 900)
+                            // Phase 13 ARIA announcer — title-letter reveal (same announcer per D-06)
+                            const _titleLetterCount = revealedTitleIndices.length
+                            setRevealAnnouncement(
+                                _titleLetterCount === 1
+                                    ? (lang === 'fr' ? `Lettre du titre révélée : ${revealedTitleIndices[0].value}` : `Title letter revealed: ${revealedTitleIndices[0].value}`)
+                                    : (lang === 'fr' ? `${_titleLetterCount} lettres du titre révélées` : `${_titleLetterCount} title letters revealed`)
+                            )
                         }
 
                         setGameState(prev => {
@@ -1310,6 +1330,20 @@ export default function GamePage() {
                         lang={lang}
                         gameState={gameState}
                     />
+                    {/* Phase 13 / Plan 03 — POL-02 visually-hidden ARIA live region
+                        (D-05). Single page-level region fed by both body-token and
+                        title-letter reveal sites. */}
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                        style={{
+                            position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
+                            overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
+                        }}
+                    >
+                        {revealAnnouncement}
+                    </div>
                 </>
             )
         }
@@ -1374,6 +1408,20 @@ export default function GamePage() {
                     lang={lang}
                     gameState={gameState}
                 />
+                {/* Phase 13 / Plan 03 — POL-02 visually-hidden ARIA live region
+                    (D-05). Single page-level region fed by both body-token and
+                    title-letter reveal sites. */}
+                <div
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    style={{
+                        position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
+                        overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
+                    }}
+                >
+                    {revealAnnouncement}
+                </div>
             </div>
         )
     }
