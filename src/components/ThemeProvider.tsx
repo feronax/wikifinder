@@ -29,11 +29,13 @@ export function useTheme() {
   return useContext(ThemeContext)
 }
 
-function readFlagCookie(): boolean {
-  if (typeof document === 'undefined') return false
-  const match = document.cookie.match(/(?:^|; )wf_new_design=([01])/)
-  return match?.[1] === '1'
-}
+// Phase 13 / Plan 06 — POL-05 flag-flip: the prior `readFlagCookie()` helper
+// (which read wf_new_design as a dark-default seed during the rollout) was
+// removed as part of the legacy purge. D-14 investigation confirmed it read
+// only the wf_new_design cookie; with the flag removed, the seed falls
+// through cleanly to system preference. Saved user preference (wf_prefs.mode)
+// still wins over both. The TH-02 anti-FOUC inline script in app/layout.tsx
+// remains the source of truth for first-paint `data-theme`.
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<Theme>('light')
@@ -45,15 +47,12 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     // internally and deletes the legacy key.
     const local = loadLocalPrefs()
     const saved = local.mode
-    const flagDark = readFlagCookie()
     const systemDark = typeof window !== 'undefined'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches
       : false
     const initial: Theme =
       saved === 'light' || saved === 'dark'
         ? saved
-        : flagDark
-        ? 'dark'
         : systemDark
         ? 'dark'
         : 'light'
