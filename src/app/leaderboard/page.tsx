@@ -1,11 +1,8 @@
 'use client'
-// Phase 11 / D-10 — flag-gate branch. Legacy body preserved byte-identical in ./LegacyLeaderboardScreen.tsx.
-import { useNewDesignFlag } from '@/lib/feature-flags-client'
+// Phase 13 / Plan 06 — POL-05 flag-flip: legacy purge complete. The new
+// design is now the only render path; LegacyLeaderboardScreen.tsx is removed.
 import NewLeaderboardScreen from '@/components/screens/new/NewLeaderboardScreen'
-import LegacyLeaderboardScreen from './LegacyLeaderboardScreen'
 
 export default function LeaderboardPage() {
-  const isNew = useNewDesignFlag()
-  if (!isNew) return <LegacyLeaderboardScreen />
   return <NewLeaderboardScreen lang="fr" />
 }
