@@ -110,9 +110,16 @@ export default function ResultModal({
   // legacy + new-design paths.
   const articleDate: string =
     gameState.pageData?.date || new Date().toISOString().slice(0, 10)
+  // Share-card title masking. On WIN every word is revealed (the player
+  // earned the title). On DEFEAT we mask every non-stopword title word
+  // unconditionally so the share PNG never leaks the answer to other
+  // players who haven't played yet — the share is meant to be stats-only.
+  // (On defeat, gameState.titleWords also carries revealed=true for every
+  // word because of the give-up reveal fix in page.tsx, so we cannot rely
+  // on tw.revealed here.)
   const maskedTitleWords = gameState.titleWords.map((tw) => ({
-    revealed: tw.revealed || gameState.won,
-    text: tw.value,
+    revealed: gameState.won || !!tw.isStopword,
+    text: gameState.won || tw.isStopword ? tw.value : '',
     width: tw.isStopword
       ? Math.max(20, (tw.length || 3) * 13)
       : Math.max(40, (tw.length || 4) * 18),
