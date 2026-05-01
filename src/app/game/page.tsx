@@ -181,22 +181,10 @@ export default function GamePage() {
         }
     }, [])
 
-    // Phase 12 / Plan 05 — first-visit auto-show OnboardingModal when
-    // wf_onboarded_v1 localStorage gate is absent (D-06). Phase 13/06:
-    // flag-purge — the legacy OnboardingOverlay still owns the
-    // survival/duel branch (auto-show suppressed there to avoid double
-    // mount). Mount-once: empty dep array. SSR-safe: localStorage read
-    // inside the effect only.
-    useEffect(() => {
-        if (isSurvival || duelId) return
-        if (typeof window === 'undefined') return
-        try {
-            if (localStorage.getItem('wf_onboarded_v1') !== '1') {
-                setOnboardingOpen(true)
-            }
-        } catch { /* private mode / quota — silent per CLAUDE.md */ }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    // Onboarding modal first-visit auto-show was removed: the home page (/)
+    // now hosts the same tutorial content, so popping the modal on /game is
+    // redundant. The burger-menu "Help" entry still opens it manually via
+    // setOnboardingOpen(true).
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
     const isMobile = useIsMobile()
