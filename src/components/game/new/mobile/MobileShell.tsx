@@ -62,6 +62,10 @@ export interface MobileShellProps {
   // FeedbackModal (D-15 D-03). Required props on this shell.
   onOpenOnboarding: () => void
   onOpenFeedback: () => void
+  // Phase 13 / Plan 04 (D-12, MOD-03) — defeat "Voir la solution" CTA.
+  // Rendered inside the burger drawer Actions section (mobile parity with
+  // desktop ActionRow defeat CTA). Undefined → button hidden.
+  onRevealSolution?: () => void
   children: React.ReactNode
 }
 
@@ -75,6 +79,7 @@ export default function MobileShell({
   onDuelCreate,
   onOpenOnboarding,
   onOpenFeedback,
+  onRevealSolution,
   children,
 }: MobileShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -365,6 +370,16 @@ export default function MobileShell({
             label={lang === 'fr' ? 'Défier un ami' : 'Challenge a friend'}
             onClick={async () => { closeDrawer(); await onDuelCreate() }}
           />
+          {/* Phase 13 / Plan 04 (D-12, MOD-03) — defeat "Voir la solution"
+              CTA, mobile parity with desktop ActionRow. closeDrawer() before
+              invoking preserves the D-15 auto-close pattern. */}
+          {onRevealSolution && (
+            <ActionRowButton
+              label={lang === 'fr' ? 'Voir la solution' : 'See the answer'}
+              variant="destructive"
+              onClick={() => { closeDrawer(); onRevealSolution() }}
+            />
+          )}
         </div>
 
         <div

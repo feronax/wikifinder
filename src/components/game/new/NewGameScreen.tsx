@@ -40,6 +40,10 @@ export interface NewGameScreenProps {
   onOpenFeedback?: () => void
   // Phase 12 / Plan 05 — defeat-state ResultModal trigger.
   revealAll?: boolean
+  // Phase 13 / Plan 04 (D-12, MOD-03) — defeat "Voir la solution" CTA.
+  // Forwarded to ActionRow via LeftStatsColumn.actionRowProps. Undefined
+  // when the game is won or the user can still keep guessing.
+  onRevealSolution?: () => void
 }
 
 // Local chrono formatter — mm:ss (e.g. 125 -> "2:05"). Mirrors
@@ -78,6 +82,7 @@ export default function NewGameScreen({
   username = null,
   favoriteBadge = null,
   revealAll = false,
+  onRevealSolution,
 }: NewGameScreenProps) {
   // Phase 10.3 P4 — ResultModal open-state. Opened by the new TitleHero
   // "Voir le résultat" banner via onOpenResult. TitleHero is consumed
@@ -271,6 +276,7 @@ export default function NewGameScreen({
             actionRowProps={{
               lang,
               onDuelCreate,
+              onRevealSolution,
             }}
           />
           <CenterArticle

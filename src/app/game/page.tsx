@@ -1235,6 +1235,24 @@ export default function GamePage() {
             })
             void syncGuessWithServer(raw, false)
         }
+        // Phase 13 / Plan 04 (D-12, MOD-03) — defeat "Voir la solution" CTA
+        // handler. Flips page-level `revealAll` to true, which fires Phase 12
+        // Plan 05's dormant defeat-trigger inside NewGameScreen[Mobile]
+        // (revealAll && !won → ResultModal opens automatically). Sacred:
+        // does NOT modify setRevealAll itself nor the L1613 TitleDisplay
+        // lambda body; this is a zero-cost closure that runs only on click.
+        const handleRevealSolution = () => setRevealAll(true)
+
+        // Phase 13 / Plan 04 (D-12) — defeat predicate. Visible only when
+        // (a) the user has not won, (b) revealAll hasn't already been
+        // flipped (avoid showing CTA after the user already opened the
+        // defeat modal once), (c) the user has actually played at least
+        // one guess (prevents accidental "give up before starting").
+        // No MAX_ATTEMPTS gate exists in this game (unlimited guesses);
+        // the CTA is therefore an always-available "give up" rather than
+        // a forced end-of-game button.
+        const showRevealCTA = !!gameState && !gameState.won && !revealAll && gameState.guesses.length > 0
+
         // Phase 10.3-06 — Duel creation handler shared by desktop + mobile.
         // Byte-identical to the 10.3-03 inline onDuelCreate (see page.tsx legacy
         // ChallengeButton.onCreate at the equivalent legacy block). Uses the
@@ -1304,6 +1322,7 @@ export default function GamePage() {
                         onOpenOnboarding={() => setOnboardingOpen(true)}
                         onOpenFeedback={() => setFeedbackOpen(true)}
                         revealAll={revealAll}
+                        onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
                     />
                     {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
                         so ChallengeButton's onCreate (wired in P3) has a toast
@@ -1383,6 +1402,7 @@ export default function GamePage() {
                     onOpenOnboarding={() => setOnboardingOpen(true)}
                     onOpenFeedback={() => setFeedbackOpen(true)}
                     revealAll={revealAll}
+                    onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen

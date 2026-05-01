@@ -17,6 +17,8 @@ import { useEffect, useRef, useState } from 'react'
 import { calculateScore, useIsMobile } from '@/lib/utils'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
+import NewSkeleton from '@/components/screens/new/NewSkeleton'
+import NewErrorState from '@/components/screens/new/NewErrorState'
 import RankedRow from './RankedRow'
 
 type Tab = 'daily' | 'ranked' | 'survival'
@@ -176,41 +178,10 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
 
   const rows = cache[tab] || []
 
+  // Phase 13 / Plan 04 (D-10): shared NewErrorState replaces the inline
+  // error block. POL-04: shared error aesthetic across all new screens.
   if (error) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--wf-bg)' }}>
-        <NewDesignHeader lang={lang} />
-        <div
-          style={{
-            maxWidth: 860,
-            margin: '0 auto',
-            padding: containerPadding,
-            textAlign: 'center',
-          }}
-        >
-          <p style={{ color: 'var(--wf-muted)', fontFamily: 'var(--wf-font-ui)', fontSize: 14 }}>
-            {t.error}
-          </p>
-          <button
-            onClick={() => load(tab)}
-            style={{
-              marginTop: 16,
-              padding: '8px 16px',
-              fontSize: 13,
-              fontFamily: 'var(--wf-font-ui)',
-              fontWeight: 500,
-              color: 'var(--wf-ink)',
-              background: 'transparent',
-              border: '1px solid var(--wf-border-strong)',
-              borderRadius: 'var(--wf-radius)',
-              cursor: 'pointer',
-            }}
-          >
-            {t.retry}
-          </button>
-        </div>
-      </div>
-    )
+    return <NewErrorState lang={lang} message={t.error} onRetry={() => load(tab)} />
   }
 
   // Top-3 for podium.

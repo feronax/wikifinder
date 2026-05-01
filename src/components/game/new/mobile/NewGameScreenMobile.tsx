@@ -74,6 +74,10 @@ export interface NewGameScreenMobileProps {
   // `revealAll` flag is plumbed through so the orchestrator can
   // auto-open the result modal when revealAll && !won (Open Q1 b).
   revealAll?: boolean
+  // Phase 13 / Plan 04 (D-12, MOD-03) — defeat "Voir la solution" CTA.
+  // Forwarded to MobileShell where it renders inside the burger drawer
+  // Actions section (parity with desktop ActionRow defeat CTA).
+  onRevealSolution?: () => void
 }
 
 export default function NewGameScreenMobile({
@@ -91,6 +95,7 @@ export default function NewGameScreenMobile({
   onOpenOnboarding,
   onOpenFeedback,
   revealAll = false,
+  onRevealSolution,
 }: NewGameScreenMobileProps) {
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
@@ -270,6 +275,7 @@ export default function NewGameScreenMobile({
       onDuelCreate={onDuelCreate}
       onOpenOnboarding={onOpenOnboarding}
       onOpenFeedback={onOpenFeedback}
+      onRevealSolution={onRevealSolution}
     >
       {/* Jeu tab — TitleHero + StatsCard progress + chip strip + ArticleBody */}
       <div ref={jeuRef} style={panelBaseStyle('jeu')}>

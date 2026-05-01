@@ -12,10 +12,18 @@ import ActionRowButton from './ActionRowButton'
 export interface ActionRowProps {
   lang: 'fr' | 'en'
   onDuelCreate: () => Promise<void>
+  // Phase 13 / Plan 04 (D-12, MOD-03): defeat "Voir la solution" CTA.
+  // Undefined when the game is won OR when the user is still able to keep
+  // guessing — the button is hidden. When provided, clicking flips
+  // page-level revealAll to true, which fires Phase 12 Plan 05's dormant
+  // defeat-trigger (revealAll && !won → ResultModal opens automatically).
+  // No new endpoint, no new state machinery.
+  onRevealSolution?: () => void
 }
 
-export default function ActionRow({ lang, onDuelCreate }: ActionRowProps) {
+export default function ActionRow({ lang, onDuelCreate, onRevealSolution }: ActionRowProps) {
   const defierLabel = lang === 'fr' ? 'Défier un ami' : 'Challenge a friend'
+  const revealLabel = lang === 'fr' ? 'Voir la solution' : 'See the answer'
   return (
     <section
       style={{
@@ -30,6 +38,13 @@ export default function ActionRow({ lang, onDuelCreate }: ActionRowProps) {
       }}
     >
       <ActionRowButton label={defierLabel} onClick={onDuelCreate} />
+      {onRevealSolution && (
+        <ActionRowButton
+          label={revealLabel}
+          variant="destructive"
+          onClick={onRevealSolution}
+        />
+      )}
     </section>
   )
 }

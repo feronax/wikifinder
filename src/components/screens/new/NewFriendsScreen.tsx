@@ -19,6 +19,8 @@ import { Search } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { useIsMobile } from '@/lib/utils'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
+import NewSkeleton from '@/components/screens/new/NewSkeleton'
+import NewErrorState from '@/components/screens/new/NewErrorState'
 
 type SearchResult = {
   user_id: string
@@ -730,45 +732,10 @@ function FollowList(props: {
   }
 
   if (error) {
-    return (
-      <div
-        style={{
-          background: 'var(--wf-surface)',
-          border: '1px solid var(--wf-border)',
-          borderRadius: 'var(--wf-radius-card)',
-          padding: isMobile ? 14 : 20,
-          textAlign: 'center',
-        }}
-      >
-        <p
-          style={{
-            color: 'var(--wf-muted)',
-            fontFamily: 'var(--wf-font-ui)',
-            fontSize: 14,
-            margin: 0,
-          }}
-        >
-          {t.listError}
-        </p>
-        <button
-          onClick={onRetry}
-          style={{
-            marginTop: 12,
-            padding: '8px 16px',
-            fontSize: 13,
-            fontFamily: 'var(--wf-font-ui)',
-            fontWeight: 500,
-            color: 'var(--wf-ink)',
-            background: 'transparent',
-            border: '1px solid var(--wf-border-strong)',
-            borderRadius: 'var(--wf-radius)',
-            cursor: 'pointer',
-          }}
-        >
-          {t.retry}
-        </button>
-      </div>
-    )
+    // Phase 13 / Plan 04 (D-10): shared NewErrorState in headerless mode
+    // (parent NewFriendsScreen already mounts NewDesignHeader). Replaces
+    // the inline retry-button card.
+    return <NewErrorState lang={t === COPY.fr ? 'fr' : 'en'} headerless message={t.listError} onRetry={onRetry} />
   }
 
   const list = friends ?? []
