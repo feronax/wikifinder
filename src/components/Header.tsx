@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { useTheme } from './ThemeProvider'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { useIsMobile } from '@/lib/utils'
-import { useNewDesignFlag } from '@/lib/feature-flags-client'
 import ModeToggle from '@/components/design/ModeToggle'
 
 type HeaderProps = {
@@ -43,9 +41,9 @@ const headerTranslations = {
   },
 }
 
-export default function Header({ lang, onLangChange, user: userProp, username: usernameProp, onLogout: onLogoutProp }: HeaderProps) {
-  const { theme, toggle } = useTheme()
-  const isNew = useNewDesignFlag()
+export default function Header({ lang, user: userProp, username: usernameProp, onLogout: onLogoutProp }: HeaderProps) {
+  // Phase 13/06: legacy emoji theme-toggle replaced by <ModeToggle />.
+  // useTheme dropped here — ModeToggle reads/sets theme via its own hook.
   const pathname = usePathname()
   const [user, setUser] = useState<any>(userProp || null)
   const [username, setUsername] = useState<string | null>(usernameProp || null)
@@ -122,21 +120,6 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
 
         {!isMobile && (
           <nav style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            {!isNew && onLangChange && (
-              <div style={{ display: 'flex', gap: 4 }}>
-                {(['fr', 'en'] as const).map(l => (
-                  <button key={l} onClick={() => onLangChange(l)} style={{
-                    padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)',
-                    backgroundColor: lang === l ? 'var(--accent)' : 'transparent',
-                    color: lang === l ? 'white' : 'var(--text-muted)',
-                    fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: '0.2s',
-                  }}>
-                    {l.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {!ready ? (
               <div className="skeleton" style={{ width: 120, height: 20 }} />
             ) : user ? (
@@ -177,17 +160,7 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
               </a>
             )}
 
-            {isNew ? (
-              <ModeToggle />
-            ) : (
-              <button onClick={toggle} style={{
-                width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)',
-                backgroundColor: 'var(--surface)', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: 15, cursor: 'pointer', transition: '0.2s',
-              }}>
-                {theme === 'light' ? '🌙' : '☀️'}
-              </button>
-            )}
+            <ModeToggle />
           </nav>
         )}
       </div>
@@ -199,21 +172,6 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           display: 'flex', flexDirection: 'column', padding: '16px 20px', gap: 16,
         }}>
-          {!isNew && onLangChange && (
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-              {(['fr', 'en'] as const).map(l => (
-                <button key={l} onClick={() => { onLangChange(l); setIsMenuOpen(false); }} style={{
-                  padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)',
-                  backgroundColor: lang === l ? 'var(--accent)' : 'transparent',
-                  color: lang === l ? 'white' : 'var(--text-muted)',
-                  fontSize: 14, fontWeight: 600, cursor: 'pointer', flex: 1,
-                }}>
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div style={{ height: 1, backgroundColor: 'var(--border)', width: '100%' }} />
 
           {!ready ? (
@@ -259,20 +217,9 @@ export default function Header({ lang, onLangChange, user: userProp, username: u
 
           <div style={{ height: 1, backgroundColor: 'var(--border)', width: '100%' }} />
 
-          {isNew ? (
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <ModeToggle size={44} />
-            </div>
-          ) : (
-            <button onClick={toggle} style={{
-              padding: '10px', borderRadius: 8, border: '1px solid var(--border)',
-              backgroundColor: 'var(--surface)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', gap: 8, fontSize: 15, color: 'var(--text)',
-              fontWeight: 500, cursor: 'pointer',
-            }}>
-              {theme === 'light' ? `🌙 ${t.darkMode}` : `☀️ ${t.lightMode}`}
-            </button>
-          )}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <ModeToggle size={44} />
+          </div>
         </div>
       )}
     </header>
