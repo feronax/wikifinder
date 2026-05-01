@@ -9,6 +9,10 @@ interface GuessInputProps {
   input: string
   setInput: (v: string) => void
   foundWordsByRecency: string[]
+  // ALL guessed words (found + missed), most-recent-first.
+  // Drives ArrowUp/Down history navigation. Optional for back-compat with
+  // the unit test harness; treat absent as empty.
+  triedWordsByRecency?: string[]
   triedSet: Set<string>
   onReveal: (normalizedWord: string, rawWord: string) => void
   onMiss: (word: string) => void
@@ -36,6 +40,7 @@ export default function GuessInput({
   input,
   setInput,
   foundWordsByRecency,
+  triedWordsByRecency,
   triedSet,
   onReveal,
   onMiss,
@@ -45,8 +50,14 @@ export default function GuessInput({
 }: GuessInputProps) {
   const [activeIndex, setActiveIndex] = useState(-1)
   const [shake, setShake] = useState(false)
+  // Shell-style history cursor for ArrowUp/Down navigation through
+  // triedWordsByRecency. -1 means "off the list" (current input is the
+  // user's own typing). Resets to -1 whenever the user types a character
+  // or successfully submits a guess.
+  const [historyIndex, setHistoryIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const safeSetTimeout = useSafeTimeout()
+  const history = triedWordsByRecency ?? []
 
   const suggestions = useMemo(() => {
     const norm = normalize(input)
@@ -81,6 +92,7 @@ export default function GuessInput({
     const inArticle = await isWordInArticle(n)
     setInput('')
     setActiveIndex(-1)
+    setHistoryIndex(-1)
 
     if (inArticle) {
       performance.mark('guess:enter')
@@ -95,17 +107,36 @@ export default function GuessInput({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const n = suggestions.length
-    if (e.key === 'ArrowDown' && n > 0) {
+    // Shell-style history nav: ArrowUp = previous (older) tried word,
+    // ArrowDown = next (newer) toward empty input. Replaces the prior
+    // autocomplete-chip arrow nav per user request — chips remain
+    // clickable but no longer arrow-selectable.
+    if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setActiveIndex(activeIndex < 0 ? 0 : (activeIndex + 1) % n)
-    } else if (e.key === 'ArrowUp' && n > 0) {
+      if (history.length === 0) return
+      const next = historyIndex === -1 ? 0 : Math.min(historyIndex + 1, history.length - 1)
+      setHistoryIndex(next)
+      setInput(history[next])
+      setActiveIndex(-1)
+      return
+    }
+    if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActiveIndex(activeIndex < 0 ? n - 1 : (activeIndex - 1 + n) % n)
-    } else if (e.key === 'Escape') {
+      if (historyIndex <= 0) {
+        setHistoryIndex(-1)
+        setInput('')
+        setActiveIndex(-1)
+        return
+      }
+      const next = historyIndex - 1
+      setHistoryIndex(next)
+      setInput(history[next])
       setActiveIndex(-1)
-    } else if (e.key === 'Tab' && activeIndex >= 0) {
+      return
+    }
+    if (e.key === 'Escape') {
       setActiveIndex(-1)
+      setHistoryIndex(-1)
     }
     // Enter falls through to form's onSubmit
   }
@@ -152,6 +183,9 @@ export default function GuessInput({
           onChange={(e) => {
             setInput(e.target.value)
             setActiveIndex(-1)
+            // User typed — drop out of history navigation so further
+            // ArrowUp presses start fresh from index 0.
+            setHistoryIndex(-1)
           }}
           onKeyDown={handleKeyDown}
           aria-label={copy.aria}
@@ -235,7 +269,15 @@ export default function GuessInput({
                 type="button"
                 role="option"
                 aria-selected={i === activeIndex}
-                onClick={() => void submit(s)}
+                onClick={() => {
+                  // Auto-fill the input instead of re-submitting (the word
+                  // is already in triedSet, so submit() would short-circuit
+                  // into a shake animation — confusing UX).
+                  setInput(s)
+                  setActiveIndex(-1)
+                  setHistoryIndex(-1)
+                  inputRef.current?.focus()
+                }}
                 onMouseEnter={() => setActiveIndex(i)}
                 onMouseLeave={() => setActiveIndex(-1)}
                 style={{

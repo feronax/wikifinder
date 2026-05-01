@@ -17,6 +17,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { Menu, X, Flame } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { useIsMobile } from '@/lib/utils'
@@ -139,7 +140,7 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             style={{ background: 'none', border: 'none', fontSize: 24, color: 'var(--wf-ink)', cursor: 'pointer', padding: 4 }}
           >
-            {isMenuOpen ? '✕' : '☰'}
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         )}
 
@@ -164,8 +165,8 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
                 <a href="/profile" style={{ fontSize: 14, color: 'var(--wf-ink)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {username || user.email}
                   {streak > 0 && (
-                    <span style={{ fontSize: 13, color: 'var(--wf-accent)', fontWeight: 700 }}>
-                      {streak} 🔥
+                    <span style={{ fontSize: 13, color: 'var(--wf-accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Flame size={14} /> {streak}
                     </span>
                   )}
                 </a>
@@ -204,8 +205,8 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
               <a href="/profile" style={{ fontSize: 16, color: 'var(--wf-ink)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {t.myProfile} ({username || user.email})
                 {streak > 0 && (
-                  <span style={{ fontSize: 14, color: 'var(--wf-accent)', fontWeight: 700 }}>
-                    {streak} 🔥
+                  <span style={{ fontSize: 14, color: 'var(--wf-accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Flame size={16} /> {streak}
                   </span>
                 )}
               </a>

@@ -13,6 +13,8 @@
 import { useEffect, useState } from 'react'
 import { calculateScore, useIsMobile } from '@/lib/utils'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
+import NewSkeleton from '@/components/screens/new/NewSkeleton'
+import NewErrorState from '@/components/screens/new/NewErrorState'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 type HistoryEntry = {
@@ -112,73 +114,15 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
 
   const containerPadding = isMobile ? '4px 0 60px' : '32px 24px 80px'
 
-  // Skeleton (functional — D-09): 3 bg2 placeholder rows.
+  // Phase 13 / Plan 04 (D-10): shared primitives replace inline skeleton +
+  // error blocks (3-row placeholder + retry button were duplicates of the
+  // shared <NewSkeleton> / <NewErrorState> components).
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--wf-bg)' }}>
-        <NewDesignHeader lang={lang} />
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: containerPadding }}>
-          <div
-            style={{
-              width: 180,
-              height: isMobile ? 24 : 36,
-              background: 'var(--wf-bg2)',
-              borderRadius: 'var(--wf-radius)',
-              marginBottom: 24,
-            }}
-          />
-          {[0, 1, 2].map(i => (
-            <div
-              key={i}
-              style={{
-                width: '100%',
-                height: 72,
-                background: 'var(--wf-bg2)',
-                borderRadius: 'var(--wf-radius-card)',
-                marginBottom: 10,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-    )
+    return <NewSkeleton lang={lang} blocks={[72, 72, 72]} />
   }
 
   if (error) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--wf-bg)' }}>
-        <NewDesignHeader lang={lang} />
-        <div
-          style={{
-            maxWidth: 760,
-            margin: '0 auto',
-            padding: containerPadding,
-            textAlign: 'center',
-          }}
-        >
-          <p style={{ color: 'var(--wf-muted)', fontFamily: 'var(--wf-font-ui)', fontSize: 14 }}>
-            {t.error}
-          </p>
-          <button
-            onClick={load}
-            style={{
-              marginTop: 16,
-              padding: '8px 16px',
-              fontSize: 13,
-              fontFamily: 'var(--wf-font-ui)',
-              fontWeight: 500,
-              color: 'var(--wf-ink)',
-              background: 'transparent',
-              border: '1px solid var(--wf-border-strong)',
-              borderRadius: 'var(--wf-radius)',
-              cursor: 'pointer',
-            }}
-          >
-            {t.retry}
-          </button>
-        </div>
-      </div>
-    )
+    return <NewErrorState lang={lang} message={t.error} onRetry={load} />
   }
 
   // Build 30-day heatmap window (today, today-1, …, today-29).

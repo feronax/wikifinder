@@ -32,6 +32,18 @@ export interface NewGameScreenProps {
   // `favoriteBadge` null when user has no equipped badge → emoji is omitted.
   username?: string | null
   favoriteBadge?: string | null
+  // Phase 12 / Plan 05 — burger entry callbacks for parity with mobile.
+  // Desktop has no overflow menu yet (deferred surface per RESEARCH
+  // "Component Responsibilities"); props plumbed for prop-shape parity
+  // so page.tsx can pass them uniformly to both screens.
+  onOpenOnboarding?: () => void
+  onOpenFeedback?: () => void
+  // Phase 12 / Plan 05 — defeat-state ResultModal trigger.
+  revealAll?: boolean
+  // Phase 13 / Plan 04 (D-12, MOD-03) — defeat "Voir la solution" CTA.
+  // Forwarded to ActionRow via LeftStatsColumn.actionRowProps. Undefined
+  // when the game is won or the user can still keep guessing.
+  onRevealSolution?: () => void
 }
 
 // Local chrono formatter — mm:ss (e.g. 125 -> "2:05"). Mirrors
@@ -69,11 +81,28 @@ export default function NewGameScreen({
   streak = null,
   username = null,
   favoriteBadge = null,
+  revealAll = false,
+  onRevealSolution,
 }: NewGameScreenProps) {
   // Phase 10.3 P4 — ResultModal open-state. Opened by the new TitleHero
   // "Voir le résultat" banner via onOpenResult. TitleHero is consumed
   // indirectly via CenterArticle; pass onOpenResult through to it below.
   const [resultOpen, setResultOpen] = useState(false)
+
+  // Phase 12 / Plan 05 — defeat-state ResultModal auto-open trigger
+  // (Open Q1 recommendation b). When page-level `revealAll` flips true
+  // and the user hasn't won, open the result modal exactly once. The
+  // prev-prop-in-state pattern (React docs §"Adjusting state when a
+  // prop changes") guards against re-firing if the modal is closed.
+  const [revealAllSeen, setRevealAllSeen] = useState(false)
+  if (revealAll && !gameState.won && !revealAllSeen) {
+    setRevealAllSeen(true)
+    setResultOpen(true)
+  }
+  if (!revealAll && revealAllSeen) {
+    setRevealAllSeen(false)
+  }
+
   const chrono = formatChrono(elapsed)
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
@@ -95,12 +124,13 @@ export default function NewGameScreen({
     return s
   }, [gameState.guesses])
 
-  // foundWordsByRecency: found guesses raw .word, most-recent-first
+  // foundWordsByRecency: found guesses raw .word, most-recent-first.
+  // gameState.guesses is already newest-first (new entries are prepended in
+  // page.tsx via [{word, found}, ...prev.guesses]) — no .reverse() needed.
   const foundWordsByRecency = useMemo(() => {
     return gameState.guesses
       .filter((g) => g.found)
       .map((g) => g.word)
-      .reverse()
   }, [gameState.guesses])
 
   // triedSet: normalized values for ALL guesses (found + missed) — duplicate guard
@@ -110,12 +140,17 @@ export default function NewGameScreen({
     return s
   }, [gameState.guesses])
 
-  // missed entries (most recent first)
+  // triedWordsByRecency: ALL guesses (found + missed) raw .word, most-recent-first.
+  // Source for ArrowUp/Down history navigation in GuessInput.
+  const triedWordsByRecency = useMemo(() => {
+    return gameState.guesses.map((g) => g.word)
+  }, [gameState.guesses])
+
+  // missed entries (most recent first) — gameState.guesses is already newest-first
   const missed = useMemo<MissedWordEntry[]>(() => {
     return gameState.guesses
       .filter((g) => !g.found)
       .map((g) => ({ display: g.word, normalized: normalize(g.word) }))
-      .reverse()
   }, [gameState.guesses])
 
   // foundEntries — include occurrences count per word from article tokens.
@@ -185,6 +220,7 @@ export default function NewGameScreen({
                 input,
                 setInput,
                 foundWordsByRecency,
+                triedWordsByRecency,
                 triedSet,
                 onReveal: handleReveal,
                 onMiss,
@@ -230,6 +266,7 @@ export default function NewGameScreen({
               input,
               setInput,
               foundWordsByRecency,
+              triedWordsByRecency,
               triedSet,
               onReveal: handleReveal,
               onMiss,
@@ -247,6 +284,7 @@ export default function NewGameScreen({
             actionRowProps={{
               lang,
               onDuelCreate,
+              onRevealSolution,
             }}
           />
           <CenterArticle

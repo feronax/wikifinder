@@ -22,6 +22,12 @@ interface DailyShareCardProps {
     shareText: string
     altText: string
     label: string
+    // Phase 12 / Plan 04 — MOD-02 D-10 defeat variant. Optional + defaults
+    // to true so existing win-path callsites stay byte-identical at the
+    // call site. When false: streak chip suppressed, stats line shows
+    // "X essais — non trouvé" / "X tries — not solved" instead of "Score N".
+    won?: boolean
+    guesses?: number // attempt count for defeat copy; ignored when won
 }
 
 // Forced light-theme palette per UI-SPEC §Surface 5 — share card must render a
@@ -40,8 +46,13 @@ export default function DailyShareCard({
     shareText,
     altText,
     label,
+    won,
+    guesses,
 }: DailyShareCardProps) {
     const ref = useRef<HTMLDivElement>(null)
+    // D-10: defeat variant gate. Default-true preserves byte-identical
+    // behavior for legacy callsites that omit the prop.
+    const isWon = won !== false
 
     async function captureAndShare() {
         if (typeof navigator === 'undefined') return
@@ -195,7 +206,7 @@ export default function DailyShareCard({
                         fontFamily: "'DM Serif Display', serif",
                     }}
                 >
-                    {streak !== null && streak > 0 && (
+                    {isWon && streak !== null && streak > 0 && (
                         <span
                             style={{
                                 background: LIGHT_ACCENT,
@@ -210,7 +221,9 @@ export default function DailyShareCard({
                         </span>
                     )}
                     <span style={{ fontWeight: 600 }}>
-                        {lang === 'fr' ? `Score ${score.toLocaleString()}` : `Score ${score.toLocaleString()}`}
+                        {isWon
+                            ? (lang === 'fr' ? `Score ${score.toLocaleString()}` : `Score ${score.toLocaleString()}`)
+                            : (lang === 'fr' ? `${guesses ?? 0} essais \u2014 non trouv\u00e9` : `${guesses ?? 0} tries \u2014 not solved`)}
                     </span>
                 </div>
 

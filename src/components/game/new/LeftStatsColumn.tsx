@@ -9,6 +9,7 @@ interface GuessInputProps {
   input: string
   setInput: (v: string) => void
   foundWordsByRecency: string[]
+  triedWordsByRecency: string[]
   triedSet: Set<string>
   onReveal: (normalizedWord: string, rawWord: string) => void
   onMiss: (word: string) => void

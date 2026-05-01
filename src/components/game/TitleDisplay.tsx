@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { Flame } from 'lucide-react'
 import { TitleWord } from '@/app/game/types'
 
 type SeasonUpdateData = {
@@ -159,7 +160,7 @@ export default function TitleDisplay({
             {won && streak !== null && streak > 0 && (
                 <div style={scoreBoxStyle}>
                     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Streak</div>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{streak} 🔥</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Flame size={20} /> {streak}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{lang === 'fr' ? (streak === 1 ? 'jour' : 'jours') : (streak === 1 ? 'day' : 'days')}</div>
                 </div>
             )}

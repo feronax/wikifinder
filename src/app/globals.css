@@ -42,15 +42,16 @@
 }
 
 /*
- * New-design palette bridge — when WF_NEW_DESIGN is on (wf_new_design=1 cookie
- * propagated to <html data-wf-new-design="1">), map the legacy color tokens
- * onto the --wf-* minimal-amber palette so EVERY page inherits the new theme,
- * not just /game. This keeps legacy components (Header, Footer, auth pages,
- * etc.) from clashing with the new body. Legacy-only tokens like
- * --bg-secondary / --revealed / --masked fall back to --wf-bg2 since there's
- * no direct equivalent in the new palette. Source: design/DESIGN-HANDOFF.md §2.
+ * New-design palette bridge — Phase 13/06 POL-05 flag-flip: legacy purge
+ * complete; this bridge is now unconditional. Maps legacy color tokens onto
+ * the --wf-* minimal-amber palette so EVERY page inherits the new theme,
+ * not just /game. Keeps legacy components (Header on faq/privacy/auth/admin/
+ * duel/[id]/player/[username]/not-found, Footer, etc.) from clashing with the
+ * new body. Legacy-only tokens like --bg-secondary / --revealed / --masked
+ * fall back to --wf-bg2 since there's no direct equivalent in the new
+ * palette. Source: design/DESIGN-HANDOFF.md §2.
  */
-[data-wf-new-design="1"] {
+:root {
     --bg: var(--wf-bg);
     --bg-secondary: var(--wf-bg2);
     --surface: var(--wf-bg2);
@@ -361,4 +362,27 @@ button, a {
    desktop reveal animations. Keeps useRevealAnimation untouched. */
 [data-word] {
   scroll-margin-block-end: calc(var(--wf-kb-inset, 0px) + 100px);
+}
+
+/* ===== Phase 13 POL-01 — global keyboard focus indicator (D-03) =====
+   Single canonical accent ring inherited by every interactive element via the
+   CSS cascade. The rgba is the verbatim hex-lock from GuessInput.tsx:185
+   (proto focus ring). All other tones use var(--wf-accent) so theme switches
+   propagate. No per-component focus styling needed downstream. */
+*:focus-visible {
+  outline: none;
+  border-color: var(--wf-accent);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  border-radius: var(--wf-radius);
+}
+
+/* Buttons / links / chips / segmented pills / tabs — outline variant
+   (no border-color override since these often have no border). */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid var(--wf-accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }

@@ -19,6 +19,8 @@ import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { useIsMobile } from '@/lib/utils'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
+import NewSkeleton from '@/components/screens/new/NewSkeleton'
+import NewErrorState from '@/components/screens/new/NewErrorState'
 import Preferences from '@/app/profile/Preferences'
 
 type ModeStats = {
@@ -155,37 +157,10 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
 
   const containerPadding = isMobile ? '4px 0 60px' : '32px 24px 80px'
 
-  // Functional skeleton (D-09).
+  // Phase 13 / Plan 04 (D-10): shared NewSkeleton primitive replaces the
+  // former inline skeleton block (formerly L156-189).
   if (loading || !user) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--wf-bg)' }}>
-        <NewDesignHeader lang={lang} />
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: containerPadding }}>
-          <div
-            style={{
-              width: 180,
-              height: isMobile ? 24 : 36,
-              background: 'var(--wf-bg2)',
-              borderRadius: 'var(--wf-radius)',
-              marginBottom: 24,
-              marginLeft: isMobile ? 16 : 0,
-            }}
-          />
-          {[100, 220, 140].map((h, i) => (
-            <div
-              key={i}
-              style={{
-                width: '100%',
-                height: h,
-                background: 'var(--wf-bg2)',
-                borderRadius: 'var(--wf-radius-card)',
-                marginBottom: 16,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-    )
+    return <NewSkeleton lang={lang} />
   }
 
   const memberDate = user.created_at

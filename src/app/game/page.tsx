@@ -22,10 +22,11 @@ import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay'
 import PushOptInSheet from '@/components/notifications/PushOptInSheet'
 import ChallengeButton from '@/components/duel/ChallengeButton'
 import DuelToast from '@/components/duel/DuelToast'
-import { useNewDesignFlag } from '@/lib/feature-flags-client'
 import NewGameScreen from '@/components/game/new/NewGameScreen'
 import NewGameScreenMobile from '@/components/game/new/mobile/NewGameScreenMobile'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
+import OnboardingModal from '@/components/game/new/modals/OnboardingModal'
+import FeedbackModal from '@/components/game/new/modals/FeedbackModal'
 import { GameState, translations } from './types'
 
 // Survival-mode translations (UI-SPEC §Copywriting Contract — FR + EN parity)
@@ -112,6 +113,20 @@ export default function GamePage() {
     const [badgeNotifications, setBadgeNotifications] = useState<{ key: string; name: string; icon: string; rarity: string }[]>([])
     const [seasonUpdate, setSeasonUpdate] = useState<{ seasonName: string; totalScore: number; rank: string; rankedScore: number } | null>(null)
     const [duelToast, setDuelToast] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
+    // Phase 12 / Plan 05 — modal open-state for the new-design tree.
+    // Hoisted to the top with sibling useState hooks (rules-of-hooks);
+    // unused on the legacy/!newDesignOn path. Pitfall 5: setState here
+    // does NOT bubble re-renders through ArticleBody during reveals —
+    // the values only change on modal open/close (post-win or burger
+    // tap), never during the sacred guess pipeline. Reveal-latency CI
+    // gate (e2e/daily-game-new-ui.spec.ts) is the binding non-regression.
+    const [onboardingOpen, setOnboardingOpen] = useState(false)
+    const [feedbackOpen, setFeedbackOpen] = useState(false)
+    // Phase 13 / Plan 03 — POL-02 ARIA announcer (D-05/D-06). Single page-
+    // level state fed by both the body-token reveal site and the title-letter
+    // reveal site. Synchronous setState IS the debounce: each guess produces
+    // exactly one new string and the live region announces on string change.
+    const [revealAnnouncement, setRevealAnnouncement] = useState<string>('')
     const [duelId, setDuelId] = useState<string | null>(null)
     // Phase 11 gap-fix: distinguish ?duel= URL param from a successfully loaded
     // duel-mode game. The "Duel terminé" banner must only show when the actual
@@ -165,13 +180,17 @@ export default function GamePage() {
             if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
         }
     }, [])
+
+    // Onboarding modal first-visit auto-show was removed: the home page (/)
+    // now hosts the same tutorial content, so popping the modal on /game is
+    // redundant. The burger-menu "Help" entry still opens it manually via
+    // setOnboardingOpen(true).
     const inputRef = useRef<HTMLInputElement>(null)
     const supabase = createSupabaseBrowserClient()
     const isMobile = useIsMobile()
     const t = translations[lang]
 
     const [authReady, setAuthReady] = useState(false)
-    const newDesignOn = useNewDesignFlag()
 
     useEffect(() => {
         supabase.auth.getUser().then(async ({ data }) => {
@@ -786,9 +805,24 @@ export default function GamePage() {
                         // Animations
                         setJustRevealedTokens(new Set(revealedTokenMap.keys()))
                         safeSetTimeout(() => setJustRevealedTokens(new Set()), 700)
+                        // Phase 13 ARIA announcer — debounced one-shot per guess (D-05/D-06)
+                        const _revealCount = revealedTokens.length
+                        const _firstWord = revealedTokens[0]?.value ?? ''
+                        setRevealAnnouncement(
+                            _revealCount === 1
+                                ? (lang === 'fr' ? `Révélé : ${_firstWord}` : `Revealed: ${_firstWord}`)
+                                : (lang === 'fr' ? `Révélé : ${_revealCount} mots` : `Revealed: ${_revealCount} words`)
+                        )
                         if (revealedTitleIndices && revealedTitleIndices.length > 0) {
                             setJustRevealedTitle(new Set<number>(revealedTitleIndices.map((rt: { index: number }) => rt.index)))
                             safeSetTimeout(() => setJustRevealedTitle(new Set()), 900)
+                            // Phase 13 ARIA announcer — title-letter reveal (same announcer per D-06)
+                            const _titleLetterCount = revealedTitleIndices.length
+                            setRevealAnnouncement(
+                                _titleLetterCount === 1
+                                    ? (lang === 'fr' ? `Lettre du titre révélée : ${revealedTitleIndices[0].value}` : `Title letter revealed: ${revealedTitleIndices[0].value}`)
+                                    : (lang === 'fr' ? `${_titleLetterCount} lettres du titre révélées` : `${_titleLetterCount} title letters revealed`)
+                            )
                         }
 
                         setGameState(prev => {
@@ -1046,7 +1080,7 @@ export default function GamePage() {
     // render the NewGameScreen tree. Scope: daily game screen only — survival + duel paths
     // stay on the legacy tree this phase (Phase 10+ rework). Flag OFF ⇒ branch skipped ⇒
     // legacy tree below renders byte-identically.
-    if (newDesignOn && !isSurvival && !duelId) {
+    if (!isSurvival && !duelId) {
         // Fetch /api/game/guess and apply revealedTokens/revealedTitleIndices to
         // gameState. Mirrors the legacy submit handler (lines 716-791) — without
         // this the body words never unmask in the flag-on path because the server
@@ -1188,6 +1222,74 @@ export default function GamePage() {
             })
             void syncGuessWithServer(raw, false)
         }
+        // Phase 13 / Plan 04 (D-12, MOD-03) — defeat "Voir la solution" CTA
+        // handler. Reveals the full article + title client-side, freezes the
+        // timer, and flips revealAll which trips Phase 12 Plan 05's dormant
+        // defeat-trigger inside NewGameScreen[Mobile] (revealAll && !won →
+        // ResultModal opens automatically).
+        const handleRevealSolution = async () => {
+            if (!gameState) return
+            // Freeze the chrono — this is end-of-game, same as winning.
+            setFrozenElapsed(elapsed)
+
+            // Fetch the full body + title token values via /api/game/reveal,
+            // reusing allWordsCache when available.
+            let bodyMap = allWordsCache
+            let titleMap: Map<number, string> | null = null
+            try {
+                const res = await fetch('/api/game/reveal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pageId: gameState.pageData.id, lang }),
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    if (!bodyMap) {
+                        bodyMap = new Map<number, string>()
+                        for (const t of data.revealedAll) bodyMap.set(t.index, t.value)
+                        setAllWordsCache(bodyMap)
+                    }
+                    titleMap = new Map<number, string>()
+                    for (const tw of (data.revealedTitleAll || [])) titleMap.set(tw.index, tw.value)
+                }
+            } catch {}
+
+            // Apply both maps to gameState in one setState so the article
+            // body, the TitleHero and the ResultModal all read the revealed
+            // shape on the same render.
+            setGameState(prev => {
+                if (!prev) return prev
+                const nextTokens = bodyMap
+                    ? prev.tokens.map(token =>
+                        bodyMap!.has(token.index)
+                            ? { ...token, value: bodyMap!.get(token.index)!, visible: true }
+                            : token,
+                    )
+                    : prev.tokens
+                const nextTitleWords = titleMap
+                    ? prev.titleWords.map(tw =>
+                        titleMap!.has(tw.index)
+                            ? { ...tw, value: titleMap!.get(tw.index)!, revealed: true }
+                            : { ...tw, revealed: true },
+                    )
+                    : prev.titleWords.map(tw => ({ ...tw, revealed: true }))
+                return { ...prev, tokens: nextTokens, titleWords: nextTitleWords }
+            })
+
+            // Open the defeat ResultModal via the existing dormant trigger.
+            setRevealAll(true)
+        }
+
+        // Phase 13 / Plan 04 (D-12) — defeat predicate. Visible only when
+        // (a) the user has not won, (b) revealAll hasn't already been
+        // flipped (avoid showing CTA after the user already opened the
+        // defeat modal once), (c) the user has actually played at least
+        // one guess (prevents accidental "give up before starting").
+        // No MAX_ATTEMPTS gate exists in this game (unlimited guesses);
+        // the CTA is therefore an always-available "give up" rather than
+        // a forced end-of-game button.
+        const showRevealCTA = !!gameState && !gameState.won && !revealAll && gameState.guesses.length > 0
+
         // Phase 10.3-06 — Duel creation handler shared by desktop + mobile.
         // Byte-identical to the 10.3-03 inline onDuelCreate (see page.tsx legacy
         // ChallengeButton.onCreate at the equivalent legacy block). Uses the
@@ -1254,6 +1356,10 @@ export default function GamePage() {
                         onDuelCreate={handleDuelCreate}
                         username={username}
                         favoriteBadge={favoriteBadge}
+                        onOpenOnboarding={() => setOnboardingOpen(true)}
+                        onOpenFeedback={() => setFeedbackOpen(true)}
+                        revealAll={revealAll}
+                        onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
                     />
                     {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
                         so ChallengeButton's onCreate (wired in P3) has a toast
@@ -1265,6 +1371,35 @@ export default function GamePage() {
                             onDismiss={() => setDuelToast(null)}
                         />
                     )}
+                    {/* Phase 12 / Plan 05 — new-design modals mounted as
+                        page-level siblings (Pattern S7). Strict swap (D-18):
+                        these only appear in the newDesignOn branch; legacy
+                        OnboardingOverlay still mounts in !newDesignOn. */}
+                    <OnboardingModal
+                        open={onboardingOpen}
+                        onClose={() => setOnboardingOpen(false)}
+                        lang={lang}
+                    />
+                    <FeedbackModal
+                        open={feedbackOpen}
+                        onClose={() => setFeedbackOpen(false)}
+                        lang={lang}
+                        gameState={gameState}
+                    />
+                    {/* Phase 13 / Plan 03 — POL-02 visually-hidden ARIA live region
+                        (D-05). Single page-level region fed by both body-token and
+                        title-letter reveal sites. */}
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                        style={{
+                            position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
+                            overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
+                        }}
+                    >
+                        {revealAnnouncement}
+                    </div>
                 </>
             )
         }
@@ -1301,6 +1436,10 @@ export default function GamePage() {
                     onDuelCreate={handleDuelCreate}
                     username={username}
                     favoriteBadge={favoriteBadge}
+                    onOpenOnboarding={() => setOnboardingOpen(true)}
+                    onOpenFeedback={() => setFeedbackOpen(true)}
+                    revealAll={revealAll}
+                    onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen
@@ -1312,6 +1451,34 @@ export default function GamePage() {
                         onDismiss={() => setDuelToast(null)}
                     />
                 )}
+                {/* Phase 12 / Plan 05 — new-design modals mounted as
+                    page-level siblings (Pattern S7). D-18 strict swap:
+                    only in the newDesignOn branch. */}
+                <OnboardingModal
+                    open={onboardingOpen}
+                    onClose={() => setOnboardingOpen(false)}
+                    lang={lang}
+                />
+                <FeedbackModal
+                    open={feedbackOpen}
+                    onClose={() => setFeedbackOpen(false)}
+                    lang={lang}
+                    gameState={gameState}
+                />
+                {/* Phase 13 / Plan 03 — POL-02 visually-hidden ARIA live region
+                    (D-05). Single page-level region fed by both body-token and
+                    title-letter reveal sites. */}
+                <div
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    style={{
+                        position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
+                        overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
+                    }}
+                >
+                    {revealAnnouncement}
+                </div>
             </div>
         )
     }

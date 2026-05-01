@@ -26,28 +26,10 @@ export async function proxy(request: NextRequest) {
   // Refresh the auth token — IMPORTANT: ne rien mettre entre createServerClient et getUser
   await supabase.auth.getUser()
 
-  // === WF_NEW_DESIGN flag bridge (D-09, D-10, D-11, D-11a) ===
-  // Derive target value: query-param override wins (for dev/staging), else env.
-  const envFlag: '0' | '1' = process.env.WF_NEW_DESIGN === '1' ? '1' : '0'
-  const queryOverride = request.nextUrl.searchParams.get('wf_new_design')
-  const target: '0' | '1' = queryOverride === '0' || queryOverride === '1' ? queryOverride : envFlag
-  const existing = request.cookies.get('wf_new_design')?.value
-
-  if (existing !== target) {
-    // Same-request visibility (Q1/A5): downstream server components calling
-    // cookies() from 'next/headers' see `target` on this request, not the stale value.
-    request.cookies.set('wf_new_design', target)
-    // Browser persistence.
-    supabaseResponse.cookies.set({
-      name: 'wf_new_design',
-      value: target,
-      path: '/',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 365,
-      httpOnly: false,
-    })
-  }
-  // === end WF_NEW_DESIGN ===
+  // Phase 13 / Plan 06 — POL-05 flag-flip: the wf_new_design cookie-write
+  // bridge was removed here. The new design is now the only render path;
+  // the WF_NEW_DESIGN env var stays set in Vercel prod for the deploy
+  // window (per D-13) but is no longer read by application code.
 
   // === wf_lang Accept-Language seed (D-06, D-06a) ===
   // Set ONCE on first visit per user; never overwrite an existing cookie.

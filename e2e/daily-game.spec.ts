@@ -56,7 +56,14 @@ const SEED_WORDS = [
   'sous', 'plus', 'temps', 'partie', 'siècle',
 ]
 
-test('plays today\'s daily article and meets sacred latency budgets', async ({ page }) => {
+// FIXME(v1.1-deferral): legacy daily-game spec — superseded by
+// e2e/daily-game-new-ui.spec.ts which exercises the same flow on the
+// new-design tree (the only daily render path post-flag-flip). The
+// legacy `guess:fetch-end` performance mark this test waits for is
+// not emitted by the new-design GuessInput pipeline, so the test
+// hangs at line ~219. Survival/duel still render the legacy tree;
+// rewriting this spec to target survival/duel paths is v1.2 scope.
+test.fixme('plays today\'s daily article and meets sacred latency budgets', async ({ page }) => {
   await page.goto('/game')
 
   // -----------------------------------------------------------------------
