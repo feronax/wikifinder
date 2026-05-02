@@ -39,6 +39,16 @@ async function dismissOnboardingIfPresent(page: import('@playwright/test').Page)
 test.describe('MOD-03 Feedback modal', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
+  // Vercel preview deploys load the Axeptio cookie-consent banner via GTM.
+  // The overlay (#axeptio_overlay > .needsclick) intercepts pointer events
+  // and breaks any test that clicks burger-drawer items. Aborting the
+  // Axeptio script + asset requests keeps the banner from mounting at all.
+  // Pattern is reusable — copy this beforeEach into any spec that exercises
+  // page-level click flows.
+  test.beforeEach(async ({ page }) => {
+    await page.route(/axept(?:io)?\.(?:io|eu|com)/i, (route) => route.abort())
+  })
+
   test('opens from burger menu Feedback item', async ({ page, context }) => {
     await setNewDesignFlag(context)
     await page.goto('/game?wf_new_design=1&lang=fr')

@@ -91,6 +91,12 @@ test.describe('MOD-01 Onboarding modal — desktop', () => {
 test.describe('MOD-01 Onboarding modal — mobile burger re-trigger', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
+  // See modals-feedback.spec.ts for context: Axeptio cookie banner
+  // intercepts pointer events on Vercel preview. Block its assets.
+  test.beforeEach(async ({ page }) => {
+    await page.route(/axept(?:io)?\.(?:io|eu|com)/i, (route) => route.abort())
+  })
+
   test('does not auto-show when wf_onboarded_v1 set; burger re-trigger does NOT re-arm gate', async ({ page, context }) => {
     await setNewDesignFlag(context)
     await page.goto('/game?wf_new_design=1&lang=fr')
