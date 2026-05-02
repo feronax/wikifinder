@@ -244,7 +244,7 @@ export default function FeedbackModal({ open, onClose, lang, gameState }: Props)
             role="alert"
             style={{
               marginTop: 8,
-              color: 'var(--wf-accent)',
+              color: 'var(--wf-accent-text-on-light)',
               fontFamily: 'var(--wf-font-ui)',
               fontSize: 13,
             }}
@@ -258,7 +258,7 @@ export default function FeedbackModal({ open, onClose, lang, gameState }: Props)
             role="status"
             style={{
               marginTop: 8,
-              color: 'var(--wf-accent)',
+              color: 'var(--wf-accent-text-on-light)',
               fontFamily: 'var(--wf-font-ui)',
               fontSize: 13,
             }}

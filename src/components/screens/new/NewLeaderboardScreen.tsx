@@ -528,7 +528,7 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
                             fontSize: 10,
                             fontWeight: 600,
                             letterSpacing: 1,
-                            color: 'var(--wf-accent)',
+                            color: 'var(--wf-accent-text-on-light)',
                             textDecoration: 'underline dotted',
                             textUnderlineOffset: 2,
                             flexShrink: 0,
@@ -592,7 +592,7 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
                           fontFamily: 'var(--wf-font-head)',
                           fontWeight: 600,
                           fontSize: isMobile ? 13 : 15,
-                          color: 'var(--wf-accent)',
+                          color: 'var(--wf-accent-text-on-light)',
                           fontVariantNumeric: 'tabular-nums',
                         }}
                       >

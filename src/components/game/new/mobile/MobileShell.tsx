@@ -195,7 +195,7 @@ export default function MobileShell({
             }}
           >
             <span style={{ color: 'var(--wf-ink)' }}>Wiki</span>
-            <span style={{ color: 'var(--wf-accent)' }}>finder</span>
+            <span style={{ color: 'var(--wf-accent-text-on-light)' }}>finder</span>
           </span>
         </div>
 
@@ -258,7 +258,7 @@ export default function MobileShell({
             }}
           >
             <span style={{ color: 'var(--wf-ink)' }}>Wiki</span>
-            <span style={{ color: 'var(--wf-accent)' }}>finder</span>
+            <span style={{ color: 'var(--wf-accent-text-on-light)' }}>finder</span>
           </span>
           <button
             type="button"
