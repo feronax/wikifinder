@@ -385,37 +385,42 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
                 fontFamily: 'var(--wf-font-ui)',
               }}
             >
-              {/* Header (desktop only) */}
-              {!isMobile && (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns:
-                      tab === 'daily'
-                        ? '50px 1fr 90px 90px 60px'
-                        : '50px 1fr 90px',
-                    padding: '8px 18px',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: 1.2,
-                    color: 'var(--wf-muted)',
-                  }}
-                >
-                  <span>{t.headers.hash}</span>
-                  <span>{t.headers.player}</span>
-                  {tab === 'daily' ? (
+              {/* Header */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile
+                    ? '28px 1fr auto'
+                    : tab === 'daily'
+                      ? '50px 1fr 90px 90px 60px'
+                      : '50px 1fr 90px',
+                  padding: isMobile ? '6px 12px' : '8px 18px',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: 1.2,
+                  color: 'var(--wf-muted)',
+                }}
+              >
+                <span>{t.headers.hash}</span>
+                <span>{t.headers.player}</span>
+                {tab === 'daily' ? (
+                  isMobile ? (
+                    <span style={{ textAlign: 'right' }}>
+                      {t.headers.tries} · {t.headers.time}
+                    </span>
+                  ) : (
                     <>
                       <span style={{ textAlign: 'right' }}>{t.headers.tries}</span>
                       <span style={{ textAlign: 'right' }}>{t.headers.time}</span>
                       <span style={{ textAlign: 'right' }}>{t.headers.lang}</span>
                     </>
-                  ) : tab === 'ranked' ? (
-                    <span style={{ textAlign: 'right' }}>{t.headers.points}</span>
-                  ) : (
-                    <span style={{ textAlign: 'right' }}>{t.headers.streak}</span>
-                  )}
-                </div>
-              )}
+                  )
+                ) : tab === 'ranked' ? (
+                  <span style={{ textAlign: 'right' }}>{t.headers.points}</span>
+                ) : (
+                  <span style={{ textAlign: 'right' }}>{t.headers.streak}</span>
+                )}
+              </div>
 
               {rows.slice(restStart).map((e: any, i: number) => {
                 const rank = restStart + i + 1
