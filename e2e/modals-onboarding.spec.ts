@@ -92,9 +92,28 @@ test.describe('MOD-01 Onboarding modal — mobile burger re-trigger', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
   // See modals-feedback.spec.ts for context: Axeptio cookie banner
-  // intercepts pointer events on Vercel preview. Block its assets.
-  test.beforeEach(async ({ page }) => {
-    await page.route(/axept(?:io)?\.(?:io|eu|com)/i, (route) => route.abort())
+  // intercepts pointer events on Vercel preview. The script loads
+  // indirectly via GTM so a route block alone is insufficient — install
+  // a MutationObserver that removes the overlay as it mounts.
+  test.beforeEach(async ({ page, context }) => {
+    await context.route(/axept(?:io)?\.(?:io|eu|com)/i, (route) => route.abort())
+    await page.addInitScript(() => {
+      const sweep = () => {
+        document
+          .querySelectorAll('#axeptio_overlay, .axeptio_mount, [class*="axept"]')
+          .forEach((el) => el.remove())
+      }
+      const observer = new MutationObserver(sweep)
+      const start = () => {
+        sweep()
+        observer.observe(document.documentElement, { childList: true, subtree: true })
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start, { once: true })
+      } else {
+        start()
+      }
+    })
   })
 
   test('does not auto-show when wf_onboarded_v1 set; burger re-trigger does NOT re-arm gate', async ({ page, context }) => {

@@ -41,12 +41,34 @@ test.describe('MOD-03 Feedback modal', () => {
 
   // Vercel preview deploys load the Axeptio cookie-consent banner via GTM.
   // The overlay (#axeptio_overlay > .needsclick) intercepts pointer events
-  // and breaks any test that clicks burger-drawer items. Aborting the
-  // Axeptio script + asset requests keeps the banner from mounting at all.
-  // Pattern is reusable — copy this beforeEach into any spec that exercises
-  // page-level click flows.
-  test.beforeEach(async ({ page }) => {
-    await page.route(/axept(?:io)?\.(?:io|eu|com)/i, (route) => route.abort())
+  // and breaks any test that clicks burger-drawer items. The script itself
+  // is loaded indirectly via GTM, so a network route block on axept.io
+  // alone doesn't stop the banner from mounting.
+  //
+  // Belt-and-braces: (1) addInitScript installs a MutationObserver that
+  // removes any Axeptio overlay node the moment it appears, before it can
+  // intercept clicks; (2) page.route still aborts axept.io requests as a
+  // bonus. Pattern is reusable — copy this beforeEach into any spec that
+  // exercises page-level click flows.
+  test.beforeEach(async ({ page, context }) => {
+    await context.route(/axept(?:io)?\.(?:io|eu|com)/i, (route) => route.abort())
+    await page.addInitScript(() => {
+      const sweep = () => {
+        document
+          .querySelectorAll('#axeptio_overlay, .axeptio_mount, [class*="axept"]')
+          .forEach((el) => el.remove())
+      }
+      const observer = new MutationObserver(sweep)
+      const start = () => {
+        sweep()
+        observer.observe(document.documentElement, { childList: true, subtree: true })
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start, { once: true })
+      } else {
+        start()
+      }
+    })
   })
 
   test('opens from burger menu Feedback item', async ({ page, context }) => {
