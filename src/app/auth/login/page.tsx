@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
-import Header from '@/components/Header'
+import NewDesignHeader from '@/components/game/new/NewDesignHeader'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -55,7 +55,7 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
-      <Header />
+      <NewDesignHeader />
       <div style={{ maxWidth: 400, margin: '60px auto', padding: '0 20px' }}>
 
         {/* Logo + titre */}

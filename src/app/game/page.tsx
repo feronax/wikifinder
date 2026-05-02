@@ -5,6 +5,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { isStopword } from '@/lib/wikipedia'
 import { normalize, wordsMatch } from '@/lib/matching'
 import { setWordHashSet, isWordInArticle } from '@/lib/client-hash'
+import { Menu } from 'lucide-react'
 import { useIsMobile, calculateScore } from '@/lib/utils'
 import { useSafeTimeout } from '@/lib/use-safe-timeout'
 import Header from '@/components/Header'
@@ -990,8 +991,37 @@ export default function GamePage() {
 
     if (loading || !gameState) {
         return (
-            <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
-                <Header lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+            <div style={{ fontFamily: 'var(--font-sans)', minHeight: '100vh', backgroundColor: 'var(--wf-bg)' }}>
+                {isMobile ? (
+                    <header
+                        style={{
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 80,
+                            padding: '12px 16px',
+                            borderBottom: '1px solid var(--wf-border)',
+                            background: 'var(--wf-bg)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                        }}
+                    >
+                        <Menu size={24} aria-hidden="true" style={{ color: 'var(--wf-ink)' }} />
+                        <span
+                            style={{
+                                fontFamily: 'var(--wf-font-head)',
+                                fontSize: 18,
+                                fontWeight: 600,
+                                letterSpacing: '-0.02em',
+                            }}
+                        >
+                            <span style={{ color: 'var(--wf-ink)' }}>Wiki</span>
+                            <span style={{ color: 'var(--wf-accent)' }}>finder</span>
+                        </span>
+                    </header>
+                ) : (
+                    <NewDesignHeader lang={lang} onLangChange={setLang} onLogout={async () => { await supabase.auth.signOut(); setUser(null); setUsername(null) }} />
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)', gap: 16 }}>
                     {loadError ? (
                         <>

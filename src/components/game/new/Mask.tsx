@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { computeMaskWidth } from '@/lib/mask-width'
 import { normalize } from '@/lib/matching'
 
@@ -24,6 +24,7 @@ type MaskProps = {
 function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed, highlighted, lang }: MaskProps) {
     const dataWord = normalize(word)
     const effectiveLength = wordLength ?? word.length
+    const [showLength, setShowLength] = useState(false)
 
     if (revealed) {
         // Default revealed = plain ink so revealed tokens blend with stopwords
@@ -62,9 +63,24 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
     return (
         <span
             data-word={dataWord}
-            aria-label={lang === 'fr' ? 'mot masqué' : 'masked word'}
+            role="button"
+            tabIndex={0}
+            aria-label={
+                lang === 'fr'
+                    ? `mot masqué de ${effectiveLength} lettres`
+                    : `masked word, ${effectiveLength} letters`
+            }
+            onClick={() => setShowLength(s => !s)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setShowLength(s => !s)
+                }
+            }}
             style={{
-                display: 'inline-block',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 width: `${w}em`,
                 height: '1.1em',
                 background: 'var(--wf-mask)',
@@ -73,9 +89,14 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
                 transform: 'translateY(-0.08em)',
                 margin: '0 1px',
                 verticalAlign: 'baseline',
+                cursor: 'pointer',
+                fontSize: '0.7em',
+                color: 'var(--wf-muted)',
+                fontVariantNumeric: 'tabular-nums',
+                userSelect: 'none',
             }}
         >
-            &nbsp;
+            {showLength ? effectiveLength : '\u00A0'}
         </span>
     )
 }
