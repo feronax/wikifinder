@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
     .from('games')
     .select('user_id')
     .eq('ip_hash', ipHash)
+    .eq('browser_hash', browserHash)
     .eq('page_id', pageId)
     .neq('user_id', user.id)
 

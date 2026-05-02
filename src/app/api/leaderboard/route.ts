@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
     const { data: rows, error } = await supabaseAdmin
       .from('leaderboard_global')
       .select('username, score, guess_count, duration_seconds, position')
+      .order('position', { ascending: true })
       .limit(20)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
