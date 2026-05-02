@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useRef } from 'react'
 import { computeMaskWidth } from '@/lib/mask-width'
 import { normalize } from '@/lib/matching'
 
@@ -24,15 +24,6 @@ type MaskProps = {
 function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed, highlighted, lang }: MaskProps) {
     const dataWord = normalize(word)
     const effectiveLength = wordLength ?? word.length
-    const [showLength, setShowLength] = useState(false)
-
-    // Auto-fade the count back to a blank mask ~1s after a tap so the count
-    // acts as a fleeting hint rather than a persistent reveal.
-    useEffect(() => {
-        if (!showLength) return
-        const id = setTimeout(() => setShowLength(false), 1000)
-        return () => clearTimeout(id)
-    }, [showLength])
 
     if (revealed) {
         // Default revealed = plain ink so revealed tokens blend with stopwords
@@ -66,6 +57,42 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
         )
     }
 
+    return <UnrevealedMask
+        dataWord={dataWord}
+        effectiveLength={effectiveLength}
+        pageId={pageId}
+        tokenIndex={tokenIndex}
+        lang={lang}
+    />
+}
+
+// Hooks isolated in their own component so the revealed-state branch carries
+// no hook overhead — load-bearing for the sacred <50ms reveal budget. When a
+// guess reveals N tokens, this UnrevealedMask unmounts cleanly and the
+// revealed branch above mounts as a pure dumb span.
+function UnrevealedMask({
+    dataWord, effectiveLength, pageId, tokenIndex, lang,
+}: {
+    dataWord: string
+    effectiveLength: number
+    pageId: string
+    tokenIndex: number
+    lang: 'fr' | 'en'
+}) {
+    const innerRef = useRef<HTMLSpanElement>(null)
+    const timerRef = useRef<number | null>(null)
+
+    const handleTap = () => {
+        const el = innerRef.current
+        if (!el) return
+        el.style.opacity = '1'
+        if (timerRef.current !== null) clearTimeout(timerRef.current)
+        timerRef.current = window.setTimeout(() => {
+            if (innerRef.current) innerRef.current.style.opacity = '0'
+            timerRef.current = null
+        }, 1000)
+    }
+
     const w = computeMaskWidth(pageId, tokenIndex, effectiveLength)
 
     return (
@@ -78,11 +105,11 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
                     ? `mot masqué de ${effectiveLength} lettres`
                     : `masked word, ${effectiveLength} letters`
             }
-            onClick={() => setShowLength(s => !s)}
+            onClick={handleTap}
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    setShowLength(s => !s)
+                    handleTap()
                 }
             }}
             style={{
@@ -105,9 +132,10 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
             }}
         >
             <span
+                ref={innerRef}
                 aria-hidden="true"
                 style={{
-                    opacity: showLength ? 1 : 0,
+                    opacity: 0,
                     transition: 'opacity 300ms ease-out',
                 }}
             >
