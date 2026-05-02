@@ -125,10 +125,12 @@ export default function NewGameScreenMobile({
   // Header.tsx:59-77 (no profile fetch; we only need streak for the pill).
   // Unauthed / fetch-failure paths leave streak at 0, hiding the pill.
   const [streak, setStreak] = useState(0)
+  const [isAuthed, setIsAuthed] = useState(false)
   useEffect(() => {
     const supabase = createSupabaseBrowserClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
+        setIsAuthed(true)
         fetch('/api/game/streak')
           .then((r) => r.json())
           .then((d) => setStreak(d.streak || 0))
@@ -282,10 +284,11 @@ export default function NewGameScreenMobile({
       onOpenOnboarding={onOpenOnboarding}
       onOpenFeedback={onOpenFeedback}
       onRevealSolution={onRevealSolution}
+      isAuthed={isAuthed}
     >
       {/* Jeu tab — TitleHero + StatsCard progress + chip strip + ArticleBody */}
       <div ref={jeuRef} style={panelBaseStyle('jeu')}>
-        <div style={{ padding: '16px 16px 0' }}>
+        <div style={{ padding: '16px 16px 16px' }}>
           <TitleHero
             titleWords={gameState.titleWords}
             pageId={pageId}

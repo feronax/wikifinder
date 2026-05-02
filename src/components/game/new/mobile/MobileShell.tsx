@@ -66,6 +66,9 @@ export interface MobileShellProps {
   // Rendered inside the burger drawer Actions section (mobile parity with
   // desktop ActionRow defeat CTA). Undefined → button hidden.
   onRevealSolution?: () => void
+  // When false/undefined, the burger nav is restricted to public pages
+  // (Home + Game) plus a Login link. Authed users get the full 7-link nav.
+  isAuthed?: boolean
   children: React.ReactNode
 }
 
@@ -80,13 +83,20 @@ export default function MobileShell({
   onOpenOnboarding,
   onOpenFeedback,
   onRevealSolution,
+  isAuthed,
   children,
 }: MobileShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const pathname = usePathname()
   const closeDrawer = () => setDrawerOpen(false)
 
-  const links = NAV_LINKS[lang]
+  // Anon users only get public pages: Home + Game. Login link is appended
+  // separately below the nav. Authed users get the full 7-link set.
+  const PUBLIC_HREFS = new Set(['/', '/game'])
+  const links = isAuthed
+    ? NAV_LINKS[lang]
+    : NAV_LINKS[lang].filter(l => PUBLIC_HREFS.has(l.href))
+  const loginLabel = lang === 'fr' ? 'Se connecter' : 'Log in'
 
   const renderLangPill = (size: 'sm' | 'md') => {
     const pad = size === 'md' ? '6px 16px' : '4px 12px'
@@ -182,10 +192,10 @@ export default function MobileShell({
               fontSize: 18,
               fontWeight: 600,
               letterSpacing: '-0.02em',
-              color: 'var(--wf-ink)',
             }}
           >
-            Wikifinder
+            <span style={{ color: 'var(--wf-ink)' }}>Wiki</span>
+            <span style={{ color: 'var(--wf-accent)' }}>finder</span>
           </span>
         </div>
 
@@ -245,10 +255,10 @@ export default function MobileShell({
               fontSize: 18,
               fontWeight: 600,
               letterSpacing: '-0.02em',
-              color: 'var(--wf-ink)',
             }}
           >
-            Wikifinder
+            <span style={{ color: 'var(--wf-ink)' }}>Wiki</span>
+            <span style={{ color: 'var(--wf-accent)' }}>finder</span>
           </span>
           <button
             type="button"
@@ -301,6 +311,26 @@ export default function MobileShell({
               </Link>
             )
           })}
+          {!isAuthed && (
+            <Link
+              href="/auth/login"
+              onClick={closeDrawer}
+              style={{
+                padding: '14px 20px',
+                fontSize: 16,
+                textDecoration: 'none',
+                color: pathname === '/auth/login' ? 'var(--wf-accent)' : 'var(--wf-ink)',
+                fontWeight: pathname === '/auth/login' ? 600 : 500,
+                borderLeft:
+                  pathname === '/auth/login'
+                    ? '3px solid var(--wf-accent)'
+                    : '3px solid transparent',
+                fontFamily: 'inherit',
+              }}
+            >
+              {loginLabel}
+            </Link>
+          )}
         </nav>
 
         {/* Phase 10.3-08 — mobile Actions section reduced to single Défier

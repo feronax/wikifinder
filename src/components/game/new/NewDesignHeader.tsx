@@ -133,15 +133,19 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
         borderBottom: '1px solid var(--wf-border)',
         backgroundColor: 'var(--wf-bg)',
       }}>
-        {logo}
-
-        {isMobile && (
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            style={{ background: 'none', border: 'none', fontSize: 24, color: 'var(--wf-ink)', cursor: 'pointer', padding: 4 }}
-          >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+        {isMobile ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Open menu"
+              style={{ background: 'none', border: 'none', fontSize: 24, color: 'var(--wf-ink)', cursor: 'pointer', padding: 4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+            {logo}
+          </div>
+        ) : (
+          logo
         )}
 
         {!isMobile && (

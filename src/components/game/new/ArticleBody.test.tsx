@@ -42,7 +42,7 @@ describe('ArticleBody — stopword + visible rendering (Bug 1)', () => {
     // Stopword text must appear in the DOM
     expect(container.textContent).toContain('Le')
     // Stopword span should NOT have aria-label "mot masqué"
-    const masks = container.querySelectorAll('[aria-label="mot masqué"]')
+    const masks = container.querySelectorAll('[aria-label^="mot masqué"]')
     expect(masks.length).toBe(1) // only the non-stopword masked word
   })
 
@@ -61,7 +61,7 @@ describe('ArticleBody — stopword + visible rendering (Bug 1)', () => {
       />,
     )
     expect(container.textContent).toContain('ordinateur')
-    expect(container.querySelectorAll('[aria-label="mot masqué"]').length).toBe(0)
+    expect(container.querySelectorAll('[aria-label^="mot masqué"]').length).toBe(0)
   })
 
   it('renders heading stopwords as plain text inside <h2>', () => {
@@ -84,7 +84,7 @@ describe('ArticleBody — stopword + visible rendering (Bug 1)', () => {
     expect(h2).not.toBeNull()
     expect(h2!.textContent).toContain('De')
     // Only the non-stopword heading word is masked
-    expect(h2!.querySelectorAll('[aria-label="mot masqué"]').length).toBe(1)
+    expect(h2!.querySelectorAll('[aria-label^="mot masqué"]').length).toBe(1)
   })
 
   it('masks non-stopword unrevealed words normally', () => {
@@ -103,6 +103,6 @@ describe('ArticleBody — stopword + visible rendering (Bug 1)', () => {
         lang="fr"
       />,
     )
-    expect(container.querySelectorAll('[aria-label="mot masqué"]').length).toBe(2)
+    expect(container.querySelectorAll('[aria-label^="mot masqué"]').length).toBe(2)
   })
 })

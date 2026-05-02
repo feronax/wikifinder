@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useRef } from 'react'
 import { computeMaskWidth } from '@/lib/mask-width'
 import { normalize } from '@/lib/matching'
 
@@ -57,14 +57,65 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
         )
     }
 
+    return <UnrevealedMask
+        dataWord={dataWord}
+        effectiveLength={effectiveLength}
+        pageId={pageId}
+        tokenIndex={tokenIndex}
+        lang={lang}
+    />
+}
+
+// Hooks isolated in their own component so the revealed-state branch carries
+// no hook overhead — load-bearing for the sacred <50ms reveal budget. When a
+// guess reveals N tokens, this UnrevealedMask unmounts cleanly and the
+// revealed branch above mounts as a pure dumb span.
+function UnrevealedMask({
+    dataWord, effectiveLength, pageId, tokenIndex, lang,
+}: {
+    dataWord: string
+    effectiveLength: number
+    pageId: string
+    tokenIndex: number
+    lang: 'fr' | 'en'
+}) {
+    const innerRef = useRef<HTMLSpanElement>(null)
+    const timerRef = useRef<number | null>(null)
+
+    const handleTap = () => {
+        const el = innerRef.current
+        if (!el) return
+        el.style.opacity = '1'
+        if (timerRef.current !== null) clearTimeout(timerRef.current)
+        timerRef.current = window.setTimeout(() => {
+            if (innerRef.current) innerRef.current.style.opacity = '0'
+            timerRef.current = null
+        }, 1000)
+    }
+
     const w = computeMaskWidth(pageId, tokenIndex, effectiveLength)
 
     return (
         <span
             data-word={dataWord}
-            aria-label={lang === 'fr' ? 'mot masqué' : 'masked word'}
+            role="button"
+            tabIndex={0}
+            aria-label={
+                lang === 'fr'
+                    ? `mot masqué de ${effectiveLength} lettres`
+                    : `masked word, ${effectiveLength} letters`
+            }
+            onClick={handleTap}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleTap()
+                }
+            }}
             style={{
-                display: 'inline-block',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 width: `${w}em`,
                 height: '1.1em',
                 background: 'var(--wf-mask)',
@@ -73,9 +124,23 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
                 transform: 'translateY(-0.08em)',
                 margin: '0 1px',
                 verticalAlign: 'baseline',
+                cursor: 'pointer',
+                fontSize: '0.7em',
+                color: 'var(--wf-muted)',
+                fontVariantNumeric: 'tabular-nums',
+                userSelect: 'none',
             }}
         >
-            &nbsp;
+            <span
+                ref={innerRef}
+                aria-hidden="true"
+                style={{
+                    opacity: 0,
+                    transition: 'opacity 300ms ease-out',
+                }}
+            >
+                {effectiveLength}
+            </span>
         </span>
     )
 }
