@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { computeMaskWidth } from '@/lib/mask-width'
 import { normalize } from '@/lib/matching'
 
@@ -25,6 +25,14 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
     const dataWord = normalize(word)
     const effectiveLength = wordLength ?? word.length
     const [showLength, setShowLength] = useState(false)
+
+    // Auto-fade the count back to a blank mask ~1s after a tap so the count
+    // acts as a fleeting hint rather than a persistent reveal.
+    useEffect(() => {
+        if (!showLength) return
+        const id = setTimeout(() => setShowLength(false), 1000)
+        return () => clearTimeout(id)
+    }, [showLength])
 
     if (revealed) {
         // Default revealed = plain ink so revealed tokens blend with stopwords
@@ -96,7 +104,15 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
                 userSelect: 'none',
             }}
         >
-            {showLength ? effectiveLength : '\u00A0'}
+            <span
+                aria-hidden="true"
+                style={{
+                    opacity: showLength ? 1 : 0,
+                    transition: 'opacity 300ms ease-out',
+                }}
+            >
+                {effectiveLength}
+            </span>
         </span>
     )
 }
