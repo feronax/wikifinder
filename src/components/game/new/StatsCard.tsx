@@ -8,6 +8,9 @@ interface StatsCardProps {
   foundCount: number
   totalRevealableTokens: number
   lang: 'fr' | 'en'
+  // Mobile-tuned compact layout: smaller numbers + tighter padding so the
+  // article body is closer to the fold. Desktop keeps original spacing.
+  compact?: boolean
 }
 
 const COPY = {
@@ -31,6 +34,7 @@ export default function StatsCard({
   foundCount,
   totalRevealableTokens,
   lang,
+  compact = false,
 }: StatsCardProps) {
   const mm = Math.floor(elapsed / 60)
   const ss = elapsed % 60
@@ -50,13 +54,13 @@ export default function StatsCard({
   }
 
   const numberStyle: React.CSSProperties = {
-    fontSize: 22,
+    fontSize: compact ? 18 : 22,
     fontWeight: 600,
     color: 'var(--wf-ink)',
     fontVariantNumeric: 'tabular-nums',
     fontFamily: 'var(--wf-font-head)',
     lineHeight: 1,
-    marginTop: 4,
+    marginTop: compact ? 2 : 4,
   }
 
   // Proto game.jsx:380-384 — 3-inline stats row (Tentatives / Trouvés / Temps);
@@ -67,7 +71,7 @@ export default function StatsCard({
         background: 'var(--wf-surface)',
         border: '1px solid var(--wf-border)',
         borderRadius: 'var(--wf-radius-card)',
-        padding: 16,
+        padding: compact ? 12 : 16,
         fontFamily: 'var(--wf-font-ui)',
       }}
     >
@@ -100,7 +104,7 @@ export default function StatsCard({
       </div>
 
       {/* Progress bar row — label on left, percent on right (amber), bar below */}
-      <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: compact ? 10 : 14 }}>
         <div
           style={{
             display: 'flex',
