@@ -82,6 +82,10 @@ for (const { mode } of THEMES) {
       // Anon /profile renders legacy landing.tsx (still uses var(--accent)); deferred to Phase 17 — Legacy Purge.
       const axeRunner = name === 'profile' ? test.fixme : test
       axeRunner(`a11y axe: ${name} (${mode}/${lang}) — WCAG 2.1 AA`, async ({ page, context }) => {
+        // Webkit's axe-core evaluate() is ~10-20× slower than chromium on the masked
+        // article DOM (thousands of token spans). Default 180s timeout flaked on /game
+        // in CI; bump to 360s — chromium still finishes in ~10s. (#30)
+        test.setTimeout(360_000)
         await bootstrap(page, context, lang, mode)
         await page.goto(path)
         await page.waitForLoadState('networkidle').catch(() => {
