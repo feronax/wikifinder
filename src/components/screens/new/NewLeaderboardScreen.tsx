@@ -382,6 +382,7 @@ export default function NewLeaderboardScreen({ lang }: { lang: 'fr' | 'en' }) {
                 border: '1px solid var(--wf-border)',
                 borderRadius: 'var(--wf-radius-card)',
                 padding: 6,
+                margin: isMobile ? '0 16px' : 0,
                 fontFamily: 'var(--wf-font-ui)',
               }}
             >
