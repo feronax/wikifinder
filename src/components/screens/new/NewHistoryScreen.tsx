@@ -358,7 +358,7 @@ export default function NewHistoryScreen({ lang }: { lang: 'fr' | 'en' }) {
                               <span aria-hidden> · </span>
                               <span
                                 style={{
-                                  color: 'var(--wf-accent)',
+                                  color: 'var(--wf-accent-text-on-light)',
                                   fontWeight: 700,
                                   fontSize: 13,
                                 }}

@@ -127,7 +127,7 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount, onO
                         padding: '10px 14px',
                         fontSize: 14,
                         fontWeight: 600,
-                        color: 'var(--wf-accent)',
+                        color: 'var(--wf-accent-text-on-light)',
                         fontFamily: 'var(--wf-font-ui)',
                         background: 'transparent',
                         border: '1px solid var(--wf-accent)',

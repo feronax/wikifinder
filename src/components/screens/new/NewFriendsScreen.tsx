@@ -362,7 +362,7 @@ export default function NewFriendsScreen({ lang }: { lang: 'fr' | 'en' }) {
           fontFamily: 'var(--wf-font-head)',
           fontSize: isMobile ? 13 : 15,
           fontWeight: 600,
-          color: 'var(--wf-accent)',
+          color: 'var(--wf-accent-text-on-light)',
           fontVariantNumeric: 'tabular-nums',
           textDecoration:
             f.today_score != null ? 'underline dotted transparent' : 'none',

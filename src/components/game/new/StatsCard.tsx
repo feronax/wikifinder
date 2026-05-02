@@ -118,7 +118,7 @@ export default function StatsCard({
             style={{
               fontSize: 11,
               fontWeight: 700,
-              color: 'var(--wf-accent)',
+              color: 'var(--wf-accent-text-on-light)',
               fontVariantNumeric: 'tabular-nums',
               fontFamily: 'var(--wf-font-ui)',
             }}
