@@ -13,6 +13,7 @@
   --wf-mask-edge: #2d2d33;
   --wf-accent: #f59e0b;
   --wf-accent-ink: #1a0f00;
+  --wf-accent-text-on-light: #f59e0b;
   --wf-radius: 8px;
   --wf-radius-card: 12px;
   --wf-font-head: 'Geist', 'Inter', system-ui, sans-serif;
@@ -35,6 +36,7 @@
   --wf-mask-edge: #bfbfc5;
   --wf-accent: #f59e0b;
   --wf-accent-ink: #1a0f00;
+  --wf-accent-text-on-light: #92400e;
   --wf-radius: 8px;
   --wf-radius-card: 12px;
   --wf-font-head: 'Geist', 'Inter', system-ui, sans-serif;

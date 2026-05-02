@@ -15,6 +15,7 @@ export type TokenSet = {
   // direction invariants (duplicated across dark+light, 8)
   accent: string
   accentInk: string
+  accentTextOnLight: string
   radius: string
   radiusCard: string
   fontHead: string
@@ -39,6 +40,7 @@ export const tokens: { dark: TokenSet; light: TokenSet } = {
     maskEdge: '#2d2d33',
     accent: '#f59e0b',
     accentInk: '#1a0f00',
+    accentTextOnLight: '#f59e0b',
     radius: '8px',
     radiusCard: '12px',
     fontHead: "'Geist', 'Inter', system-ui, sans-serif",
@@ -62,6 +64,7 @@ export const tokens: { dark: TokenSet; light: TokenSet } = {
     maskEdge: '#bfbfc5',
     accent: '#f59e0b',
     accentInk: '#1a0f00',
+    accentTextOnLight: '#92400e',
     radius: '8px',
     radiusCard: '12px',
     fontHead: "'Geist', 'Inter', system-ui, sans-serif",
