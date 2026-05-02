@@ -47,11 +47,11 @@ export default function FixedBottomInput(props: FixedBottomInputProps) {
         background: 'var(--wf-surface)',
         borderTop: '1px solid var(--wf-border-strong)',
         boxShadow: '0 -4px 20px rgb(0 0 0 / 0.3)',
-        padding: '12px 16px',
+        padding: '8px 12px',
         transition: 'bottom 160ms ease-out',
       }}
     >
-      <GuessInput {...props} />
+      <GuessInput {...props} compact />
     </div>
   )
 }

@@ -288,13 +288,14 @@ export default function NewGameScreenMobile({
     >
       {/* Jeu tab — TitleHero + StatsCard progress + chip strip + ArticleBody */}
       <div ref={jeuRef} style={panelBaseStyle('jeu')}>
-        <div style={{ padding: '16px 16px 16px' }}>
+        <div style={{ padding: '12px 16px 12px' }}>
           <TitleHero
             titleWords={gameState.titleWords}
             pageId={pageId}
             lang={lang}
             attemptsCount={gameState.guessCount}
             onOpenResult={() => setResultOpen(true)}
+            compact
           />
           <StatsCard
             elapsed={elapsed}
@@ -302,6 +303,7 @@ export default function NewGameScreenMobile({
             foundCount={foundEntries.length}
             totalRevealableTokens={totalRevealableTokens}
             lang={lang}
+            compact
           />
         </div>
         <MobileChipStrip found={foundEntries} onChipClick={handleCycle} />

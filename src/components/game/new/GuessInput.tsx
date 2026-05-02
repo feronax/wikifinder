@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useRef, useState, useMemo } from 'react'
+import { ArrowUp } from 'lucide-react'
 import { normalize } from '@/lib/matching'
 import { isWordInArticle } from '@/lib/client-hash'
 import { useSafeTimeout } from '@/lib/use-safe-timeout'
@@ -19,6 +20,12 @@ interface GuessInputProps {
   gameId: string | null
   lang: 'fr' | 'en'
   disabled?: boolean
+  // Mobile-tuned compact pill layout (iOS-style): drops the "ENTER A WORD"
+  // label, inlines the submit as a circular accent button, and hides the
+  // autocomplete suggestion chips when the input is empty (the chip strip
+  // above the article already surfaces found words). Desktop keeps the
+  // full label + stacked submit + always-on suggestion chips.
+  compact?: boolean
 }
 
 const COPY = {
@@ -47,6 +54,7 @@ export default function GuessInput({
   gameId,
   lang,
   disabled,
+  compact = false,
 }: GuessInputProps) {
   const [activeIndex, setActiveIndex] = useState(-1)
   const [shake, setShake] = useState(false)
@@ -61,6 +69,11 @@ export default function GuessInput({
 
   const suggestions = useMemo(() => {
     const norm = normalize(input)
+    // Empty input → no suggestions. Without this guard every found word
+    // matches the empty-prefix and clutters the input footer with stale
+    // chips even before the user starts typing (the chip strip above the
+    // article already surfaces found words).
+    if (!norm) return []
     return foundWordsByRecency
       .filter((w) => {
         const nw = normalize(w)
@@ -147,25 +160,27 @@ export default function GuessInput({
   return (
     <div
       style={{
-        background: 'var(--wf-surface)',
-        border: '1px solid var(--wf-border)',
-        borderRadius: 'var(--wf-radius-card)',
-        padding: 16,
+        background: compact ? 'transparent' : 'var(--wf-surface)',
+        border: compact ? 'none' : '1px solid var(--wf-border)',
+        borderRadius: compact ? 0 : 'var(--wf-radius-card)',
+        padding: compact ? 0 : 16,
         fontFamily: 'var(--wf-font-ui)',
       }}
     >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: 1.4,
-          textTransform: 'uppercase',
-          color: 'var(--wf-muted)',
-          marginBottom: 10,
-        }}
-      >
-        {copy.label}
-      </div>
+      {!compact && (
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: 1.4,
+            textTransform: 'uppercase',
+            color: 'var(--wf-muted)',
+            marginBottom: 10,
+          }}
+        >
+          {copy.label}
+        </div>
+      )}
 
       <form
         onSubmit={(e) => {
@@ -177,77 +192,165 @@ export default function GuessInput({
           void submit(picked)
         }}
       >
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value)
-            setActiveIndex(-1)
-            // User typed — drop out of history navigation so further
-            // ArrowUp presses start fresh from index 0.
-            setHistoryIndex(-1)
-          }}
-          onKeyDown={handleKeyDown}
-          aria-label={copy.aria}
-          aria-autocomplete="list"
-          aria-controls="wf-autocomplete"
-          aria-activedescendant={
-            activeIndex >= 0 ? 'wf-ac-opt-' + activeIndex : undefined
-          }
-          placeholder={copy.placeholder}
-          disabled={isDisabled}
-          className={shake ? 'wf-shake' : ''}
-          style={{
-            width: '100%',
-            padding: '12px 14px',
-            background: 'var(--wf-bg2)',
-            border:
-              '1.5px solid ' +
-              (shake ? '#f87171' : 'var(--wf-border)'),
-            borderRadius: 'var(--wf-radius)',
-            color: 'var(--wf-ink)',
-            fontFamily: 'var(--wf-font-ui)',
-            fontSize: 16,
-            outline: 'none',
-            transition: 'border-color 140ms',
-            boxSizing: 'border-box',
-          }}
-          onFocus={(e) => {
-            if (!shake) {
-              e.currentTarget.style.borderColor = 'var(--wf-accent)'
-              // Proto focus ring: 3px accent glow at ~20% opacity (33 hex)
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.2)'
-            }
-          }}
-          onBlur={(e) => {
-            if (!shake) {
-              e.currentTarget.style.borderColor = 'var(--wf-border)'
-              e.currentTarget.style.boxShadow = 'none'
-            }
-          }}
-        />
-        <button
-          type="submit"
-          disabled={isDisabled || !input.trim()}
-          style={{
-            width: '100%',
-            marginTop: 10,
-            padding: '11px 14px',
-            background: 'var(--wf-accent)',
-            color: 'var(--wf-accent-ink)',
-            border: 'none',
-            borderRadius: 'var(--wf-radius)',
-            fontFamily: 'var(--wf-font-ui)',
-            fontSize: 14,
-            fontWeight: 600,
-            letterSpacing: 0.2,
-            cursor:
-              isDisabled || !input.trim() ? 'default' : 'pointer',
-            opacity: isDisabled || !input.trim() ? 0.6 : 1,
-          }}
-        >
-          {copy.validate}
-        </button>
+        {compact ? (
+          // iOS-style pill: input flexes left, circular submit on the right.
+          // Single rounded container with embedded submit; no stacked button.
+          <div
+            className={shake ? 'wf-shake' : ''}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: 4,
+              paddingLeft: 14,
+              background: 'var(--wf-bg2)',
+              border:
+                '1.5px solid ' +
+                (shake ? '#f87171' : 'var(--wf-border)'),
+              borderRadius: 999,
+              transition: 'border-color 140ms, box-shadow 140ms',
+            }}
+            onFocus={(e) => {
+              if (!shake) {
+                e.currentTarget.style.borderColor = 'var(--wf-accent)'
+                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.2)'
+              }
+            }}
+            onBlur={(e) => {
+              if (!shake) {
+                e.currentTarget.style.borderColor = 'var(--wf-border)'
+                e.currentTarget.style.boxShadow = 'none'
+              }
+            }}
+          >
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value)
+                setActiveIndex(-1)
+                setHistoryIndex(-1)
+              }}
+              onKeyDown={handleKeyDown}
+              aria-label={copy.aria}
+              aria-autocomplete="list"
+              aria-controls="wf-autocomplete"
+              aria-activedescendant={
+                activeIndex >= 0 ? 'wf-ac-opt-' + activeIndex : undefined
+              }
+              placeholder={copy.placeholder}
+              disabled={isDisabled}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--wf-ink)',
+                fontFamily: 'var(--wf-font-ui)',
+                fontSize: 16,
+                outline: 'none',
+                padding: '8px 0',
+              }}
+            />
+            <button
+              type="submit"
+              aria-label={copy.validate}
+              disabled={isDisabled || !input.trim()}
+              style={{
+                flex: '0 0 auto',
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: 'var(--wf-accent)',
+                color: 'var(--wf-accent-ink)',
+                border: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor:
+                  isDisabled || !input.trim() ? 'default' : 'pointer',
+                opacity: isDisabled || !input.trim() ? 0.5 : 1,
+                transition: 'opacity 140ms',
+              }}
+            >
+              <ArrowUp size={18} aria-hidden="true" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value)
+                setActiveIndex(-1)
+                // User typed — drop out of history navigation so further
+                // ArrowUp presses start fresh from index 0.
+                setHistoryIndex(-1)
+              }}
+              onKeyDown={handleKeyDown}
+              aria-label={copy.aria}
+              aria-autocomplete="list"
+              aria-controls="wf-autocomplete"
+              aria-activedescendant={
+                activeIndex >= 0 ? 'wf-ac-opt-' + activeIndex : undefined
+              }
+              placeholder={copy.placeholder}
+              disabled={isDisabled}
+              className={shake ? 'wf-shake' : ''}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                background: 'var(--wf-bg2)',
+                border:
+                  '1.5px solid ' +
+                  (shake ? '#f87171' : 'var(--wf-border)'),
+                borderRadius: 'var(--wf-radius)',
+                color: 'var(--wf-ink)',
+                fontFamily: 'var(--wf-font-ui)',
+                fontSize: 16,
+                outline: 'none',
+                transition: 'border-color 140ms',
+                boxSizing: 'border-box',
+              }}
+              onFocus={(e) => {
+                if (!shake) {
+                  e.currentTarget.style.borderColor = 'var(--wf-accent)'
+                  // Proto focus ring: 3px accent glow at ~20% opacity (33 hex)
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.2)'
+                }
+              }}
+              onBlur={(e) => {
+                if (!shake) {
+                  e.currentTarget.style.borderColor = 'var(--wf-border)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }
+              }}
+            />
+            <button
+              type="submit"
+              disabled={isDisabled || !input.trim()}
+              style={{
+                width: '100%',
+                marginTop: 10,
+                padding: '11px 14px',
+                background: 'var(--wf-accent)',
+                color: 'var(--wf-accent-ink)',
+                border: 'none',
+                borderRadius: 'var(--wf-radius)',
+                fontFamily: 'var(--wf-font-ui)',
+                fontSize: 14,
+                fontWeight: 600,
+                letterSpacing: 0.2,
+                cursor:
+                  isDisabled || !input.trim() ? 'default' : 'pointer',
+                opacity: isDisabled || !input.trim() ? 0.6 : 1,
+              }}
+            >
+              {copy.validate}
+            </button>
+          </>
+        )}
         {/* Inline suggestion chips — proto game.jsx:357-371 pattern.
             Shows up to 5 already-found words matching current prefix. */}
         {suggestions.length > 0 && (

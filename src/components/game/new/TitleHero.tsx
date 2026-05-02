@@ -13,6 +13,10 @@ interface TitleHeroProps {
     // as a clickable button that invokes this callback (opens ResultModal).
     // Backward-compatible: if omitted, the banner is hidden (render-guard).
     onOpenResult?: () => void
+    // Mobile-tuned compact layout: smaller padding + title font so more of
+    // the article body is visible above the fold. Desktop keeps the
+    // original generous spacing.
+    compact?: boolean
 }
 
 // Offset title token indices by a large constant so title-mask PRNG seeds
@@ -20,7 +24,7 @@ interface TitleHeroProps {
 // determinism preserved).
 const TITLE_INDEX_OFFSET = 1_000_000
 
-export default function TitleHero({ titleWords, pageId, lang, attemptsCount, onOpenResult }: TitleHeroProps) {
+export default function TitleHero({ titleWords, pageId, lang, attemptsCount, onOpenResult, compact = false }: TitleHeroProps) {
     const total = titleWords.filter(w => !w.isStopword).length
     const found = titleWords.filter(w => !w.isStopword && w.revealed).length
     const pct = total === 0 ? 0 : (found / total) * 100
@@ -32,8 +36,8 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount, onO
                 background: 'var(--wf-surface)',
                 border: '1px solid var(--wf-border)',
                 borderRadius: 'var(--wf-radius-card)',
-                padding: '24px 32px',
-                marginBottom: 16,
+                padding: compact ? '14px 18px' : '24px 32px',
+                marginBottom: compact ? 12 : 16,
             }}
         >
             <div
@@ -52,11 +56,11 @@ export default function TitleHero({ titleWords, pageId, lang, attemptsCount, onO
             <h1
                 style={{
                     fontFamily: 'var(--wf-font-article)',
-                    fontSize: 40,
+                    fontSize: compact ? 28 : 40,
                     fontWeight: 600,
                     letterSpacing: '-0.01em',
                     lineHeight: 1.2,
-                    margin: '8px 0 12px',
+                    margin: compact ? '6px 0 10px' : '8px 0 12px',
                     color: 'var(--wf-ink)',
                 }}
             >
