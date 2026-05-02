@@ -119,7 +119,7 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
       }}
     >
       <span style={{ color: 'var(--wf-ink)' }}>Wiki</span>
-      <span style={{ color: 'var(--wf-accent)' }}>finder</span>
+      <span style={{ color: 'var(--wf-accent-text-on-light)' }}>finder</span>
     </a>
   )
 
@@ -169,7 +169,7 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
                 <a href="/profile" style={{ fontSize: 14, color: 'var(--wf-ink)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {username || user.email}
                   {streak > 0 && (
-                    <span style={{ fontSize: 13, color: 'var(--wf-accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 13, color: 'var(--wf-accent-text-on-light)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <Flame size={14} /> {streak}
                     </span>
                   )}
@@ -209,7 +209,7 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
               <a href="/profile" style={{ fontSize: 16, color: 'var(--wf-ink)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {t.myProfile} ({username || user.email})
                 {streak > 0 && (
-                  <span style={{ fontSize: 14, color: 'var(--wf-accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 14, color: 'var(--wf-accent-text-on-light)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <Flame size={16} /> {streak}
                   </span>
                 )}
@@ -227,7 +227,7 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
                 {t.friends}
               </a>
               <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} style={{
-                fontSize: 15, color: 'var(--wf-accent)', background: 'none', border: 'none',
+                fontSize: 15, color: 'var(--wf-accent-text-on-light)', background: 'none', border: 'none',
                 cursor: 'pointer', padding: '8px 0', fontWeight: 600, marginTop: 8,
               }}>
                 {t.logout}

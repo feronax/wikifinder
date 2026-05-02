@@ -43,7 +43,7 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
             <span
                 data-word={dataWord}
                 style={{
-                    color: activeAmber ? 'var(--wf-accent)' : 'var(--wf-ink)',
+                    color: activeAmber ? 'var(--wf-accent-text-on-light)' : 'var(--wf-ink)',
                     textDecoration: activeAmber
                         ? 'underline dotted var(--wf-accent)'
                         : 'none',

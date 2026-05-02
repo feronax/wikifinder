@@ -422,7 +422,7 @@ export default function NewProfileScreen({ lang }: { lang: 'fr' | 'en' }) {
                   fontFamily: 'var(--wf-font-head)',
                   fontSize: isMobile ? 30 : 48,
                   fontWeight: 700,
-                  color: 'var(--wf-accent)',
+                  color: 'var(--wf-accent-text-on-light)',
                   fontVariantNumeric: 'tabular-nums',
                   lineHeight: 1,
                 }}
