@@ -152,7 +152,7 @@ export default function Header({ lang, user: userProp, username: usernameProp, o
                 </button>
               </>
             ) : (
-              <a href="/auth/login" style={{
+              <a href={`/auth/login${lang === 'en' ? '?lang=en' : ''}`} style={{
                 fontSize: 14, color: 'var(--text)', fontWeight: 600,
                 padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', textDecoration: 'none',
               }}>
@@ -206,7 +206,7 @@ export default function Header({ lang, user: userProp, username: usernameProp, o
               </button>
             </div>
           ) : (
-            <a href="/auth/login" style={{
+            <a href={`/auth/login${lang === 'en' ? '?lang=en' : ''}`} style={{
               fontSize: 16, color: 'var(--bg)', backgroundColor: 'var(--text)',
               fontWeight: 600, padding: '10px 16px', borderRadius: 6,
               textDecoration: 'none', textAlign: 'center',
