@@ -182,7 +182,7 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
                 </button>
               </>
             ) : (
-              <a href="/auth/login" style={{
+              <a href={`/auth/login${lang === 'en' ? '?lang=en' : ''}`} style={{
                 fontSize: 14, color: 'var(--wf-ink)', fontWeight: 600,
                 padding: '6px 16px', borderRadius: 'var(--wf-radius)', border: '1px solid var(--wf-border)', textDecoration: 'none',
               }}>
@@ -234,7 +234,7 @@ export default function NewDesignHeader({ lang, onLangChange: _onLangChange, use
               </button>
             </div>
           ) : (
-            <a href="/auth/login" style={{
+            <a href={`/auth/login${lang === 'en' ? '?lang=en' : ''}`} style={{
               fontSize: 16, color: 'var(--wf-bg)', backgroundColor: 'var(--wf-ink)',
               fontWeight: 600, padding: '10px 16px', borderRadius: 'var(--wf-radius)',
               textDecoration: 'none', textAlign: 'center',

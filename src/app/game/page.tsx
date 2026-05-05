@@ -221,29 +221,31 @@ export default function GamePage() {
         if (!authReady) return
         const params = new URLSearchParams(window.location.search)
         const dateParam = params.get('date')
-        const langParam = params.get('lang') as 'fr' | 'en' | null
+        const langParam = params.get('lang')
         const modeParam = params.get('mode') as 'daily' | 'survival' | null
         const duelParam = params.get('duel')
         const survival = modeParam === 'survival'
-        if (langParam && langParam !== lang && (langParam === 'fr' || langParam === 'en')) {
-            setLang(langParam)
-            return
-        }
+        const rawLang = langParam
+        const resolvedLang: 'fr' | 'en' = (rawLang === 'fr' || rawLang === 'en') ? rawLang : lang
+        // Sync state if URL lang differs — does not cause a double-load because
+        // authReady is the only dependency. The game loads immediately below using
+        // resolvedLang (the URL-resolved value) rather than the stale lang state.
+        if (resolvedLang !== lang) setLang(resolvedLang)
         if (survival) {
             setIsSurvival(true)
-            loadSurvival(lang)
+            loadSurvival(resolvedLang)
             return
         }
         setIsSurvival(false)
         if (duelParam) {
             setDuelId(duelParam)
-            loadDuelGame(duelParam, lang)
+            loadDuelGame(duelParam, resolvedLang)
             return
         }
         setDuelId(null)
         setIsDuelGame(false)
-        loadGame(lang, dateParam || undefined)
-    }, [lang, authReady])
+        loadGame(resolvedLang, dateParam || undefined)
+    }, [authReady])
 
     // Phase 6 fix: wire /game?duel={roomId} to the server's duel-start branch.
     // The server handler (api/game/start handleDuelStart) creates a mode='duel'
@@ -685,13 +687,13 @@ export default function GamePage() {
         setInputHistoryIndex(-1)
 
         if (isStopword(clean, lang)) {
-            setInput(''); setInputError(null); inputRef.current?.focus(); return
+            setInput(''); setInputError(null); setTimeout(() => inputRef.current?.focus(), 0); return
         }
 
         if (gameState.guesses.some(g => wordsMatch(g.word, word))) {
             setInput('')
             setInputError(t.alreadyGuessed)
-            inputRef.current?.focus()
+            setTimeout(() => inputRef.current?.focus(), 0)
             return
         }
 
@@ -729,7 +731,7 @@ export default function GamePage() {
             } : prev)
         }
 
-        inputRef.current?.focus()
+        setTimeout(() => inputRef.current?.focus(), 0)
 
         // 3. Sync avec le serveur en BACKGROUND — transparent pour le joueur.
         //    HARD-01: generate a fresh idempotency key per Enter keypress

@@ -313,7 +313,7 @@ export default function MobileShell({
           })}
           {!isAuthed && (
             <Link
-              href="/auth/login"
+              href={`/auth/login${lang === 'en' ? '?lang=en' : ''}`}
               onClick={closeDrawer}
               style={{
                 padding: '14px 20px',

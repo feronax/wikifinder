@@ -1,8 +1,37 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
+
+const copy = {
+  fr: {
+    taglineLogin: 'Connecte-toi pour sauvegarder tes parties',
+    taglineRegister: 'Crée ton compte gratuitement',
+    google: 'Continuer avec Google',
+    or: 'ou',
+    passwordPlaceholder: 'Mot de passe',
+    loading: 'Chargement...',
+    login: 'Se connecter',
+    register: "S'inscrire",
+    confirmEmail: 'Vérifie ta boîte mail pour confirmer ton compte !',
+    noAccount: 'Pas encore de compte ?',
+    hasAccount: 'Déjà un compte ?',
+  },
+  en: {
+    taglineLogin: 'Sign in to save your games',
+    taglineRegister: 'Create your free account',
+    google: 'Continue with Google',
+    or: 'or',
+    passwordPlaceholder: 'Password',
+    loading: 'Loading...',
+    login: 'Sign in',
+    register: 'Sign up',
+    confirmEmail: 'Check your inbox to confirm your account!',
+    noAccount: 'No account yet?',
+    hasAccount: 'Already have an account?',
+  },
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -10,24 +39,35 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [lang, setLang] = useState<'fr' | 'en'>('fr')
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    const l = p.get('lang')
+    if (l === 'en' || l === 'fr') setLang(l)
+  }, [])
 
   const supabase = createSupabaseBrowserClient()
+  const t = copy[lang]
 
   async function handleEmailAuth() {
     setLoading(true)
     setMessage('')
     if (mode === 'register') {
+      // Bug 3 fix: include ?lang= in emailRedirectTo so the auth callback
+      // receives the language preference after email confirmation.
+      const langSuffix = lang === 'en' ? '?lang=en' : ''
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` }
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback${langSuffix}` }
       })
       if (error) setMessage(error.message)
-      else setMessage('Vérifie ta boîte mail pour confirmer ton compte !')
+      else setMessage(t.confirmEmail)
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
-      else window.location.href = '/game'
+      else window.location.href = lang === 'en' ? '/game?lang=en' : '/game'
     }
     setLoading(false)
   }
@@ -35,7 +75,9 @@ export default function LoginPage() {
   async function handleGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` }
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback${lang === 'en' ? '?lang=en' : ''}`
+      }
     })
   }
 
@@ -69,7 +111,7 @@ export default function LoginPage() {
             Wikifinder
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>
-            {mode === 'login' ? 'Connecte-toi pour sauvegarder tes parties' : 'Crée ton compte gratuitement'}
+            {mode === 'login' ? t.taglineLogin : t.taglineRegister}
           </p>
         </div>
 
@@ -99,10 +141,10 @@ export default function LoginPage() {
             fontWeight: 500,
           }}>
             <img src="https://www.google.com/favicon.ico" width={18} height={18} alt="" />
-            Continuer avec Google
+            {t.google}
           </button>
 
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: 20, fontSize: 13 }}>ou</div>
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: 20, fontSize: 13 }}>{t.or}</div>
 
           {/* Email */}
           <input
@@ -114,7 +156,7 @@ export default function LoginPage() {
           />
           <input
             type="password"
-            placeholder="Mot de passe"
+            placeholder={t.passwordPlaceholder}
             value={password}
             onChange={e => setPassword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleEmailAuth()}
@@ -135,7 +177,7 @@ export default function LoginPage() {
             fontFamily: 'var(--font-sans)',
             opacity: loading ? 0.7 : 1,
           }}>
-            {loading ? 'Chargement...' : mode === 'login' ? 'Se connecter' : "S'inscrire"}
+            {loading ? t.loading : mode === 'login' ? t.login : t.register}
           </button>
 
           {message && (
@@ -154,25 +196,25 @@ export default function LoginPage() {
 
           <div style={{ textAlign: 'center', fontSize: 14, color: 'var(--text-muted)' }}>
             {mode === 'login' ? (
-              <>Pas encore de compte ?{' '}
+              <>{t.noAccount}{' '}
                 <button onClick={() => setMode('register')} style={{
                   background: 'none', border: 'none',
                   color: 'var(--accent)', cursor: 'pointer',
                   fontWeight: 600, fontSize: 14,
                   fontFamily: 'var(--font-sans)',
                 }}>
-                  S'inscrire
+                  {t.register}
                 </button>
               </>
             ) : (
-              <>Déjà un compte ?{' '}
+              <>{t.hasAccount}{' '}
                 <button onClick={() => setMode('login')} style={{
                   background: 'none', border: 'none',
                   color: 'var(--accent)', cursor: 'pointer',
                   fontWeight: 600, fontSize: 14,
                   fontFamily: 'var(--font-sans)',
                 }}>
-                  Se connecter
+                  {t.login}
                 </button>
               </>
             )}
