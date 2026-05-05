@@ -275,7 +275,7 @@ export default function LandingPage() {
         <p style={{ fontSize: 18, color: 'var(--text-muted)', margin: '0 0 28px', lineHeight: 1.5 }}>
           {t.subtitle}<br />{t.subtitle2}
         </p>
-        <a href="/game" style={{
+        <a href={lang === 'en' ? '/game?lang=en' : '/game'} style={{
           display: 'inline-block', padding: '14px 36px', borderRadius: 10,
           backgroundColor: 'var(--accent)', color: 'white', fontSize: 17,
           fontWeight: 600, textDecoration: 'none', fontFamily: 'var(--font-sans)',
@@ -536,7 +536,7 @@ export default function LandingPage() {
 
       {/* CTA final */}
       <div style={{ padding: '0 24px 60px', textAlign: 'center' }}>
-        <a href="/game" style={{
+        <a href={lang === 'en' ? '/game?lang=en' : '/game'} style={{
           display: 'inline-block', padding: '14px 36px', borderRadius: 10,
           backgroundColor: 'var(--accent)', color: 'white', fontSize: 17,
           fontWeight: 600, textDecoration: 'none', fontFamily: 'var(--font-sans)',

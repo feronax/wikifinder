@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import NewDesignHeader from '@/components/game/new/NewDesignHeader'
 
@@ -10,6 +10,13 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [lang, setLang] = useState<'fr' | 'en'>('fr')
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    const l = p.get('lang')
+    if (l === 'en' || l === 'fr') setLang(l)
+  }, [])
 
   const supabase = createSupabaseBrowserClient()
 
@@ -27,7 +34,7 @@ export default function LoginPage() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
-      else window.location.href = '/game'
+      else window.location.href = lang === 'en' ? '/game?lang=en' : '/game'
     }
     setLoading(false)
   }
@@ -35,7 +42,9 @@ export default function LoginPage() {
   async function handleGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` }
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback${lang === 'en' ? '?lang=en' : ''}`
+      }
     })
   }
 
