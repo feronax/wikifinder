@@ -685,13 +685,13 @@ export default function GamePage() {
         setInputHistoryIndex(-1)
 
         if (isStopword(clean, lang)) {
-            setInput(''); setInputError(null); inputRef.current?.focus(); return
+            setInput(''); setInputError(null); setTimeout(() => inputRef.current?.focus(), 0); return
         }
 
         if (gameState.guesses.some(g => wordsMatch(g.word, word))) {
             setInput('')
             setInputError(t.alreadyGuessed)
-            inputRef.current?.focus()
+            setTimeout(() => inputRef.current?.focus(), 0)
             return
         }
 
@@ -729,7 +729,7 @@ export default function GamePage() {
             } : prev)
         }
 
-        inputRef.current?.focus()
+        setTimeout(() => inputRef.current?.focus(), 0)
 
         // 3. Sync avec le serveur en BACKGROUND — transparent pour le joueur.
         //    HARD-01: generate a fresh idempotency key per Enter keypress
