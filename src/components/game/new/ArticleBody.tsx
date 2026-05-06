@@ -12,6 +12,7 @@ interface ArticleBodyProps {
     justRevealedWord: string | null
     highlightedWord: string | null
     lang: 'fr' | 'en'
+    proximityHints?: Map<number, { score: number; word: string }>
 }
 
 /**
@@ -32,6 +33,7 @@ function renderWordToken(
     justRevealedWord: string | null,
     highlightedWord: string | null,
     lang: 'fr' | 'en',
+    proximityHints?: Map<number, { score: number; word: string }>,
 ): React.ReactNode {
     // Stopword: plain ink text. Server sets value to the real token for stopwords.
     if (tk.isStopword) {
@@ -55,6 +57,7 @@ function renderWordToken(
             justRevealed={norm === justRevealedWord}
             highlighted={norm === highlightedWord}
             lang={lang}
+            proximityHint={proximityHints?.get(tk.index)}
         />
     )
 }
@@ -66,6 +69,7 @@ export default function ArticleBody({
     justRevealedWord,
     highlightedWord,
     lang,
+    proximityHints,
 }: ArticleBodyProps) {
     // Sacred <50ms CI gate marker — emitted on the null → non-null transition
     // of justRevealedWord, inside useLayoutEffect (synchronous post-commit,
@@ -99,7 +103,7 @@ export default function ArticleBody({
                 const tk = tokens[i]
                 if (tk.type === 'word') {
                     headingChildren.push(
-                        renderWordToken(tk, pageId, foundSet, justRevealedWord, highlightedWord, lang),
+                        renderWordToken(tk, pageId, foundSet, justRevealedWord, highlightedWord, lang, proximityHints),
                     )
                 } else if (tk.type === 'space') {
                     headingChildren.push(tk.value)
@@ -128,7 +132,7 @@ export default function ArticleBody({
 
         if (token.type === 'word') {
             elements.push(
-                renderWordToken(token, pageId, foundSet, justRevealedWord, highlightedWord, lang),
+                renderWordToken(token, pageId, foundSet, justRevealedWord, highlightedWord, lang, proximityHints),
             )
         } else if (token.type === 'space') {
             elements.push(token.value)

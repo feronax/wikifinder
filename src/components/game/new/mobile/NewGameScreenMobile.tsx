@@ -78,6 +78,7 @@ export interface NewGameScreenMobileProps {
   // Forwarded to MobileShell where it renders inside the burger drawer
   // Actions section (parity with desktop ActionRow defeat CTA).
   onRevealSolution?: () => void
+  proximityHints?: Map<number, { score: number; word: string }>
 }
 
 export default function NewGameScreenMobile({
@@ -96,6 +97,7 @@ export default function NewGameScreenMobile({
   onOpenFeedback,
   revealAll = false,
   onRevealSolution,
+  proximityHints,
 }: NewGameScreenMobileProps) {
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
@@ -315,6 +317,7 @@ export default function NewGameScreenMobile({
             justRevealedWord={reveal.justRevealed}
             highlightedWord={cycle.highlighted?.word ?? null}
             lang={lang}
+            proximityHints={proximityHints}
           />
         </div>
       </div>

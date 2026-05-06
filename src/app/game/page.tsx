@@ -1392,6 +1392,7 @@ export default function GamePage() {
                         onOpenFeedback={() => setFeedbackOpen(true)}
                         revealAll={revealAll}
                         onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
+                        proximityHints={proximityHints}
                     />
                     {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
                         so ChallengeButton's onCreate (wired in P3) has a toast
@@ -1472,6 +1473,7 @@ export default function GamePage() {
                     onOpenFeedback={() => setFeedbackOpen(true)}
                     revealAll={revealAll}
                     onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
+                    proximityHints={proximityHints}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen
