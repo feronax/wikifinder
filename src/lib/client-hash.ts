@@ -34,13 +34,14 @@ export function variantsOf(norm: string): string[] {
     if (norm === b) variants.push(a)
   }
 
-  // EN verb inflection — +ing simple
+  // EN verb inflection — +ing simple (independent ifs prevent over-generation for
+  // short words like "ring" → "ringing" from the previous if/else structure)
   if (norm.endsWith('ing') && norm.length > 4) variants.push(norm.slice(0, -3))
-  else variants.push(norm + 'ing')
+  if (!norm.endsWith('ing')) variants.push(norm + 'ing')
 
   // EN verb inflection — +ed simple
   if (norm.endsWith('ed') && norm.length > 3) variants.push(norm.slice(0, -2))
-  else variants.push(norm + 'ed')
+  if (!norm.endsWith('ed')) variants.push(norm + 'ed')
 
   // EN verb inflection — e-drop +ing (loving → love, love → loving)
   if (norm.endsWith('ing') && norm.length > 4) variants.push(norm.slice(0, -3) + 'e')
@@ -63,8 +64,10 @@ export function variantsOf(norm: string): string[] {
 
   // FR verb inflection — -er infinitive ↔ past participle (normalized)
   // normalize('mangé') = 'mange', normalize('manger') = 'manger'
-  if (norm.endsWith('r')) variants.push(norm.slice(0, -1))
-  else variants.push(norm + 'r')
+  // Length guard > 3 prevents single/double-char words from generating spurious
+  // variants (e.g. "a" → "ar", "or" → "o") that cause false-positive hash hits.
+  if (norm.endsWith('r') && norm.length > 3) variants.push(norm.slice(0, -1))
+  if (!norm.endsWith('r') && norm.length > 3) variants.push(norm + 'r')
 
   return [...new Set(variants)]
 }

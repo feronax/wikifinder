@@ -141,7 +141,10 @@ function UnrevealedMask({
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: `${w}em`,
+                // When showing the hint word, expand to fit it; use mask width as minimum
+                // so the block never shrinks below the word's natural masked size.
+                width: (proximityHint && !showingCount) ? 'auto' : `${w}em`,
+                minWidth: (proximityHint && !showingCount) ? `${w}em` : undefined,
                 height: '1.1em',
                 background: 'var(--wf-mask)',
                 border: '1px solid var(--wf-mask-edge)',
@@ -156,23 +159,12 @@ function UnrevealedMask({
                 // Proximity hint additions (D-06, D-07, D-09, D-11, UI-SPEC)
                 color: proximityHint ? proximityColor(proximityHint.score) : 'var(--wf-muted)',
                 fontWeight: proximityHint ? 500 : undefined,
-                overflow: proximityHint ? 'hidden' : undefined,
-                textOverflow: proximityHint ? 'ellipsis' : undefined,
-                whiteSpace: proximityHint ? 'nowrap' : undefined,
                 padding: proximityHint ? '0 4px' : undefined,
                 transition: 'color 200ms ease-out',
             }}
         >
             {proximityHint && !showingCount ? (
-                <span
-                    aria-hidden="true"
-                    style={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '100%',
-                    }}
-                >
+                <span aria-hidden="true">
                     {proximityHint.word}
                 </span>
             ) : (

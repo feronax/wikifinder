@@ -7,7 +7,7 @@ import LeftStatsColumn from '@/components/game/new/LeftStatsColumn'
 import CenterArticle from '@/components/game/new/CenterArticle'
 import RightTriedColumn from '@/components/game/new/RightTriedColumn'
 import ResultModal from './ResultModal'
-import { normalize } from '@/lib/matching'
+import { normalize, wordsMatch, splitOnApostrophe } from '@/lib/matching'
 import type { GameState } from '@/app/game/types'
 import type { FoundWordEntry } from '@/components/game/new/TriedWordRow'
 import type { MissedWordEntry } from '@/components/game/new/RightTriedColumn'
@@ -155,21 +155,19 @@ export default function NewGameScreen({
       .map((g) => ({ display: g.word, normalized: normalize(g.word) }))
   }, [gameState.guesses])
 
-  // foundEntries — include occurrences count per word from article tokens.
-  // Exclude stopwords: they share normalized forms with guessable words after
-  // accent stripping (e.g. stopword "ne" collides with guess "né"), which
-  // would inflate the chip count with tokens that aren't the user's match.
+  // foundEntries — include occurrences count per word from revealed article tokens.
+  // Uses wordsMatch (mirrors the server matching logic) so morphological variants
+  // like "règner" correctly count tokens containing "règne". Only visible (revealed)
+  // tokens are counted since unrevealed tokens have value="" and can't be matched.
   const foundEntries = useMemo<FoundWordEntry[]>(() => {
-    const occCount = new Map<string, number>()
-    for (const t of gameState.tokens) {
-      if (t.type === 'word' && !t.isStopword) {
-        const n = normalize(t.value)
-        occCount.set(n, (occCount.get(n) ?? 0) + 1)
-      }
-    }
     return foundWordsByRecency.map((w) => {
-      const n = normalize(w)
-      return { display: w, normalized: n, occurrences: occCount.get(n) ?? 0 }
+      const variants = splitOnApostrophe(w)
+      const occurrences = gameState.tokens.filter(t => {
+        if (t.type !== 'word' || t.isStopword || !t.visible) return false
+        const tokenClean = (t.value || '').replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
+        return variants.some(v => wordsMatch(v, tokenClean))
+      }).length
+      return { display: w, normalized: normalize(w), occurrences }
     })
   }, [foundWordsByRecency, gameState.tokens])
 

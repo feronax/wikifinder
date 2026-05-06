@@ -1146,8 +1146,11 @@ export default function GamePage() {
                 })
                 const data = await res.json()
 
-                // Rollback: client said "in article" but server disagrees (Wiktionary miss)
-                if (data.wordNotFound) {
+                // Rollback: client said "in article" but server disagrees (Wiktionary miss).
+                // Only remove the guess for authenticated sessions — anonymous users have no
+                // server-authoritative session to reconcile against, and removing the entry
+                // creates a confusing UX where valid-looking attempts silently vanish.
+                if (data.wordNotFound && gameState.gameId) {
                     setGameState(prev => prev ? {
                         ...prev,
                         guesses: prev.guesses.filter(g => g.word !== raw),
