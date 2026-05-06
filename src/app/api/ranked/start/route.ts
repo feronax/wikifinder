@@ -7,6 +7,7 @@ import { getActiveSeason } from '@/lib/seasons'
 import { seedRankedArticle } from '@/lib/ranked-seed'
 import { maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
 import { normalize } from '@/lib/matching'
+import { variantsOf } from '@/lib/client-hash'
 import { createHash } from 'crypto'
 import { parseJsonBody, LangSchema } from '@/lib/validation'
 
@@ -144,10 +145,12 @@ export async function POST(req: NextRequest) {
   for (const token of fullTokens) {
     if (token.type !== 'word' || token.isStopword) continue
     const norm = normalize(token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
-    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 16)
-    if (!seenHashes.has(hash)) {
-      seenHashes.add(hash)
-      wordHashSet.push(hash)
+    for (const variant of variantsOf(norm)) {
+      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
+      if (!seenHashes.has(hash)) {
+        seenHashes.add(hash)
+        wordHashSet.push(hash)
+      }
     }
   }
 

@@ -3,6 +3,72 @@ import { createHash } from 'crypto'
 
 let hashSetCache: Set<string> | null = null
 
+/**
+ * Generate all morphological variant forms of a normalized word that
+ * wordsMatch() would accept. Must stay in sync with the rules in matching.ts.
+ * Called during hash set construction so the client's O(1) hash lookup
+ * covers all valid inflected forms of each article token.
+ */
+export function variantsOf(norm: string): string[] {
+  const variants: string[] = [norm]
+
+  // EN irregular plurals — f/fe → ves
+  if (norm.endsWith('ves')) {
+    variants.push(norm.slice(0, -3) + 'fe')
+    variants.push(norm.slice(0, -3) + 'f')
+  }
+  if (norm.endsWith('fe')) variants.push(norm.slice(0, -2) + 'ves')
+  if (norm.endsWith('f') && !norm.endsWith('ff')) variants.push(norm.slice(0, -1) + 'ves')
+
+  // EN irregular plurals — men → man
+  if (norm.endsWith('men')) variants.push(norm.slice(0, -3) + 'man')
+  if (norm.endsWith('man')) variants.push(norm.slice(0, -3) + 'men')
+
+  // EN irregular plurals — explicit vowel-change pairs
+  const irregularPairs: [string, string][] = [
+    ['child', 'children'], ['tooth', 'teeth'], ['foot', 'feet'],
+    ['mouse', 'mice'], ['goose', 'geese'],
+  ]
+  for (const [a, b] of irregularPairs) {
+    if (norm === a) variants.push(b)
+    if (norm === b) variants.push(a)
+  }
+
+  // EN verb inflection — +ing simple
+  if (norm.endsWith('ing') && norm.length > 4) variants.push(norm.slice(0, -3))
+  else variants.push(norm + 'ing')
+
+  // EN verb inflection — +ed simple
+  if (norm.endsWith('ed') && norm.length > 3) variants.push(norm.slice(0, -2))
+  else variants.push(norm + 'ed')
+
+  // EN verb inflection — e-drop +ing (loving → love, love → loving)
+  if (norm.endsWith('ing') && norm.length > 4) variants.push(norm.slice(0, -3) + 'e')
+  if (norm.endsWith('e')) variants.push(norm.slice(0, -1) + 'ing')
+
+  // EN verb inflection — e-drop +d (loved → love, love → loved)
+  if (norm.endsWith('d') && !norm.endsWith('ed') && norm.slice(0, -1).endsWith('e')) variants.push(norm.slice(0, -1))
+  if (norm.endsWith('e')) variants.push(norm + 'd')
+
+  // EN verb inflection — explicit stem-doubling pairs
+  const doublingStemPairs: [string, string][] = [
+    ['run', 'running'], ['get', 'getting'], ['hit', 'hitting'],
+    ['sit', 'sitting'], ['swim', 'swimming'], ['begin', 'beginning'],
+    ['put', 'putting'], ['cut', 'cutting'], ['set', 'setting'],
+  ]
+  for (const [base, inflected] of doublingStemPairs) {
+    if (norm === base) variants.push(inflected)
+    if (norm === inflected) variants.push(base)
+  }
+
+  // FR verb inflection — -er infinitive ↔ past participle (normalized)
+  // normalize('mangé') = 'mange', normalize('manger') = 'manger'
+  if (norm.endsWith('r')) variants.push(norm.slice(0, -1))
+  else variants.push(norm + 'r')
+
+  return [...new Set(variants)]
+}
+
 export function setWordHashSet(hashes: string[]) {
   hashSetCache = new Set(hashes)
 }
@@ -40,19 +106,23 @@ export function computeWordHashSet(
   for (const token of tokens) {
     if (token.type !== 'word' || token.isStopword) continue
     const norm = normalize(token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
-    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 16)
-    if (!seenHashes.has(hash)) {
-      seenHashes.add(hash)
-      wordHashSet.push(hash)
+    for (const variant of variantsOf(norm)) {
+      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
+      if (!seenHashes.has(hash)) {
+        seenHashes.add(hash)
+        wordHashSet.push(hash)
+      }
     }
   }
   for (const tw of titleTokens) {
     if (!tw.isWord || tw.isStopword) continue
     const norm = normalize(tw.value)
-    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 16)
-    if (!seenHashes.has(hash)) {
-      seenHashes.add(hash)
-      wordHashSet.push(hash)
+    for (const variant of variantsOf(norm)) {
+      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
+      if (!seenHashes.has(hash)) {
+        seenHashes.add(hash)
+        wordHashSet.push(hash)
+      }
     }
   }
   return wordHashSet

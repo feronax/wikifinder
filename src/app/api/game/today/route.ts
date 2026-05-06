@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchLinkedArticle } from '@/lib/wikipedia'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
 import { wordsMatch, splitOnApostrophe, cleanTokenValue, normalize } from '@/lib/matching'
+import { variantsOf } from '@/lib/client-hash'
 import { tokenizeContent, tokenizeTitle, maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
 import { findProximityHints } from '@/lib/proximity'
 import { createHash } from 'crypto'
@@ -99,19 +100,23 @@ export async function GET(req: NextRequest) {
   for (const token of fullTokens) {
     if (token.type !== 'word' || token.isStopword) continue
     const norm = normalize(cleanTokenValue(token.value))
-    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 16)
-    if (!seenHashes.has(hash)) {
-      seenHashes.add(hash)
-      wordHashSet.push(hash)
+    for (const variant of variantsOf(norm)) {
+      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
+      if (!seenHashes.has(hash)) {
+        seenHashes.add(hash)
+        wordHashSet.push(hash)
+      }
     }
   }
   for (const tw of fullTitleTokens) {
     if (!tw.isWord || tw.isStopword) continue
     const norm = normalize(tw.value)
-    const hash = createHash('sha256').update(norm).digest('hex').slice(0, 16)
-    if (!seenHashes.has(hash)) {
-      seenHashes.add(hash)
-      wordHashSet.push(hash)
+    for (const variant of variantsOf(norm)) {
+      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
+      if (!seenHashes.has(hash)) {
+        seenHashes.add(hash)
+        wordHashSet.push(hash)
+      }
     }
   }
 
