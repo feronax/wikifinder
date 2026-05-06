@@ -228,7 +228,7 @@ export default function NewGameScreen({
                 onMiss,
                 gameId: gameState.gameId,
                 lang,
-                disabled: gameState.won,
+                disabled: false,
               }}
               statsProps={{
                 elapsed,

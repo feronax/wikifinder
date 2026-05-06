@@ -372,7 +372,7 @@ export default function NewGameScreenMobile({
         onMiss={onMiss}
         gameId={gameState.gameId ?? null}
         lang={lang}
-        disabled={gameState.won}
+        disabled={false}
       />
     </MobileShell>
     {/* Phase 10.3 P4 — ResultModal rendered as top-level sibling of
