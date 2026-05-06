@@ -1243,6 +1243,32 @@ export default function GamePage() {
                 }
             })
             void syncGuessWithServer(rawWord, true)
+            // Proximity hints — fire-and-forget, mirrors legacy path at page.tsx:884-907
+            if (gameState) {
+                fetch('/api/game/proximity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        gameId: gameState.gameId,
+                        pageId: gameState.pageData.id,
+                        lang,
+                        word: rawWord,
+                    }),
+                }).then(r => r.ok ? r.json() : { proximityHints: [] })
+                  .then((proxData: { proximityHints?: { index: number; score: number }[] }) => {
+                    const newHints = proxData.proximityHints
+                    if (!newHints || newHints.length === 0) return
+                    setProximityHints(prev => {
+                        const next = new Map(prev)
+                        for (const h of newHints) {
+                            if (!next.has(h.index) || next.get(h.index)!.score < h.score) {
+                                next.set(h.index, { score: h.score, word: rawWord })
+                            }
+                        }
+                        return next
+                    })
+                }).catch(() => {})
+            }
         }
         const handleNewMiss = (raw: string) => {
             setGameState(prev => {

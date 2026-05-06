@@ -163,8 +163,10 @@ export default function NewGameScreen({
     return foundWordsByRecency.map((w) => {
       const variants = splitOnApostrophe(w)
       const occurrences = gameState.tokens.filter(t => {
-        if (t.type !== 'word' || t.isStopword || !t.visible) return false
-        const tokenClean = (t.value || '').replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
+        // Unrevealed tokens have value="" (server-masked). In the new-design path
+        // `visible` is not set on reveal — check t.value instead.
+        if (t.type !== 'word' || t.isStopword || !t.value) return false
+        const tokenClean = t.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
         return variants.some(v => wordsMatch(v, tokenClean))
       }).length
       return { display: w, normalized: normalize(w), occurrences }
