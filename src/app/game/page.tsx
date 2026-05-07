@@ -1146,8 +1146,11 @@ export default function GamePage() {
                 })
                 const data = await res.json()
 
-                // Rollback: client said "in article" but server disagrees (Wiktionary miss)
-                if (data.wordNotFound) {
+                // Rollback: client said "in article" but server disagrees (Wiktionary miss).
+                // Only remove the guess for authenticated sessions — anonymous users have no
+                // server-authoritative session to reconcile against, and removing the entry
+                // creates a confusing UX where valid-looking attempts silently vanish.
+                if (data.wordNotFound && gameState.gameId) {
                     setGameState(prev => prev ? {
                         ...prev,
                         guesses: prev.guesses.filter(g => g.word !== raw),
@@ -1240,6 +1243,32 @@ export default function GamePage() {
                 }
             })
             void syncGuessWithServer(rawWord, true)
+            // Proximity hints — fire-and-forget, mirrors legacy path at page.tsx:884-907
+            if (gameState) {
+                fetch('/api/game/proximity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        gameId: gameState.gameId,
+                        pageId: gameState.pageData.id,
+                        lang,
+                        word: rawWord,
+                    }),
+                }).then(r => r.ok ? r.json() : { proximityHints: [] })
+                  .then((proxData: { proximityHints?: { index: number; score: number }[] }) => {
+                    const newHints = proxData.proximityHints
+                    if (!newHints || newHints.length === 0) return
+                    setProximityHints(prev => {
+                        const next = new Map(prev)
+                        for (const h of newHints) {
+                            if (!next.has(h.index) || next.get(h.index)!.score < h.score) {
+                                next.set(h.index, { score: h.score, word: rawWord })
+                            }
+                        }
+                        return next
+                    })
+                }).catch(() => {})
+            }
         }
         const handleNewMiss = (raw: string) => {
             setGameState(prev => {
@@ -1392,6 +1421,7 @@ export default function GamePage() {
                         onOpenFeedback={() => setFeedbackOpen(true)}
                         revealAll={revealAll}
                         onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
+                        proximityHints={proximityHints}
                     />
                     {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
                         so ChallengeButton's onCreate (wired in P3) has a toast
@@ -1472,6 +1502,7 @@ export default function GamePage() {
                     onOpenFeedback={() => setFeedbackOpen(true)}
                     revealAll={revealAll}
                     onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
+                    proximityHints={proximityHints}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen

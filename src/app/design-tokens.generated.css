@@ -11,6 +11,9 @@
   --wf-faint: #5f5f68;
   --wf-mask: #1f1f23;
   --wf-mask-edge: #2d2d33;
+  --wf-proximity-hot: #4ade80;
+  --wf-proximity-warm: #fbbf24;
+  --wf-proximity-cold: #fca5a5;
   --wf-accent: #f59e0b;
   --wf-accent-ink: #1a0f00;
   --wf-accent-text-on-light: #f59e0b;
@@ -34,6 +37,9 @@
   --wf-faint: #9a9aa3;
   --wf-mask: #d4d4d8;
   --wf-mask-edge: #bfbfc5;
+  --wf-proximity-hot: #166534;
+  --wf-proximity-warm: #92400e;
+  --wf-proximity-cold: #991b1b;
   --wf-accent: #f59e0b;
   --wf-accent-ink: #1a0f00;
   --wf-accent-text-on-light: #92400e;

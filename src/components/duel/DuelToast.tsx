@@ -13,7 +13,10 @@ export default function DuelToast({ variant, message, onDismiss, durationMs = 30
   useEffect(() => {
     const id = setTimeout(onDismiss, durationMs)
     return () => clearTimeout(id)
-  }, [onDismiss, durationMs])
+  // onDismiss is intentionally excluded: the timer should fire once on mount.
+  // Including it would reset the timer on every parent re-render (e.g. a guess).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [durationMs])
 
   return (
     <div

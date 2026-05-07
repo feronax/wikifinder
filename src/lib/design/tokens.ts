@@ -12,6 +12,9 @@ export type TokenSet = {
   faint: string
   mask: string
   maskEdge: string
+  proximityHot: string
+  proximityWarm: string
+  proximityCold: string
   // direction invariants (duplicated across dark+light, 8)
   accent: string
   accentInk: string
@@ -38,6 +41,9 @@ export const tokens: { dark: TokenSet; light: TokenSet } = {
     faint: '#5f5f68',
     mask: '#1f1f23',
     maskEdge: '#2d2d33',
+    proximityHot: '#4ade80',   // bright green — WCAG ~5.4:1 on #1f1f23 (dark mask) — D-12
+    proximityWarm: '#fbbf24',  // amber — WCAG ~8.3:1 on #1f1f23 — D-11/D-12
+    proximityCold: '#fca5a5',  // light red — WCAG ~5.8:1 on #1f1f23 — D-11/D-12
     accent: '#f59e0b',
     accentInk: '#1a0f00',
     accentTextOnLight: '#f59e0b',
@@ -62,6 +68,9 @@ export const tokens: { dark: TokenSet; light: TokenSet } = {
     faint: '#9a9aa3',
     mask: '#d4d4d8',
     maskEdge: '#bfbfc5',
+    proximityHot: '#166534',   // dark green — WCAG ~7.9:1 on #d4d4d8 (light mask) — D-12
+    proximityWarm: '#92400e',  // dark amber — WCAG ~6.7:1 on #d4d4d8 — D-11/D-12
+    proximityCold: '#991b1b',  // dark red — WCAG ~6.8:1 on #d4d4d8 — D-11/D-12
     accent: '#f59e0b',
     accentInk: '#1a0f00',
     accentTextOnLight: '#92400e',

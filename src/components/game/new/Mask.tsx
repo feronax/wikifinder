@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { computeMaskWidth } from '@/lib/mask-width'
 import { normalize } from '@/lib/matching'
 
@@ -19,9 +19,16 @@ type MaskProps = {
     justRevealed: boolean
     highlighted: boolean
     lang: 'fr' | 'en'
+    proximityHint?: { score: number; word: string }
 }
 
-function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed, highlighted, lang }: MaskProps) {
+function proximityColor(score: number): string {
+    if (score >= 0.80) return 'var(--wf-proximity-hot)'
+    if (score >= 0.65) return 'var(--wf-proximity-warm)'
+    return 'var(--wf-proximity-cold)'  // 0.55–0.65 range (PROXIMITY_THRESHOLD = 0.55)
+}
+
+function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed, highlighted, lang, proximityHint }: MaskProps) {
     const dataWord = normalize(word)
     const effectiveLength = wordLength ?? word.length
 
@@ -63,6 +70,7 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
         pageId={pageId}
         tokenIndex={tokenIndex}
         lang={lang}
+        proximityHint={proximityHint}
     />
 }
 
@@ -71,26 +79,39 @@ function MaskImpl({ word, wordLength, pageId, tokenIndex, revealed, justRevealed
 // guess reveals N tokens, this UnrevealedMask unmounts cleanly and the
 // revealed branch above mounts as a pure dumb span.
 function UnrevealedMask({
-    dataWord, effectiveLength, pageId, tokenIndex, lang,
+    dataWord, effectiveLength, pageId, tokenIndex, lang, proximityHint,
 }: {
     dataWord: string
     effectiveLength: number
     pageId: string
     tokenIndex: number
     lang: 'fr' | 'en'
+    proximityHint?: { score: number; word: string }
 }) {
     const innerRef = useRef<HTMLSpanElement>(null)
     const timerRef = useRef<number | null>(null)
+    const [showingCount, setShowingCount] = useState(false)
 
     const handleTap = () => {
-        const el = innerRef.current
-        if (!el) return
-        el.style.opacity = '1'
-        if (timerRef.current !== null) clearTimeout(timerRef.current)
-        timerRef.current = window.setTimeout(() => {
-            if (innerRef.current) innerRef.current.style.opacity = '0'
-            timerRef.current = null
-        }, 1000)
+        if (!proximityHint) {
+            // Existing behavior: flash letter count for 1s then hide
+            const el = innerRef.current
+            if (!el) return
+            el.style.opacity = '1'
+            if (timerRef.current !== null) clearTimeout(timerRef.current)
+            timerRef.current = window.setTimeout(() => {
+                if (innerRef.current) innerRef.current.style.opacity = '0'
+                timerRef.current = null
+            }, 1000)
+        } else {
+            // Inverted behavior (D-09): temporarily show letter count, revert to word text
+            if (timerRef.current !== null) clearTimeout(timerRef.current)
+            setShowingCount(true)
+            timerRef.current = window.setTimeout(() => {
+                setShowingCount(false)
+                timerRef.current = null
+            }, 1000)
+        }
     }
 
     const w = computeMaskWidth(pageId, tokenIndex, effectiveLength)
@@ -101,9 +122,13 @@ function UnrevealedMask({
             role="button"
             tabIndex={0}
             aria-label={
-                lang === 'fr'
-                    ? `mot masqué de ${effectiveLength} lettres`
-                    : `masked word, ${effectiveLength} letters`
+                proximityHint
+                    ? lang === 'fr'
+                        ? `mot masqué de ${effectiveLength} lettres, proche de « ${proximityHint.word} »`
+                        : `masked word, ${effectiveLength} letters, close to "${proximityHint.word}"`
+                    : lang === 'fr'
+                        ? `mot masqué de ${effectiveLength} lettres`
+                        : `masked word, ${effectiveLength} letters`
             }
             onClick={handleTap}
             onKeyDown={(e) => {
@@ -116,7 +141,10 @@ function UnrevealedMask({
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: `${w}em`,
+                // When showing the hint word, expand to fit it; use mask width as minimum
+                // so the block never shrinks below the word's natural masked size.
+                width: (proximityHint && !showingCount) ? 'auto' : `${w}em`,
+                minWidth: (proximityHint && !showingCount) ? `${w}em` : undefined,
                 height: '1.1em',
                 background: 'var(--wf-mask)',
                 border: '1px solid var(--wf-mask-edge)',
@@ -126,21 +154,31 @@ function UnrevealedMask({
                 verticalAlign: 'baseline',
                 cursor: 'pointer',
                 fontSize: '0.7em',
-                color: 'var(--wf-muted)',
                 fontVariantNumeric: 'tabular-nums',
                 userSelect: 'none',
+                // Proximity hint additions (D-06, D-07, D-09, D-11, UI-SPEC)
+                color: proximityHint ? proximityColor(proximityHint.score) : 'var(--wf-muted)',
+                fontWeight: proximityHint ? 500 : undefined,
+                padding: proximityHint ? '0 4px' : undefined,
+                transition: 'color 200ms ease-out',
             }}
         >
-            <span
-                ref={innerRef}
-                aria-hidden="true"
-                style={{
-                    opacity: 0,
-                    transition: 'opacity 300ms ease-out',
-                }}
-            >
-                {effectiveLength}
-            </span>
+            {proximityHint && !showingCount ? (
+                <span aria-hidden="true">
+                    {proximityHint.word}
+                </span>
+            ) : (
+                <span
+                    ref={innerRef}
+                    aria-hidden="true"
+                    style={{
+                        opacity: proximityHint ? 1 : 0,
+                        transition: 'opacity 300ms ease-out',
+                    }}
+                >
+                    {effectiveLength}
+                </span>
+            )}
         </span>
     )
 }
@@ -156,5 +194,7 @@ export default React.memo(MaskImpl, (prev, next) =>
     prev.revealed === next.revealed &&
     prev.justRevealed === next.justRevealed &&
     prev.highlighted === next.highlighted &&
-    prev.lang === next.lang
+    prev.lang === next.lang &&
+    prev.proximityHint?.score === next.proximityHint?.score &&
+    prev.proximityHint?.word === next.proximityHint?.word
 )

@@ -17,6 +17,7 @@ interface CenterArticleProps {
     // Phase 10.3 P4 — threaded down into the nested TitleHero so the
     // "Voir le résultat" banner can open the desktop ResultModal.
     onOpenResult?: () => void
+    proximityHints?: Map<number, { score: number; word: string }>
 }
 
 export default function CenterArticle({
@@ -29,6 +30,7 @@ export default function CenterArticle({
     lang,
     attemptsCount,
     onOpenResult,
+    proximityHints,
 }: CenterArticleProps) {
     return (
         <div style={{ minWidth: 0 }}>
@@ -46,6 +48,7 @@ export default function CenterArticle({
                 justRevealedWord={justRevealedWord}
                 highlightedWord={highlightedWord}
                 lang={lang}
+                proximityHints={proximityHints}
             />
         </div>
     )
