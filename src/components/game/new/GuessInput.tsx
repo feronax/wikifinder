@@ -106,6 +106,8 @@ export default function GuessInput({
     setInput('')
     setActiveIndex(-1)
     setHistoryIndex(-1)
+    // Paired with enterKeyHint="send" — keeps the mobile soft keyboard open between guesses.
+    inputRef.current?.focus()
 
     if (inArticle) {
       performance.mark('guess:enter')
@@ -240,6 +242,7 @@ export default function GuessInput({
               }
               placeholder={copy.placeholder}
               disabled={isDisabled}
+              enterKeyHint="send"
               style={{
                 flex: 1,
                 minWidth: 0,
@@ -297,6 +300,7 @@ export default function GuessInput({
               }
               placeholder={copy.placeholder}
               disabled={isDisabled}
+              enterKeyHint="send"
               className={shake ? 'wf-shake' : ''}
               style={{
                 width: '100%',
