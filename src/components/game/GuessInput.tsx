@@ -139,7 +139,7 @@ export default function GuessInput({
                         </div>
                     )}
                 </div>
-                <button onClick={handleGuess} disabled={!input.trim() || submitting} style={{
+                <button onClick={handleGuess} onMouseDown={e => e.preventDefault()} disabled={!input.trim() || submitting} style={{
                     padding: '12px 24px', fontSize: 15, fontWeight: 600, borderRadius: 8, border: 'none',
                     backgroundColor: 'var(--accent)', color: 'white',
                     cursor: (!input.trim() || submitting) ? 'default' : 'pointer',
