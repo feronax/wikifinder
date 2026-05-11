@@ -23,7 +23,7 @@
 // /api/game/reveal directly from page context, then asserts that the
 // defeat-state ResultModal auto-opens on revealAll && !won.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 

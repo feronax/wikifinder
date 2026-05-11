@@ -17,7 +17,7 @@
 // route handler closing over a captured-body variable so the test can
 // assert request body content AFTER the click.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 

@@ -13,7 +13,7 @@
 // Cookie/query setup pattern is copied verbatim from
 // e2e/daily-game-new-ui.spec.ts:36-47.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 

@@ -9,7 +9,7 @@
 // smoke log (see 08-05-SUMMARY). The three proxy-seed tests run unauthenticated
 // and exercise the full request path through proxy.ts.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test.describe('Accept-Language proxy seed (D-06, D-06a)', () => {
   test('seeds wf_lang=en on first visit when Accept-Language prefers English', async ({
