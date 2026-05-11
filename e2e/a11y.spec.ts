@@ -79,8 +79,9 @@ for (const { mode } of THEMES) {
   for (const lang of LANGS) {
     for (const { path, name } of SCREENS) {
       // v1.2 closure: amber-on-light contrast fixed via --wf-accent-text-on-light token (plan 14-01).
-      // Anon /profile renders legacy landing.tsx (still uses var(--accent)); deferred to Phase 17 — Legacy Purge.
-      const axeRunner = name === 'profile' ? test.fixme : test
+      // Phase 17 Legacy Purge complete (PURGE-01/03) — /profile no longer uses var(--accent).
+      // Phase 19 / Plan 01: optimistic unskip per D-06.
+      const axeRunner = test
       axeRunner(`a11y axe: ${name} (${mode}/${lang}) — WCAG 2.1 AA`, async ({ page, context }) => {
         // Webkit's axe-core evaluate() hangs scanning the masked article token tree
         // (thousands of <span> nodes) — even 360s isn't enough. Excluding `<article>`
@@ -107,8 +108,8 @@ for (const { mode } of THEMES) {
 
       // §10 typography rule applies on LIGHT theme only (amber on light bg ≈ 3:1).
       if (mode === 'light') {
-        // Anon /profile (legacy landing.tsx) still ships var(--accent) labels; defer to Phase 17.
-        const typoRunner = name === 'profile' ? test.fixme : test
+        // Phase 17 Legacy Purge removed var(--accent) from /profile; Phase 19 / Plan 01 unskips per D-06.
+        const typoRunner = test
         typoRunner(`amber-on-light typography (D-09): ${name} (${lang})`, async ({ page, context }) => {
           await bootstrap(page, context, lang, mode)
           await page.goto(path)
