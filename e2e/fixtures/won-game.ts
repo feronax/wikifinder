@@ -22,7 +22,10 @@
 //   The new UNIQUE(user_id, page_id, lang) constraint from the 2026-04-18 dedupe
 //   migration guarantees the upsert never duplicates.
 
-import { test as base, expect, type Page } from '@playwright/test'
+import { test as parent, expect } from '../fixtures'
+import type { Page } from '@playwright/test'
+
+const base = parent
 
 type Fixtures = {
     wonGamePage: Page

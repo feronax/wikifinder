@@ -7,7 +7,8 @@
 // PLAYWRIGHT_TEST_PASSWORD(_2) / SUPABASE_ACCESS_TOKEN absent. CI is the
 // authoritative environment (Phase 2.1 Plan 03 precedent).
 
-import { test, expect, type Page, type BrowserContext } from '@playwright/test'
+import { test, expect } from './fixtures'
+import type { Page, BrowserContext } from '@playwright/test'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 const SUPABASE_URL = 'https://api.supabase.com/v1/projects/nkmrrvuijffhtmrysejm/database/query'

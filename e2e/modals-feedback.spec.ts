@@ -1,10 +1,13 @@
-// Phase 12 / Plan 01 — RED Playwright spec for MOD-03 (Feedback modal).
+// Phase 12 / Plan 01 — Playwright spec for MOD-03 (Feedback modal).
 //
-// These tests are RED until Plan 03 ships the new FeedbackModal and
-// Plan 05 wires it into the BurgerDrawer. The data-testid contract
-// registered here ("feedback-modal", "feedback-textarea",
-// "feedback-cat-bug", "feedback-cat-suggestion", "feedback-cat-article",
-// "feedback-cat-other", "feedback-submit") is binding for downstream plans.
+// Phase 19 / Plan 02 — un-fixme'd the submit-body capture test. The
+// original used a closure-captured `captured` variable populated inside
+// a `page.route` handler then asserted on it after a `waitForTimeout`,
+// which raced: the assertion ran before the handler closed (D-03).
+// Rewritten with `page.waitForRequest` hoisted BEFORE the submit click
+// and awaited after, the idiomatic Playwright pattern for deterministic
+// request-body capture. /api/feedback is also mocked via route.fulfill
+// to suppress real Resend sends in CI (RESEARCH Open Q2).
 //
 // Locked decisions covered:
 //   - D-13 (categories: bug / suggestion / article / other)
@@ -12,12 +15,8 @@
 //   - D-15 (entry point = burger menu only when WF_NEW_DESIGN on)
 //   - D-16 (auto-prefill metadata appended to message body, not visible)
 //   - D-17 (POST /api/feedback schema unchanged — only message + pageId)
-//
-// Network intercept pattern: page.route('**/api/feedback', ...) with the
-// route handler closing over a captured-body variable so the test can
-// assert request body content AFTER the click.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 
@@ -39,37 +38,7 @@ async function dismissOnboardingIfPresent(page: import('@playwright/test').Page)
 test.describe('MOD-03 Feedback modal', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
-  // Vercel preview deploys load the Axeptio cookie-consent banner via GTM.
-  // The overlay (#axeptio_overlay > .needsclick) intercepts pointer events
-  // and breaks any test that clicks burger-drawer items. The script itself
-  // is loaded indirectly via GTM, so a network route block on axept.io
-  // alone doesn't stop the banner from mounting.
-  //
-  // Belt-and-braces: (1) addInitScript installs a MutationObserver that
-  // removes any Axeptio overlay node the moment it appears, before it can
-  // intercept clicks; (2) page.route still aborts axept.io requests as a
-  // bonus. Pattern is reusable — copy this beforeEach into any spec that
-  // exercises page-level click flows.
-  test.beforeEach(async ({ page, context }) => {
-    await context.route(/axept(?:io)?\.(?:io|eu|com)/i, (route) => route.abort())
-    await page.addInitScript(() => {
-      const sweep = () => {
-        document
-          .querySelectorAll('#axeptio_overlay, .axeptio_mount, [class*="axept"]')
-          .forEach((el) => el.remove())
-      }
-      const observer = new MutationObserver(sweep)
-      const start = () => {
-        sweep()
-        observer.observe(document.documentElement, { childList: true, subtree: true })
-      }
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', start, { once: true })
-      } else {
-        start()
-      }
-    })
-  })
+  // Axeptio dismissal is shared via e2e/fixtures.ts (Phase 19 / Plan 01).
 
   test('opens from burger menu Feedback item', async ({ page, context }) => {
     await setNewDesignFlag(context)
@@ -84,26 +53,15 @@ test.describe('MOD-03 Feedback modal', () => {
     await expect(page.locator('[data-testid="feedback-modal"]')).toBeVisible({ timeout: 5_000 })
   })
 
-  // FIXME(v1.1-deferral): the body-shape assertion mismatched on first
-  // run — the modal posts the request body but the test's `captured`
-  // ref was null when assertions ran. Likely a timing/route-handler
-  // race specific to the route.fulfill helper. The other two feedback
-  // tests in this file (modal opens; submit blocked under 30 chars)
-  // pass, so the modal mount + validation paths are covered. This
-  // submit-body assertion is fixme'd until the capture race is fixed.
-  test.fixme('submit posts message + pageId to /api/feedback with metadata footer in body', async ({ page, context }) => {
+  test('submit posts message + pageId to /api/feedback with metadata footer in body', async ({ page, context }) => {
     await setNewDesignFlag(context)
 
-    // Capture the POST body the modal sends.
-    let captured: { message?: unknown; pageId?: unknown; keys?: string[] } | null = null
-    await page.route('**/api/feedback', async route => {
+    // Mock the /api/feedback response BEFORE navigation to suppress real
+    // Resend email sends in CI (Open Q2). route.fulfill intercepts AFTER
+    // the request hits the network layer, so page.waitForRequest still
+    // fires on the same POST — the two are complementary, not exclusive.
+    await context.route('**/api/feedback', async (route) => {
       if (route.request().method() === 'POST') {
-        const body = route.request().postDataJSON() as Record<string, unknown>
-        captured = {
-          message: body?.message,
-          pageId: body?.pageId,
-          keys: Object.keys(body ?? {}),
-        }
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -123,32 +81,37 @@ test.describe('MOD-03 Feedback modal', () => {
     await page.getByRole('button', { name: /signaler|feedback|send feedback/i }).click()
     await expect(page.locator('[data-testid="feedback-modal"]')).toBeVisible({ timeout: 5_000 })
 
-    // Type a 40-char message (above 30-char min).
+    // Type a >30-char message (above D-14 threshold).
     await page.locator('[data-testid="feedback-textarea"]')
       .fill('Bug: tokens flicker on iOS Safari sometimes')
 
     // Select bug category.
     await page.locator('[data-testid="feedback-cat-bug"]').click()
 
-    // Submit.
+    // D-03 + RESEARCH Pattern 2: start waiting BEFORE the click so the
+    // listener cannot miss the request. The submit click triggers a
+    // fire-and-forget fetch inside FeedbackModal.handleSubmit (see
+    // src/components/game/new/modals/FeedbackModal.tsx:131-135).
+    const requestPromise = page.waitForRequest(
+      (req) => req.url().includes('/api/feedback') && req.method() === 'POST',
+      { timeout: 5_000 },
+    )
     await page.locator('[data-testid="feedback-submit"]').click()
+    const request = await requestPromise
 
-    // Wait for fetch to fire.
-    await page.waitForTimeout(500)
-
-    expect(captured).not.toBeNull()
-    const cap = captured as unknown as { message: string; pageId: unknown; keys: string[] }
+    const body = request.postDataJSON() as { message: string; pageId: unknown }
 
     // D-17: schema unchanged — body has ONLY `message` and `pageId` keys.
-    expect(cap.keys.sort()).toEqual(['message', 'pageId'].sort())
-
-    // D-16: metadata embedded in the message string as a footer block.
-    expect(cap.message).toContain('[meta] category: bug')
-    expect(cap.message).toContain('[meta] lang:')
-    expect(cap.message).toContain('[meta] ua:')
+    expect(Object.keys(body).sort()).toEqual(['message', 'pageId'].sort())
 
     // User text preserved at the top of the message.
-    expect(cap.message).toContain('Bug: tokens flicker on iOS Safari sometimes')
+    expect(body.message).toContain('Bug: tokens flicker on iOS Safari sometimes')
+
+    // D-16: metadata embedded in the message string as a footer block
+    // (constructed at FeedbackModal.tsx:110-119).
+    expect(body.message).toContain('[meta] category: bug')
+    expect(body.message).toContain('[meta] lang:')
+    expect(body.message).toContain('[meta] ua:')
   })
 
   test('submit blocked when message under 30 chars', async ({ page, context }) => {

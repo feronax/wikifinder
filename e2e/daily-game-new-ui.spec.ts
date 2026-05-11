@@ -22,7 +22,7 @@
 // CAVEAT: WebKit-on-Linux is a necessary but not sufficient proxy for real iOS Safari.
 // The budget passing here is a regression detector, not a guarantee for iPhone users.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test.describe.configure({ retries: 1 })
 
