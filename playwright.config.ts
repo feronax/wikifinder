@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
+import path from 'node:path'
+
+const consentState = path.join(__dirname, 'playwright', '.auth', 'consent-state.json')
 
 export default defineConfig({
   testDir: './e2e',
@@ -20,9 +23,22 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-    { name: 'chromium-mobile', use: { ...devices['Pixel 5'] } },
+    { name: 'setup-consent', testMatch: /consent\.setup\.ts$/ },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], storageState: consentState },
+      dependencies: ['setup-consent'],
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'], storageState: consentState },
+      dependencies: ['setup-consent'],
+    },
+    {
+      name: 'chromium-mobile',
+      use: { ...devices['Pixel 5'], storageState: consentState },
+      dependencies: ['setup-consent'],
+    },
   ],
   webServer: {
     command: process.env.CI ? 'npm run start' : 'npm run dev',
