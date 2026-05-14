@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchLinkedArticle } from '@/lib/wikipedia'
 import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
-import { wordsMatch, splitOnApostrophe, cleanTokenValue, normalize } from '@/lib/matching'
-import { variantsOf } from '@/lib/client-hash'
+import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
+import { computeWordHashSet } from '@/lib/client-hash'
 import { tokenizeContent, tokenizeTitle, maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
 import { findProximityHints } from '@/lib/proximity'
-import { createHash } from 'crypto'
 import type { GuessRow } from '@/lib/wikipedia-types'
 
 async function seedPage(date: string) {
@@ -53,7 +52,9 @@ async function seedPage(date: string) {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const lang = searchParams.get('lang') as 'fr' | 'en' || 'fr'
+  // Phase 20 WR-01: validate lang against enum instead of unsafe cast.
+  const rawLang = searchParams.get('lang')
+  const lang: 'fr' | 'en' = rawLang === 'en' ? 'en' : 'fr'
   let targetDate = searchParams.get('date')
   const gameId = searchParams.get('gameId')
   const pageIdParam = searchParams.get('pageId')
@@ -94,38 +95,20 @@ export async function GET(req: NextRequest) {
   const fullTokens = precomputedTokens || tokenizeContent(content, lang)
   const fullTitleTokens = precomputedTitleTokens || tokenizeTitle(title, lang)
 
-  // 3. Génère un hash set des mots de l'article pour vérification instantanée côté client
-  const wordHashSet: string[] = []
-  const seenHashes = new Set<string>()
-  for (const token of fullTokens) {
-    if (token.type !== 'word' || token.isStopword) continue
-    const norm = normalize(cleanTokenValue(token.value))
-    for (const variant of variantsOf(norm)) {
-      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
-      if (!seenHashes.has(hash)) {
-        seenHashes.add(hash)
-        wordHashSet.push(hash)
-      }
-    }
-  }
-  for (const tw of fullTitleTokens) {
-    if (!tw.isWord || tw.isStopword) continue
-    const norm = normalize(tw.value)
-    for (const variant of variantsOf(norm)) {
-      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
-      if (!seenHashes.has(hash)) {
-        seenHashes.add(hash)
-        wordHashSet.push(hash)
-      }
-    }
-  }
+  // 3. Hash set des mots de l'article pour vérification instantanée côté client
+  // Single source of truth: computeWordHashSet (Phase 22, HASH-CONSOLIDATE).
+  const wordHashSet = computeWordHashSet(fullTokens, fullTitleTokens)
 
   // 4. Masquer les valeurs pour le client
   const tokens = maskTokensForClient(fullTokens)
   const titleWords = maskTitleForClient(fullTitleTokens)
 
   // 4. Si un gameId est fourni, révéler les mots déjà devinés
+  // Phase 20 WR-02: hoist the guess fetch so it's reused for both reveal
+  // and proximity computation — saves one Supabase round-trip per session
+  // restore.
   let firstGuessAt: string | null = null
+  let cachedGuesses: { word: string; guessed_at: string }[] = []
   if (gameId) {
     const { data: guesses } = await supabaseAdmin
       .from('guesses')
@@ -133,9 +116,10 @@ export async function GET(req: NextRequest) {
       .eq('game_id', gameId)
       .order('guessed_at', { ascending: true })
 
-    const previousWords = (guesses || []).map((g: any) => g.word)
-    if (guesses && guesses.length > 0) {
-      firstGuessAt = (guesses[0] as GuessRow).guessed_at
+    cachedGuesses = (guesses || []) as { word: string; guessed_at: string }[]
+    const previousWords = cachedGuesses.map((g) => g.word)
+    if (cachedGuesses.length > 0) {
+      firstGuessAt = (cachedGuesses[0] as GuessRow).guessed_at
     }
     const allVariants = previousWords.flatMap(splitOnApostrophe)
 
@@ -173,13 +157,8 @@ export async function GET(req: NextRequest) {
       t.type === 'word' && !t.isStopword && !revealedIndices.has(t.index)
     )
 
-    const { data: guessRows } = await supabaseAdmin
-      .from('guesses')
-      .select('word')
-      .eq('game_id', gameId)
-      .order('guessed_at', { ascending: true })
-
-    const previousWords = (guessRows || []).map((g: any) => g.word)
+    // Phase 20 WR-02: reuse the guesses fetched above instead of re-querying.
+    const previousWords = cachedGuesses.map((g) => g.word)
     const hintsMap = new Map<number, { score: number; word: string }>()
 
     for (const w of previousWords) {

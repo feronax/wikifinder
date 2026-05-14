@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalize, wordsMatch, splitOnApostrophe } from '@/lib/matching'
+import { normalize, wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
 
 describe('normalize', () => {
   it('lowercases ASCII', () => {
@@ -143,8 +143,378 @@ describe('wordsMatch', () => {
     expect(wordsMatch('parler', 'parlé')).toBe(true)
     expect(wordsMatch('parlé', 'parler')).toBe(true)
   })
+  // Past-participle adjectival agreement — créer ↔ créé/créés/créée/créées.
+  // Pre-fix: only the bare pp matched; -és/-ée/-ées were missed (Wikifinder bug,
+  // article "Crash Bandicoot": typing "créer" missed 18 agreement-form tokens).
+  it('matches FR -er verb infinitive ↔ pp masculine plural (créer ↔ créés)', () => {
+    expect(wordsMatch('créer', 'créés')).toBe(true)
+    expect(wordsMatch('créés', 'créer')).toBe(true)
+  })
+  it('matches FR -er verb infinitive ↔ pp feminine (créer ↔ créée)', () => {
+    expect(wordsMatch('créer', 'créée')).toBe(true)
+    expect(wordsMatch('créée', 'créer')).toBe(true)
+  })
+  it('matches FR -er verb infinitive ↔ pp feminine plural (créer ↔ créées)', () => {
+    expect(wordsMatch('créer', 'créées')).toBe(true)
+    expect(wordsMatch('créées', 'créer')).toBe(true)
+  })
+  it('matches FR -er verb infinitive ↔ pp agreement (manger ↔ mangés/mangée/mangées)', () => {
+    expect(wordsMatch('manger', 'mangés')).toBe(true)
+    expect(wordsMatch('manger', 'mangée')).toBe(true)
+    expect(wordsMatch('manger', 'mangées')).toBe(true)
+  })
+  // FR adjectival agreement (m ↔ f, sg ↔ pl). Phase 21-04 audit on article
+  // "Crash Bandicoot" found that typing pp/adj forms gave asymmetric reveals
+  // (créé missed créée, etc.). These rules close the m/f and pl cross-axis.
+  it('matches FR adj m.sg ↔ f.sg (créé ↔ créée)', () => {
+    expect(wordsMatch('créé', 'créée')).toBe(true)
+    expect(wordsMatch('créée', 'créé')).toBe(true)
+  })
+  it('matches FR adj m.sg ↔ f.sg (différent ↔ différente)', () => {
+    expect(wordsMatch('différent', 'différente')).toBe(true)
+    expect(wordsMatch('différente', 'différent')).toBe(true)
+  })
+  it('matches FR adj m.sg ↔ f.sg (animal ↔ animale)', () => {
+    expect(wordsMatch('animal', 'animale')).toBe(true)
+    expect(wordsMatch('animale', 'animal')).toBe(true)
+  })
+  it('matches FR adj m.pl ↔ f.pl (créés ↔ créées)', () => {
+    expect(wordsMatch('créés', 'créées')).toBe(true)
+    expect(wordsMatch('créées', 'créés')).toBe(true)
+  })
+  it('matches FR adj m.pl ↔ f.pl (différents ↔ différentes)', () => {
+    expect(wordsMatch('différents', 'différentes')).toBe(true)
+    expect(wordsMatch('différentes', 'différents')).toBe(true)
+  })
+  it('matches FR adj f.sg ↔ m.pl (créée ↔ créés)', () => {
+    expect(wordsMatch('créée', 'créés')).toBe(true)
+    expect(wordsMatch('créés', 'créée')).toBe(true)
+  })
+  it('matches FR adj f.sg ↔ m.pl (différente ↔ différents)', () => {
+    expect(wordsMatch('différente', 'différents')).toBe(true)
+    expect(wordsMatch('différents', 'différente')).toBe(true)
+  })
+  // -al/-aux family cross-axis (animaux ↔ animales, animale ↔ animaux)
+  it('matches FR -aux/-ales m.pl ↔ f.pl (animaux ↔ animales)', () => {
+    expect(wordsMatch('animaux', 'animales')).toBe(true)
+    expect(wordsMatch('animales', 'animaux')).toBe(true)
+  })
+  it('matches FR -ale/-aux f.sg ↔ m.pl (animale ↔ animaux)', () => {
+    expect(wordsMatch('animale', 'animaux')).toBe(true)
+    expect(wordsMatch('animaux', 'animale')).toBe(true)
+  })
+  // Length guard ≥4 blocks short-stem false positives
+  it('does NOT match short-stem +e false positives (ami ↔ amie blocked)', () => {
+    // ami/amie are real same-lemma but stem 'ami'(3) is below the guard.
+    // Acceptable trade-off to block fil/file, ros/rose, or/ore.
+    expect(wordsMatch('ami', 'amie')).toBe(false)
+    expect(wordsMatch('fil', 'file')).toBe(false)
+  })
   it('FR eau↔eaux already covered by +x rule (no new rule needed)', () => {
     expect(wordsMatch('eau', 'eaux')).toBe(true)
+  })
+
+  // ===== Phase 21-01: FR irregular plurals =====
+  it('matches FR -al/-aux cheval ↔ chevaux', () => {
+    expect(wordsMatch('cheval', 'chevaux')).toBe(true)
+    expect(wordsMatch('chevaux', 'cheval')).toBe(true)
+  })
+  it('matches FR -al/-aux journal ↔ journaux', () => {
+    expect(wordsMatch('journal', 'journaux')).toBe(true)
+    expect(wordsMatch('journaux', 'journal')).toBe(true)
+  })
+  it('matches FR -al/-aux travail ↔ travaux', () => {
+    expect(wordsMatch('travail', 'travaux')).toBe(true)
+    expect(wordsMatch('travaux', 'travail')).toBe(true)
+  })
+  it('matches FR -al/-aux animal ↔ animaux', () => {
+    expect(wordsMatch('animal', 'animaux')).toBe(true)
+    expect(wordsMatch('animaux', 'animal')).toBe(true)
+  })
+  it('matches FR -al exception bal ↔ bals (regular -s)', () => {
+    expect(wordsMatch('bal', 'bals')).toBe(true)
+    expect(wordsMatch('bals', 'bal')).toBe(true)
+  })
+  it('matches FR -al exception carnaval ↔ carnavals (regular -s)', () => {
+    expect(wordsMatch('carnaval', 'carnavals')).toBe(true)
+    expect(wordsMatch('carnavals', 'carnaval')).toBe(true)
+  })
+  it('matches FR -al exception festival ↔ festivals (regular -s)', () => {
+    expect(wordsMatch('festival', 'festivals')).toBe(true)
+    expect(wordsMatch('festivals', 'festival')).toBe(true)
+  })
+  it('matches FR -al exception récital ↔ récitals (regular -s)', () => {
+    expect(wordsMatch('récital', 'récitals')).toBe(true)
+    expect(wordsMatch('récitals', 'récital')).toBe(true)
+  })
+  it('matches FR -al exception régal ↔ régals (regular -s)', () => {
+    expect(wordsMatch('régal', 'régals')).toBe(true)
+    expect(wordsMatch('régals', 'régal')).toBe(true)
+  })
+  it('matches FR -ou exception genou ↔ genoux', () => {
+    expect(wordsMatch('genou', 'genoux')).toBe(true)
+    expect(wordsMatch('genoux', 'genou')).toBe(true)
+  })
+  it('matches FR -ou exception caillou ↔ cailloux', () => {
+    expect(wordsMatch('caillou', 'cailloux')).toBe(true)
+    expect(wordsMatch('cailloux', 'caillou')).toBe(true)
+  })
+  it('matches FR -ou exception hibou ↔ hiboux', () => {
+    expect(wordsMatch('hibou', 'hiboux')).toBe(true)
+    expect(wordsMatch('hiboux', 'hibou')).toBe(true)
+  })
+  it('matches FR -ou exception bijou ↔ bijoux', () => {
+    expect(wordsMatch('bijou', 'bijoux')).toBe(true)
+    expect(wordsMatch('bijoux', 'bijou')).toBe(true)
+  })
+  it('matches FR -ou exception chou ↔ choux', () => {
+    expect(wordsMatch('chou', 'choux')).toBe(true)
+    expect(wordsMatch('choux', 'chou')).toBe(true)
+  })
+  it('matches FR -ou exception joujou ↔ joujoux', () => {
+    expect(wordsMatch('joujou', 'joujoux')).toBe(true)
+    expect(wordsMatch('joujoux', 'joujou')).toBe(true)
+  })
+  it('matches FR -ou exception pou ↔ poux', () => {
+    expect(wordsMatch('pou', 'poux')).toBe(true)
+    expect(wordsMatch('poux', 'pou')).toBe(true)
+  })
+  it('matches FR vowel-change œil ↔ yeux', () => {
+    expect(wordsMatch('œil', 'yeux')).toBe(true)
+    expect(wordsMatch('yeux', 'œil')).toBe(true)
+  })
+  it('matches FR vowel-change normalized oeil ↔ yeux', () => {
+    expect(wordsMatch('oeil', 'yeux')).toBe(true)
+    expect(wordsMatch('yeux', 'oeil')).toBe(true)
+  })
+  it('matches FR vowel-change ciel ↔ cieux', () => {
+    expect(wordsMatch('ciel', 'cieux')).toBe(true)
+    expect(wordsMatch('cieux', 'ciel')).toBe(true)
+  })
+  it('rejects FR over-generation bal → baux (NOT a real plural)', () => {
+    expect(wordsMatch('bal', 'baux')).toBe(false)
+  })
+  it('rejects FR over-generation carnaval → carnavaux', () => {
+    expect(wordsMatch('carnaval', 'carnavaux')).toBe(false)
+  })
+  it('rejects FR over-generation festival → festivaux', () => {
+    expect(wordsMatch('festival', 'festivaux')).toBe(false)
+  })
+  it('matches FR regular -s plural chemin ↔ chemins', () => {
+    expect(wordsMatch('chemin', 'chemins')).toBe(true)
+    expect(wordsMatch('chemins', 'chemin')).toBe(true)
+  })
+  it('rejects FR spurious chemin → chemaux', () => {
+    expect(wordsMatch('chemin', 'chemaux')).toBe(false)
+  })
+})
+
+describe('cleanTokenValue', () => {
+  // Pre-existing bug surfaced during Phase 21-01: the original regex
+  // [^a-zA-ZÀ-ÿ0-9'-] excluded U+0153 (œ) and U+0152 (Œ), so any FR
+  // token containing the o-e ligature got mangled (e.g. 'œil' → 'il',
+  // 'cœur' → 'cur'). Phase 21-01 documented this in client-hash.test.ts
+  // line 125-130; this test locks the fix.
+  it("preserves œ (U+0153) in lowercase tokens", () => {
+    expect(cleanTokenValue('œil')).toBe('œil')
+    expect(cleanTokenValue('cœur')).toBe('cœur')
+    expect(cleanTokenValue('sœur')).toBe('sœur')
+    expect(cleanTokenValue('bœuf')).toBe('bœuf')
+  })
+  it("preserves Œ (U+0152) in capitalized tokens", () => {
+    expect(cleanTokenValue('Œil')).toBe('Œil')
+    expect(cleanTokenValue('Œuvre')).toBe('Œuvre')
+  })
+  it("still strips punctuation and other non-letter characters", () => {
+    expect(cleanTokenValue("cœur,")).toBe('cœur')
+    expect(cleanTokenValue("œil.")).toBe('œil')
+    expect(cleanTokenValue("(cœur)")).toBe('cœur')
+  })
+  it("leaves ASCII letters / digits / apostrophe / hyphen alone", () => {
+    expect(cleanTokenValue("d'un")).toBe("d'un")
+    expect(cleanTokenValue('peut-être')).toBe('peut-être')
+    expect(cleanTokenValue('test123')).toBe('test123')
+  })
+})
+
+// ===== Phase 21-02: FR verb inflection beyond -er =====
+describe('wordsMatch — Phase 21-02 FR verb inflection', () => {
+  // -- FR -ir verbs (regular -ir/-i past participle) --
+  it('matches FR -ir verb finir ↔ fini', () => {
+    expect(wordsMatch('finir', 'fini')).toBe(true)
+    expect(wordsMatch('fini', 'finir')).toBe(true)
+  })
+  it('matches FR -ir verb choisir ↔ choisi', () => {
+    expect(wordsMatch('choisir', 'choisi')).toBe(true)
+    expect(wordsMatch('choisi', 'choisir')).toBe(true)
+  })
+  it('matches FR -ir verb partir ↔ parti', () => {
+    expect(wordsMatch('partir', 'parti')).toBe(true)
+    expect(wordsMatch('parti', 'partir')).toBe(true)
+  })
+  it('matches FR -ir verb dormir ↔ dormi', () => {
+    expect(wordsMatch('dormir', 'dormi')).toBe(true)
+    expect(wordsMatch('dormi', 'dormir')).toBe(true)
+  })
+  it('matches FR -ir verb sortir ↔ sorti', () => {
+    expect(wordsMatch('sortir', 'sorti')).toBe(true)
+    expect(wordsMatch('sorti', 'sortir')).toBe(true)
+  })
+
+  // -- FR -re verbs (regular -re/-u past participle) --
+  it('matches FR -re verb vendre ↔ vendu', () => {
+    expect(wordsMatch('vendre', 'vendu')).toBe(true)
+    expect(wordsMatch('vendu', 'vendre')).toBe(true)
+  })
+  it('matches FR -re verb attendre ↔ attendu', () => {
+    expect(wordsMatch('attendre', 'attendu')).toBe(true)
+    expect(wordsMatch('attendu', 'attendre')).toBe(true)
+  })
+  it('matches FR -re verb répondre ↔ répondu', () => {
+    expect(wordsMatch('répondre', 'répondu')).toBe(true)
+    expect(wordsMatch('répondu', 'répondre')).toBe(true)
+  })
+  it('matches FR -re verb entendre ↔ entendu', () => {
+    expect(wordsMatch('entendre', 'entendu')).toBe(true)
+    expect(wordsMatch('entendu', 'entendre')).toBe(true)
+  })
+  it('matches FR -re verb descendre ↔ descendu', () => {
+    expect(wordsMatch('descendre', 'descendu')).toBe(true)
+    expect(wordsMatch('descendu', 'descendre')).toBe(true)
+  })
+  it('matches FR -re verb perdre ↔ perdu', () => {
+    expect(wordsMatch('perdre', 'perdu')).toBe(true)
+    expect(wordsMatch('perdu', 'perdre')).toBe(true)
+  })
+  it('matches FR -re verb rendre ↔ rendu', () => {
+    expect(wordsMatch('rendre', 'rendu')).toBe(true)
+    expect(wordsMatch('rendu', 'rendre')).toBe(true)
+  })
+
+  // -- FR named-irregular equivalence classes --
+  it('matches FR named-irregular être class (être/été/étant/est/était)', () => {
+    const forms = ['être', 'été', 'étant', 'est', 'était']
+    for (let i = 0; i < forms.length; i++) {
+      for (let j = 0; j < forms.length; j++) {
+        if (i === j) continue
+        expect(wordsMatch(forms[i], forms[j])).toBe(true)
+      }
+    }
+  })
+  it('matches FR named-irregular avoir class (avoir/eu/ayant/a/avait)', () => {
+    const forms = ['avoir', 'eu', 'ayant', 'a', 'avait']
+    for (let i = 0; i < forms.length; i++) {
+      for (let j = 0; j < forms.length; j++) {
+        if (i === j) continue
+        expect(wordsMatch(forms[i], forms[j])).toBe(true)
+      }
+    }
+  })
+  it('matches FR named-irregular aller class', () => {
+    const forms = ['aller', 'allé', 'allant', 'va', 'allait']
+    for (let i = 0; i < forms.length; i++) {
+      for (let j = 0; j < forms.length; j++) {
+        if (i === j) continue
+        expect(wordsMatch(forms[i], forms[j])).toBe(true)
+      }
+    }
+  })
+  it('matches FR named-irregular faire class', () => {
+    expect(wordsMatch('faire', 'fait')).toBe(true)
+    expect(wordsMatch('faire', 'faisait')).toBe(true)
+    expect(wordsMatch('faisant', 'fait')).toBe(true)
+  })
+  it('matches FR named-irregular dire class', () => {
+    expect(wordsMatch('dire', 'dit')).toBe(true)
+    expect(wordsMatch('dire', 'disait')).toBe(true)
+    expect(wordsMatch('disant', 'dit')).toBe(true)
+  })
+  it('matches FR named-irregular voir class', () => {
+    expect(wordsMatch('voir', 'vu')).toBe(true)
+    expect(wordsMatch('voir', 'voit')).toBe(true)
+    expect(wordsMatch('voyant', 'voyait')).toBe(true)
+  })
+  it('matches FR named-irregular savoir class', () => {
+    expect(wordsMatch('savoir', 'su')).toBe(true)
+    expect(wordsMatch('savoir', 'sait')).toBe(true)
+  })
+  it('matches FR named-irregular pouvoir class', () => {
+    expect(wordsMatch('pouvoir', 'peut')).toBe(true)
+    expect(wordsMatch('pouvoir', 'pu')).toBe(true)
+  })
+  it('matches FR named-irregular vouloir class', () => {
+    expect(wordsMatch('vouloir', 'voulu')).toBe(true)
+    expect(wordsMatch('vouloir', 'veut')).toBe(true)
+  })
+  it('matches FR named-irregular devoir class', () => {
+    expect(wordsMatch('devoir', 'dû')).toBe(true)
+    expect(wordsMatch('devoir', 'doit')).toBe(true)
+  })
+  it('matches FR named-irregular venir class', () => {
+    expect(wordsMatch('venir', 'venu')).toBe(true)
+    expect(wordsMatch('venir', 'vient')).toBe(true)
+  })
+  it('matches FR named-irregular tenir class', () => {
+    expect(wordsMatch('tenir', 'tenu')).toBe(true)
+    expect(wordsMatch('tenir', 'tient')).toBe(true)
+  })
+  it('matches FR named-irregular prendre class', () => {
+    expect(wordsMatch('prendre', 'pris')).toBe(true)
+    expect(wordsMatch('prendre', 'prend')).toBe(true)
+    expect(wordsMatch('pris', 'prenant')).toBe(true)
+  })
+  it('matches FR named-irregular mettre class', () => {
+    expect(wordsMatch('mettre', 'mis')).toBe(true)
+    expect(wordsMatch('mettre', 'met')).toBe(true)
+  })
+  it('matches FR named-irregular vivre class', () => {
+    expect(wordsMatch('vivre', 'vécu')).toBe(true)
+    expect(wordsMatch('vivre', 'vit')).toBe(true)
+  })
+  it('matches FR named-irregular naître class', () => {
+    expect(wordsMatch('naître', 'né')).toBe(true)
+    expect(wordsMatch('naître', 'naît')).toBe(true)
+  })
+  it('matches FR named-irregular mourir class', () => {
+    expect(wordsMatch('mourir', 'mort')).toBe(true)
+    expect(wordsMatch('mourir', 'meurt')).toBe(true)
+  })
+  it('matches FR named-irregular boire class', () => {
+    expect(wordsMatch('boire', 'bu')).toBe(true)
+    expect(wordsMatch('boire', 'boit')).toBe(true)
+  })
+  it('matches FR named-irregular croire class', () => {
+    expect(wordsMatch('croire', 'cru')).toBe(true)
+    expect(wordsMatch('croire', 'croit')).toBe(true)
+  })
+  it('matches FR named-irregular lire class', () => {
+    expect(wordsMatch('lire', 'lu')).toBe(true)
+    expect(wordsMatch('lire', 'lit')).toBe(true)
+  })
+  it('matches FR named-irregular écrire class', () => {
+    expect(wordsMatch('écrire', 'écrit')).toBe(true)
+    expect(wordsMatch('écrire', 'écrivait')).toBe(true)
+  })
+
+  // -- Negative cases (prevent -re/-u over-generation on irregular -re verbs) --
+  it('does NOT match prendre/prendu (irregular table override prevents -re/-u)', () => {
+    expect(wordsMatch('prendre', 'prendu')).toBe(false)
+  })
+  it('does NOT match mettre/mettu', () => {
+    expect(wordsMatch('mettre', 'mettu')).toBe(false)
+  })
+  it('does NOT match vivre/vivu', () => {
+    expect(wordsMatch('vivre', 'vivu')).toBe(false)
+  })
+
+  // -- Backward-compat: Phase 20-01 -er rule regression guards --
+  it('still matches manger ↔ mangé (Phase 20-01 -er rule)', () => {
+    expect(wordsMatch('manger', 'mangé')).toBe(true)
+    expect(wordsMatch('mangé', 'manger')).toBe(true)
+  })
+  it('still matches parler ↔ parlé (Phase 20-01 -er rule)', () => {
+    expect(wordsMatch('parler', 'parlé')).toBe(true)
+    expect(wordsMatch('parlé', 'parler')).toBe(true)
   })
 })
 

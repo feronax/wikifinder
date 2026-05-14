@@ -6,8 +6,7 @@ import { getRankFromScore } from '@/lib/badges'
 import { getActiveSeason } from '@/lib/seasons'
 import { seedRankedArticle } from '@/lib/ranked-seed'
 import { maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
-import { normalize } from '@/lib/matching'
-import { variantsOf } from '@/lib/client-hash'
+import { computeWordHashSet } from '@/lib/client-hash'
 import { createHash } from 'crypto'
 import { parseJsonBody, LangSchema } from '@/lib/validation'
 
@@ -139,20 +138,10 @@ export async function POST(req: NextRequest) {
   const tokens = maskTokensForClient(fullTokens)
   const titleWords = maskTitleForClient(fullTitleTokens)
 
-  // Hash set pour le check client-side
-  const wordHashSet: string[] = []
-  const seenHashes = new Set<string>()
-  for (const token of fullTokens) {
-    if (token.type !== 'word' || token.isStopword) continue
-    const norm = normalize(token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
-    for (const variant of variantsOf(norm)) {
-      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
-      if (!seenHashes.has(hash)) {
-        seenHashes.add(hash)
-        wordHashSet.push(hash)
-      }
-    }
-  }
+  // Hash set des mots de l'article (Phase 22, HASH-CONSOLIDATE).
+  // Single source of truth: computeWordHashSet — includes Phase 21-03 œŒ widening
+  // and Phase 20 CR-02 title-tokens inclusion.
+  const wordHashSet = computeWordHashSet(fullTokens, fullTitleTokens)
 
   return NextResponse.json({
     gameId: game.id,
