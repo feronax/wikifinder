@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createHash } from 'crypto'
 import { computeWordHashSet, variantsOf } from './client-hash'
+import { normalize } from './matching'
 
 function sha256hex16(s: string): string {
   return createHash('sha256').update(s).digest('hex').slice(0, 16)
@@ -218,5 +219,24 @@ describe('computeWordHashSet — variant hash coverage (HASH-SYNC)', () => {
     const frTokens = [{ type: 'word', value: 'œil', isStopword: false }]
     const hashSet = computeWordHashSet(frTokens, [])
     expect(hashSet).toContain(sha256hex16('yeux'))
+  })
+})
+
+describe('Phase 22 — title-token symmetry (D-01)', () => {
+  it('applies cleanTokenValue regex symmetrically to title tokens', () => {
+    // Title token with a character outside [a-zA-ZÀ-ÿœŒ0-9'-]
+    const titleTokens = [{ isWord: true, isStopword: false, value: 'foo!' }]
+    const cleaned = normalize('foo')
+
+    const hashes = computeWordHashSet([], titleTokens)
+
+    // Build the expected hash set of the CLEANED value across all variants
+    const expectedHashes = variantsOf(cleaned).map(v =>
+      createHash('sha256').update(v).digest('hex').slice(0, 16)
+    )
+
+    for (const h of expectedHashes) {
+      expect(hashes).toContain(h)
+    }
   })
 })
