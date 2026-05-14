@@ -153,6 +153,19 @@ export async function POST(req: NextRequest) {
       }
     }
   }
+  // Phase 20 CR-02: include title tokens so ranked-mode title-word guesses get
+  // optimistic client-side reveal (mirrors game/today/route.ts).
+  for (const tw of fullTitleTokens) {
+    if (!tw.isWord || tw.isStopword) continue
+    const norm = normalize(tw.value)
+    for (const variant of variantsOf(norm)) {
+      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
+      if (!seenHashes.has(hash)) {
+        seenHashes.add(hash)
+        wordHashSet.push(hash)
+      }
+    }
+  }
 
   return NextResponse.json({
     gameId: game.id,
