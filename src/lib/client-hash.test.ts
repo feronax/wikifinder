@@ -69,6 +69,46 @@ describe('variantsOf', () => {
     const v = variantsOf('cheval')
     expect(v.length).toBe(new Set(v).size)
   })
+
+  // ===== Phase 21-02: FR verb inflection beyond -er =====
+  it('includes FR -ir/-i variant (finir → fini)', () => {
+    expect(variantsOf('finir')).toContain('fini')
+  })
+  it('includes FR -ir/-i reverse (fini → finir)', () => {
+    expect(variantsOf('fini')).toContain('finir')
+  })
+  it('includes FR -re/-u variant (vendre → vendu)', () => {
+    expect(variantsOf('vendre')).toContain('vendu')
+  })
+  it('includes FR -re/-u reverse (vendu → vendre)', () => {
+    expect(variantsOf('vendu')).toContain('vendre')
+  })
+  it('includes FR irregular pris from prendre (NOT prendu)', () => {
+    const v = variantsOf('prendre')
+    expect(v).toContain('pris')
+    expect(v).not.toContain('prendu')
+  })
+  it('includes FR irregular equivalence class être (etre → ete, etant, est, etait)', () => {
+    const v = variantsOf('etre')
+    expect(v).toContain('ete')
+    expect(v).toContain('etant')
+    expect(v).toContain('est')
+    expect(v).toContain('etait')
+  })
+  it('includes FR irregular reverse (est → etre)', () => {
+    expect(variantsOf('est')).toContain('etre')
+  })
+  it('includes FR irregular avoir class (a → avoir, eu, ayant, avait)', () => {
+    const v = variantsOf('a')
+    expect(v).toContain('avoir')
+    expect(v).toContain('eu')
+    expect(v).toContain('ayant')
+    expect(v).toContain('avait')
+  })
+  it('FR verb variants deduplicate', () => {
+    const v = variantsOf('etre')
+    expect(v.length).toBe(new Set(v).size)
+  })
 })
 
 describe('computeWordHashSet — variant hash coverage (HASH-SYNC)', () => {
@@ -135,6 +175,37 @@ describe('computeWordHashSet — variant hash coverage (HASH-SYNC)', () => {
     const frTokens = [{ type: 'word', value: 'genou', isStopword: false }]
     const hashSet = computeWordHashSet(frTokens, [])
     expect(hashSet).toContain(sha256hex16('genoux'))
+  })
+
+  // ===== Phase 21-02: FR verb inflection beyond -er =====
+  it('contains hash of FR -ir/-i variant (fini from finir token)', () => {
+    const frTokens = [{ type: 'word', value: 'finir', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('fini'))
+  })
+
+  it('contains hash of FR -re/-u variant (vendu from vendre token)', () => {
+    const frTokens = [{ type: 'word', value: 'vendre', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('vendu'))
+  })
+
+  it('contains hash of FR irregular pris from prendre token', () => {
+    const frTokens = [{ type: 'word', value: 'prendre', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('pris'))
+  })
+
+  it('contains hash of FR irregular est from être token', () => {
+    const frTokens = [{ type: 'word', value: 'être', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('est'))
+  })
+
+  it('contains hash of FR irregular été from être token (normalized to ete)', () => {
+    const frTokens = [{ type: 'word', value: 'être', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('ete'))
   })
 
   it("contains hash of yeux when the article token is literal 'œil' (U+0153)", () => {
