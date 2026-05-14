@@ -137,11 +137,24 @@ export function wordsMatch(input: string, token: string): boolean {
         if ((normInput === base && normToken === inflected) || (normToken === base && normInput === inflected)) return true
     }
 
-    // FR verb inflection — -er infinitive ↔ past participle
-    // normalize('mangé') = 'mange', normalize('manger') = 'manger'
-    // Rule: normToken === normInput + 'r' means normToken is the infinitive, normInput is pp normalized
+    // FR verb inflection — -er infinitive ↔ past participle (and adjectival agreement)
+    // normalize('mangé')='mange', normalize('manger')='manger', normalize('mangés')='manges',
+    // normalize('mangée')='mangee', normalize('mangées')='mangees'.
+    // Bare-pp rule (mangé ↔ manger):
     if (normToken === normInput + 'r') return true
     if (normInput === normToken + 'r') return true
+    // Past-participle agreement (-é, -és, -ée, -ées). The +s/+es plural rules above
+    // can't bridge these because the infinitive ends in 'r'. Length guard >2 mirrors
+    // wordsMatch's other -er guards and keeps short words ('or', 'er') from spuriously
+    // matching 2-char stems.
+    if (normInput.endsWith('r') && normInput.length > 2) {
+        const base = normInput.slice(0, -1)
+        if (normToken === base + 's' || normToken === base + 'e' || normToken === base + 'es') return true
+    }
+    if (normToken.endsWith('r') && normToken.length > 2) {
+        const base = normToken.slice(0, -1)
+        if (normInput === base + 's' || normInput === base + 'e' || normInput === base + 'es') return true
+    }
 
     // ===== Phase 21-01: FR irregular plurals =====
     // NB: the generic -al/-aux rule above already handles cheval/chevaux,

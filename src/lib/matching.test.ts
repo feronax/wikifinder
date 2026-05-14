@@ -143,6 +143,26 @@ describe('wordsMatch', () => {
     expect(wordsMatch('parler', 'parlé')).toBe(true)
     expect(wordsMatch('parlé', 'parler')).toBe(true)
   })
+  // Past-participle adjectival agreement — créer ↔ créé/créés/créée/créées.
+  // Pre-fix: only the bare pp matched; -és/-ée/-ées were missed (Wikifinder bug,
+  // article "Crash Bandicoot": typing "créer" missed 18 agreement-form tokens).
+  it('matches FR -er verb infinitive ↔ pp masculine plural (créer ↔ créés)', () => {
+    expect(wordsMatch('créer', 'créés')).toBe(true)
+    expect(wordsMatch('créés', 'créer')).toBe(true)
+  })
+  it('matches FR -er verb infinitive ↔ pp feminine (créer ↔ créée)', () => {
+    expect(wordsMatch('créer', 'créée')).toBe(true)
+    expect(wordsMatch('créée', 'créer')).toBe(true)
+  })
+  it('matches FR -er verb infinitive ↔ pp feminine plural (créer ↔ créées)', () => {
+    expect(wordsMatch('créer', 'créées')).toBe(true)
+    expect(wordsMatch('créées', 'créer')).toBe(true)
+  })
+  it('matches FR -er verb infinitive ↔ pp agreement (manger ↔ mangés/mangée/mangées)', () => {
+    expect(wordsMatch('manger', 'mangés')).toBe(true)
+    expect(wordsMatch('manger', 'mangée')).toBe(true)
+    expect(wordsMatch('manger', 'mangées')).toBe(true)
+  })
   it('FR eau↔eaux already covered by +x rule (no new rule needed)', () => {
     expect(wordsMatch('eau', 'eaux')).toBe(true)
   })

@@ -124,11 +124,18 @@ export function variantsOf(norm: string): string[] {
     if (norm === inflected) variants.push(base)
   }
 
-  // FR verb inflection — -er infinitive ↔ past participle (normalized)
-  // normalize('mangé') = 'mange', normalize('manger') = 'manger'
+  // FR verb inflection — -er infinitive ↔ past participle + adjectival agreement
+  // normalize('mangé')='mange', normalize('manger')='manger', normalize('mangés')='manges',
+  // normalize('mangée')='mangee', normalize('mangées')='mangees'.
   // Length guard > 3 prevents single/double-char words from generating spurious
   // variants (e.g. "a" → "ar", "or" → "o") that cause false-positive hash hits.
-  if (norm.endsWith('r') && norm.length > 3) variants.push(norm.slice(0, -1))
+  if (norm.endsWith('r') && norm.length > 3) {
+    const base = norm.slice(0, -1)
+    variants.push(base)            // mange
+    variants.push(base + 's')      // manges (mangés normalized)
+    variants.push(base + 'e')      // mangee (mangée normalized)
+    variants.push(base + 'es')     // mangees (mangées normalized)
+  }
   if (!norm.endsWith('r') && norm.length > 3) variants.push(norm + 'r')
 
   return [...new Set(variants)]
