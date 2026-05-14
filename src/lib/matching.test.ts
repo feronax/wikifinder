@@ -146,6 +146,100 @@ describe('wordsMatch', () => {
   it('FR eau↔eaux already covered by +x rule (no new rule needed)', () => {
     expect(wordsMatch('eau', 'eaux')).toBe(true)
   })
+
+  // ===== Phase 21-01: FR irregular plurals =====
+  it('matches FR -al/-aux cheval ↔ chevaux', () => {
+    expect(wordsMatch('cheval', 'chevaux')).toBe(true)
+    expect(wordsMatch('chevaux', 'cheval')).toBe(true)
+  })
+  it('matches FR -al/-aux journal ↔ journaux', () => {
+    expect(wordsMatch('journal', 'journaux')).toBe(true)
+    expect(wordsMatch('journaux', 'journal')).toBe(true)
+  })
+  it('matches FR -al/-aux travail ↔ travaux', () => {
+    expect(wordsMatch('travail', 'travaux')).toBe(true)
+    expect(wordsMatch('travaux', 'travail')).toBe(true)
+  })
+  it('matches FR -al/-aux animal ↔ animaux', () => {
+    expect(wordsMatch('animal', 'animaux')).toBe(true)
+    expect(wordsMatch('animaux', 'animal')).toBe(true)
+  })
+  it('matches FR -al exception bal ↔ bals (regular -s)', () => {
+    expect(wordsMatch('bal', 'bals')).toBe(true)
+    expect(wordsMatch('bals', 'bal')).toBe(true)
+  })
+  it('matches FR -al exception carnaval ↔ carnavals (regular -s)', () => {
+    expect(wordsMatch('carnaval', 'carnavals')).toBe(true)
+    expect(wordsMatch('carnavals', 'carnaval')).toBe(true)
+  })
+  it('matches FR -al exception festival ↔ festivals (regular -s)', () => {
+    expect(wordsMatch('festival', 'festivals')).toBe(true)
+    expect(wordsMatch('festivals', 'festival')).toBe(true)
+  })
+  it('matches FR -al exception récital ↔ récitals (regular -s)', () => {
+    expect(wordsMatch('récital', 'récitals')).toBe(true)
+    expect(wordsMatch('récitals', 'récital')).toBe(true)
+  })
+  it('matches FR -al exception régal ↔ régals (regular -s)', () => {
+    expect(wordsMatch('régal', 'régals')).toBe(true)
+    expect(wordsMatch('régals', 'régal')).toBe(true)
+  })
+  it('matches FR -ou exception genou ↔ genoux', () => {
+    expect(wordsMatch('genou', 'genoux')).toBe(true)
+    expect(wordsMatch('genoux', 'genou')).toBe(true)
+  })
+  it('matches FR -ou exception caillou ↔ cailloux', () => {
+    expect(wordsMatch('caillou', 'cailloux')).toBe(true)
+    expect(wordsMatch('cailloux', 'caillou')).toBe(true)
+  })
+  it('matches FR -ou exception hibou ↔ hiboux', () => {
+    expect(wordsMatch('hibou', 'hiboux')).toBe(true)
+    expect(wordsMatch('hiboux', 'hibou')).toBe(true)
+  })
+  it('matches FR -ou exception bijou ↔ bijoux', () => {
+    expect(wordsMatch('bijou', 'bijoux')).toBe(true)
+    expect(wordsMatch('bijoux', 'bijou')).toBe(true)
+  })
+  it('matches FR -ou exception chou ↔ choux', () => {
+    expect(wordsMatch('chou', 'choux')).toBe(true)
+    expect(wordsMatch('choux', 'chou')).toBe(true)
+  })
+  it('matches FR -ou exception joujou ↔ joujoux', () => {
+    expect(wordsMatch('joujou', 'joujoux')).toBe(true)
+    expect(wordsMatch('joujoux', 'joujou')).toBe(true)
+  })
+  it('matches FR -ou exception pou ↔ poux', () => {
+    expect(wordsMatch('pou', 'poux')).toBe(true)
+    expect(wordsMatch('poux', 'pou')).toBe(true)
+  })
+  it('matches FR vowel-change œil ↔ yeux', () => {
+    expect(wordsMatch('œil', 'yeux')).toBe(true)
+    expect(wordsMatch('yeux', 'œil')).toBe(true)
+  })
+  it('matches FR vowel-change normalized oeil ↔ yeux', () => {
+    expect(wordsMatch('oeil', 'yeux')).toBe(true)
+    expect(wordsMatch('yeux', 'oeil')).toBe(true)
+  })
+  it('matches FR vowel-change ciel ↔ cieux', () => {
+    expect(wordsMatch('ciel', 'cieux')).toBe(true)
+    expect(wordsMatch('cieux', 'ciel')).toBe(true)
+  })
+  it('rejects FR over-generation bal → baux (NOT a real plural)', () => {
+    expect(wordsMatch('bal', 'baux')).toBe(false)
+  })
+  it('rejects FR over-generation carnaval → carnavaux', () => {
+    expect(wordsMatch('carnaval', 'carnavaux')).toBe(false)
+  })
+  it('rejects FR over-generation festival → festivaux', () => {
+    expect(wordsMatch('festival', 'festivaux')).toBe(false)
+  })
+  it('matches FR regular -s plural chemin ↔ chemins', () => {
+    expect(wordsMatch('chemin', 'chemins')).toBe(true)
+    expect(wordsMatch('chemins', 'chemin')).toBe(true)
+  })
+  it('rejects FR spurious chemin → chemaux', () => {
+    expect(wordsMatch('chemin', 'chemaux')).toBe(false)
+  })
 })
 
 describe('splitOnApostrophe', () => {
