@@ -144,7 +144,10 @@ export async function POST(req: NextRequest) {
   const seenHashes = new Set<string>()
   for (const token of fullTokens) {
     if (token.type !== 'word' || token.isStopword) continue
-    const norm = normalize(token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
+    // Phase 21-03 Rule 1 fix: include œŒ (U+0152/0153) so FR ligature words like
+    // 'œil', 'cœur' survive cleaning. Matches cleanTokenValue() and computeWordHashSet's
+    // inline regex; absence was a hash-set drift for ranked mode FR articles.
+    const norm = normalize(token.value.replace(/[^a-zA-ZÀ-ÿœŒ0-9'-]/g, ''))
     for (const variant of variantsOf(norm)) {
       const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
       if (!seenHashes.has(hash)) {
