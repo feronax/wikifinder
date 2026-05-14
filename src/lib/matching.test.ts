@@ -163,6 +163,53 @@ describe('wordsMatch', () => {
     expect(wordsMatch('manger', 'mangée')).toBe(true)
     expect(wordsMatch('manger', 'mangées')).toBe(true)
   })
+  // FR adjectival agreement (m ↔ f, sg ↔ pl). Phase 21-04 audit on article
+  // "Crash Bandicoot" found that typing pp/adj forms gave asymmetric reveals
+  // (créé missed créée, etc.). These rules close the m/f and pl cross-axis.
+  it('matches FR adj m.sg ↔ f.sg (créé ↔ créée)', () => {
+    expect(wordsMatch('créé', 'créée')).toBe(true)
+    expect(wordsMatch('créée', 'créé')).toBe(true)
+  })
+  it('matches FR adj m.sg ↔ f.sg (différent ↔ différente)', () => {
+    expect(wordsMatch('différent', 'différente')).toBe(true)
+    expect(wordsMatch('différente', 'différent')).toBe(true)
+  })
+  it('matches FR adj m.sg ↔ f.sg (animal ↔ animale)', () => {
+    expect(wordsMatch('animal', 'animale')).toBe(true)
+    expect(wordsMatch('animale', 'animal')).toBe(true)
+  })
+  it('matches FR adj m.pl ↔ f.pl (créés ↔ créées)', () => {
+    expect(wordsMatch('créés', 'créées')).toBe(true)
+    expect(wordsMatch('créées', 'créés')).toBe(true)
+  })
+  it('matches FR adj m.pl ↔ f.pl (différents ↔ différentes)', () => {
+    expect(wordsMatch('différents', 'différentes')).toBe(true)
+    expect(wordsMatch('différentes', 'différents')).toBe(true)
+  })
+  it('matches FR adj f.sg ↔ m.pl (créée ↔ créés)', () => {
+    expect(wordsMatch('créée', 'créés')).toBe(true)
+    expect(wordsMatch('créés', 'créée')).toBe(true)
+  })
+  it('matches FR adj f.sg ↔ m.pl (différente ↔ différents)', () => {
+    expect(wordsMatch('différente', 'différents')).toBe(true)
+    expect(wordsMatch('différents', 'différente')).toBe(true)
+  })
+  // -al/-aux family cross-axis (animaux ↔ animales, animale ↔ animaux)
+  it('matches FR -aux/-ales m.pl ↔ f.pl (animaux ↔ animales)', () => {
+    expect(wordsMatch('animaux', 'animales')).toBe(true)
+    expect(wordsMatch('animales', 'animaux')).toBe(true)
+  })
+  it('matches FR -ale/-aux f.sg ↔ m.pl (animale ↔ animaux)', () => {
+    expect(wordsMatch('animale', 'animaux')).toBe(true)
+    expect(wordsMatch('animaux', 'animale')).toBe(true)
+  })
+  // Length guard ≥4 blocks short-stem false positives
+  it('does NOT match short-stem +e false positives (ami ↔ amie blocked)', () => {
+    // ami/amie are real same-lemma but stem 'ami'(3) is below the guard.
+    // Acceptable trade-off to block fil/file, ros/rose, or/ore.
+    expect(wordsMatch('ami', 'amie')).toBe(false)
+    expect(wordsMatch('fil', 'file')).toBe(false)
+  })
   it('FR eau↔eaux already covered by +x rule (no new rule needed)', () => {
     expect(wordsMatch('eau', 'eaux')).toBe(true)
   })

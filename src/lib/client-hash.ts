@@ -41,6 +41,11 @@ export function variantsOf(norm: string): string[] {
   // real word anyway (bail/baux is a distinct lemma). Documented in plan.
   if (norm.endsWith('al') && norm.length > 3) variants.push(norm.slice(0, -2) + 'aux')
   if (norm.endsWith('aux') && norm.length > 4) variants.push(norm.slice(0, -3) + 'al')
+  // -aux ↔ -ales (animaux ↔ animales) — mirrors matching.ts.
+  if (norm.endsWith('aux') && norm.length >= 5) variants.push(norm.slice(0, -3) + 'ales')
+  if (norm.endsWith('ales') && norm.length >= 6) variants.push(norm.slice(0, -4) + 'aux')
+  // -ale (f.sg) ↔ -aux (m.pl) — animale ↔ animaux cross-axis.
+  if (norm.endsWith('ale') && norm.length >= 4) variants.push(norm.slice(0, -3) + 'aux')
 
   // FR -ou exception list — mirrors matching.ts:frIrregularPluralPairs.
   // variantsOf has no generic +x emission, so these must be enumerated.
@@ -137,6 +142,15 @@ export function variantsOf(norm: string): string[] {
     variants.push(base + 'es')     // mangees (mangées normalized)
   }
   if (!norm.endsWith('r') && norm.length > 3) variants.push(norm + 'r')
+
+  // FR adjectival / past-participle agreement (m ↔ f, sg ↔ pl).
+  // Mirrors matching.ts rules so the client hash set covers cross-axis guesses
+  // (créé→créée, créés→créées, créée↔créés). Length guard ≥4 matches matching.ts.
+  // Over-emission is harmless: server wordsMatch remains source of truth.
+  if (norm.length >= 4) variants.push(norm + 'e')                                // X → X+e (m.sg → f.sg)
+  if (norm.endsWith('e') && norm.length >= 4) variants.push(norm.slice(0, -1))   // X+e → X (f.sg → m.sg)
+  if (norm.endsWith('e') && norm.length >= 4) variants.push(norm.slice(0, -1) + 's')  // X+e → X+s (f.sg → m.pl)
+  if (norm.endsWith('s') && norm.length >= 5) variants.push(norm.slice(0, -1) + 'es') // X+s → X+es (m.pl → f.pl)
 
   return [...new Set(variants)]
 }

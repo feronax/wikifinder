@@ -93,6 +93,13 @@ export function wordsMatch(input: string, token: string): boolean {
     if (normInput.endsWith('aux') && frAlExceptions.has(normInput.slice(0, -3) + 'al')) {
         // intentionally fall through
     } else if (normInput.endsWith('aux') && normToken === normInput.slice(0, -3) + 'al') return true
+    // -aux (m.pl) ↔ -ales (f.pl). Bridges animaux ↔ animales (different inflection
+    // axes: m.pl is irregular -aux, f.pl regularizes from f.sg animale + s).
+    if (normInput.endsWith('aux') && normInput.length >= 5 && normToken === normInput.slice(0, -3) + 'ales') return true
+    if (normToken.endsWith('aux') && normToken.length >= 5 && normInput === normToken.slice(0, -3) + 'ales') return true
+    // -ale (f.sg) ↔ -aux (m.pl). animale ↔ animaux cross-axis in irregular -al family.
+    if (normInput.endsWith('ale') && normInput.length >= 4 && normToken === normInput.slice(0, -3) + 'aux') return true
+    if (normToken.endsWith('ale') && normToken.length >= 4 && normInput === normToken.slice(0, -3) + 'aux') return true
 
     // EN irregular plurals — f/fe → ves (knife↔knives, leaf↔leaves, wife↔wives)
     if (normToken.endsWith('ves') && normInput === normToken.slice(0, -3) + 'fe') return true
@@ -155,6 +162,22 @@ export function wordsMatch(input: string, token: string): boolean {
         const base = normToken.slice(0, -1)
         if (normInput === base + 's' || normInput === base + 'e' || normInput === base + 'es') return true
     }
+
+    // FR adjectival / past-participle agreement (m ↔ f, sg ↔ pl).
+    // Covers: créé↔créée, différent↔différente, animal↔animale, fort↔forte,
+    //         créés↔créées, différents↔différentes, créée↔créés, etc.
+    // Length guard ≥4 on the shorter side blocks ami/amie, fil/file, ros/rose
+    // false positives. Accepts some rare false matches (porte/ports, rose/rosée)
+    // — acceptable forgiveness for a word game per Phase 21-04 decision.
+    // m.sg ↔ f.sg: X ↔ X+e
+    if (normInput.length >= 4 && normToken === normInput + 'e') return true
+    if (normToken.length >= 4 && normInput === normToken + 'e') return true
+    // m.pl ↔ f.pl: X+s ↔ X+es (i.e. f.pl has extra 'e' before final 's')
+    if (normInput.endsWith('s') && normInput.length >= 5 && normToken === normInput.slice(0, -1) + 'es') return true
+    if (normToken.endsWith('s') && normToken.length >= 5 && normInput === normToken.slice(0, -1) + 'es') return true
+    // f.sg ↔ m.pl: X+e ↔ X+s (cross-axis: replace trailing 'e' with 's')
+    if (normInput.endsWith('e') && normInput.length >= 4 && normToken === normInput.slice(0, -1) + 's') return true
+    if (normToken.endsWith('e') && normToken.length >= 4 && normInput === normToken.slice(0, -1) + 's') return true
 
     // ===== Phase 21-01: FR irregular plurals =====
     // NB: the generic -al/-aux rule above already handles cheval/chevaux,
