@@ -17,8 +17,17 @@ export function wordsMatch(input: string, token: string): boolean {
     if (normInput === normToken + 's') return true
     if (normInput === normToken + 'x') return true
     if (normInput === normToken + 'es') return true
-    if (normToken.endsWith('aux') && normInput === normToken.slice(0, -3) + 'al') return true
-    if (normInput.endsWith('aux') && normToken === normInput.slice(0, -3) + 'al') return true
+    // FR -al/-aux exception list — these words take REGULAR -s plurals (bals,
+    // carnavals, festivals, récitals, régals), NOT -aux. Short-circuit BEFORE
+    // the generic aux/al rule fires so wordsMatch('bal','baux') stays false
+    // (the generic rule would otherwise match since 'baux'.slice(0,-3)+'al' = 'bal').
+    const frAlExceptions = new Set(['bal', 'carnaval', 'festival', 'recital', 'regal'])
+    if (normToken.endsWith('aux') && frAlExceptions.has(normToken.slice(0, -3) + 'al')) {
+        // intentionally fall through (skip aux/al), let +s handle bals/carnavals/etc.
+    } else if (normToken.endsWith('aux') && normInput === normToken.slice(0, -3) + 'al') return true
+    if (normInput.endsWith('aux') && frAlExceptions.has(normInput.slice(0, -3) + 'al')) {
+        // intentionally fall through
+    } else if (normInput.endsWith('aux') && normToken === normInput.slice(0, -3) + 'al') return true
 
     // EN irregular plurals — f/fe → ves (knife↔knives, leaf↔leaves, wife↔wives)
     if (normToken.endsWith('ves') && normInput === normToken.slice(0, -3) + 'fe') return true
@@ -68,6 +77,32 @@ export function wordsMatch(input: string, token: string): boolean {
     // Rule: normToken === normInput + 'r' means normToken is the infinitive, normInput is pp normalized
     if (normToken === normInput + 'r') return true
     if (normInput === normToken + 'r') return true
+
+    // ===== Phase 21-01: FR irregular plurals =====
+    // NB: the generic -al/-aux rule above already handles cheval/chevaux,
+    // journal/journaux, animal/animaux (slice(0,-3)+'al' yields the correct
+    // singular). Its -al exception list (frAlExceptions) keeps bal/baux et al.
+    // from spuriously matching.
+    // The +s and +x rules above cover the -al exception plurals (bals, etc.)
+    // and the -ou exception plurals (genoux, cailloux, hiboux, bijoux, choux,
+    // joujoux, poux) bidirectionally — no new branch needed for those.
+    // We explicitly enumerate them anyway so variantsOf() can mirror the set,
+    // plus the truly irregular pairs (travail/travaux, vowel-changes).
+    // normalize('œil') keeps U+0153 (NFD does not decompose it); list both
+    // 'œil' and 'oeil' so guesses typed either way match.
+    const frIrregularPluralPairs: [string, string][] = [
+        // -ou exception list (covered by +x; listed here for semantic intent + variantsOf mirror)
+        ['genou', 'genoux'], ['caillou', 'cailloux'], ['hibou', 'hiboux'],
+        ['bijou', 'bijoux'], ['chou', 'choux'], ['joujou', 'joujoux'], ['pou', 'poux'],
+        // travail/travaux — NOT covered by generic aux/al rule (slice drops 3, would need to drop 4)
+        ['travail', 'travaux'],
+        // Vowel-change pairs (no regex rule covers these)
+        ['œil', 'yeux'], ['oeil', 'yeux'],
+        ['ciel', 'cieux'],
+    ]
+    for (const [base, plural] of frIrregularPluralPairs) {
+        if ((normInput === base && normToken === plural) || (normToken === base && normInput === plural)) return true
+    }
 
     return false
 }
