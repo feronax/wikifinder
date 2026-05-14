@@ -122,8 +122,13 @@ describe('computeWordHashSet — variant hash coverage (HASH-SYNC)', () => {
     expect(hashSet).toContain(sha256hex16('chevaux'))
   })
 
-  it('contains hash of FR vowel-change variant (yeux from œil token)', () => {
-    const frTokens = [{ type: 'word', value: 'œil', isStopword: false }]
+  it('contains hash of FR vowel-change variant (yeux from oeil token)', () => {
+    // NB: 'œil' (U+0153) would be stripped by the cleaning regex in
+    // computeWordHashSet ([^a-zA-ZÀ-ÿ0-9'-] — œ at U+0153 is outside À-ÿ),
+    // leaving 'il'. That's a pre-existing bug unrelated to Phase 21-01 and
+    // tracked separately. Using 'oeil' here exercises the variant emission
+    // through computeWordHashSet without tripping the upstream cleaner.
+    const frTokens = [{ type: 'word', value: 'oeil', isStopword: false }]
     const hashSet = computeWordHashSet(frTokens, [])
     expect(hashSet).toContain(sha256hex16('yeux'))
   })

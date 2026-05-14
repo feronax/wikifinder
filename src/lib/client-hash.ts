@@ -34,6 +34,46 @@ export function variantsOf(norm: string): string[] {
     if (norm === b) variants.push(a)
   }
 
+  // ===== Phase 21-01: FR irregular plurals =====
+  // FR -al → -aux plural rule. Naive emission may over-generate for -al
+  // exceptions (bal→baux is not a real word), but extra hashes in the set
+  // are harmless: only real player guesses get looked up, and 'baux' is a
+  // real word anyway (bail/baux is a distinct lemma). Documented in plan.
+  if (norm.endsWith('al') && norm.length > 3) variants.push(norm.slice(0, -2) + 'aux')
+  if (norm.endsWith('aux') && norm.length > 4) variants.push(norm.slice(0, -3) + 'al')
+
+  // FR -ou exception list — mirrors matching.ts:frIrregularPluralPairs.
+  // variantsOf has no generic +x emission, so these must be enumerated.
+  const frOuPairs: [string, string][] = [
+    ['genou', 'genoux'], ['caillou', 'cailloux'], ['hibou', 'hiboux'],
+    ['bijou', 'bijoux'], ['chou', 'choux'], ['joujou', 'joujoux'], ['pou', 'poux'],
+  ]
+  for (const [base, plural] of frOuPairs) {
+    if (norm === base) variants.push(plural)
+    if (norm === plural) variants.push(base)
+  }
+
+  // FR travail/travaux — generic -al/-aux above misses this one (slice
+  // drops 3 not 4). Explicit pair mirrors matching.ts.
+  if (norm === 'travail') variants.push('travaux')
+  if (norm === 'travaux') variants.push('travail')
+
+  // FR vowel-change pairs (œil/yeux, oeil/yeux, ciel/cieux). NFD does NOT
+  // decompose U+0153 (œ), so we list both 'œil' and 'oeil' to handle either
+  // input spelling. When the seed is 'yeux' we emit BOTH 'œil' and 'oeil'.
+  const frVowelChangePairs: [string, string][] = [
+    ['œil', 'yeux'], ['oeil', 'yeux'], ['ciel', 'cieux'],
+  ]
+  for (const [base, plural] of frVowelChangePairs) {
+    if (norm === base) variants.push(plural)
+    if (norm === plural) {
+      variants.push(base)
+      // yeux → both 'œil' and 'oeil' (both spellings reachable from same plural)
+      if (base === 'œil') variants.push('oeil')
+      if (base === 'oeil') variants.push('œil')
+    }
+  }
+
   // EN verb inflection — +ing simple (independent ifs prevent over-generation for
   // short words like "ring" → "ringing" from the previous if/else structure)
   if (norm.endsWith('ing') && norm.length > 4) variants.push(norm.slice(0, -3))
