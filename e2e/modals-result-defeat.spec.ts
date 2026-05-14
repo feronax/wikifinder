@@ -158,10 +158,27 @@ test.describe('MOD-02 Result modal — win non-regression', () => {
 
     // Mock /api/game/guess to drive an instant win. The page reads
     // { isInText, revealedTokens, revealedTitleIndices, won, guessCount }
-    // from the response (src/app/game/page.tsx:789-845). We return a
-    // single non-empty revealedTitleIndices entry plus won: true so the
-    // optimistic update path flips gameState.won → TitleHero "Voir le
-    // résultat" CTA appears.
+    // from the response (src/app/game/page.tsx:789-845). The "Voir le
+    // résultat" CTA is gated by TitleHero on `found === total` non-stopword
+    // title words (NOT gameState.won), so we must reveal ALL non-stopword
+    // title indices — a single hardcoded index regressed the day the daily
+    // article happened to have a multi-word title. Title indices are read
+    // from /api/game/today via response capture.
+    let titleIndices: number[] = [0]
+    await context.route('**/api/game/today**', async (route) => {
+      const response = await route.fetch()
+      const body = await response.text()
+      try {
+        const data = JSON.parse(body)
+        const tw: Array<{ index: number; isWord: boolean; isStopword: boolean }> = data?.titleWords ?? []
+        const indices = tw.filter((w) => w.isWord && !w.isStopword).map((w) => w.index)
+        if (indices.length > 0) titleIndices = indices
+      } catch {
+        // Keep fallback [0] if parsing fails
+      }
+      await route.fulfill({ response, body })
+    })
+
     await context.route('**/api/game/guess', async (route) => {
       if (route.request().method() !== 'POST') {
         await route.continue()
@@ -173,7 +190,7 @@ test.describe('MOD-02 Result modal — win non-regression', () => {
         body: JSON.stringify({
           isInText: true,
           revealedTokens: [{ index: 0, value: 'article' }],
-          revealedTitleIndices: [{ index: 0, value: 'Titre' }],
+          revealedTitleIndices: titleIndices.map((i) => ({ index: i, value: 'X' })),
           won: true,
           guessCount: 1,
           proximityHints: [],
