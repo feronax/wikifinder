@@ -170,8 +170,12 @@ test.describe('MOD-02 Result modal — win non-regression', () => {
       const body = await response.text()
       try {
         const data = JSON.parse(body)
-        const tw: Array<{ index: number; isWord: boolean; isStopword: boolean }> = data?.titleWords ?? []
-        const indices = tw.filter((w) => w.isWord && !w.isStopword).map((w) => w.index)
+        // Masked title shape (lib/tokenize.ts:maskTitleForClient):
+        // { index, value, isStopword, revealed, length } — no `isWord` field.
+        // Non-word tokens (spaces, punct) get isStopword=true via tokenizeTitle:81,
+        // so !isStopword reliably selects content words to reveal.
+        const tw: Array<{ index: number; isStopword: boolean }> = data?.titleWords ?? []
+        const indices = tw.filter((w) => !w.isStopword).map((w) => w.index)
         if (indices.length > 0) titleIndices = indices
       } catch {
         // Keep fallback [0] if parsing fails
