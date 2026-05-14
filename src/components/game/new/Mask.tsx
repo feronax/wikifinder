@@ -89,7 +89,7 @@ function UnrevealedMask({
     proximityHint?: { score: number; word: string }
 }) {
     const innerRef = useRef<HTMLSpanElement>(null)
-    const timerRef = useRef<number | null>(null)
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [showingCount, setShowingCount] = useState(false)
 
     const handleTap = () => {
@@ -99,7 +99,7 @@ function UnrevealedMask({
             if (!el) return
             el.style.opacity = '1'
             if (timerRef.current !== null) clearTimeout(timerRef.current)
-            timerRef.current = window.setTimeout(() => {
+            timerRef.current = setTimeout(() => {
                 if (innerRef.current) innerRef.current.style.opacity = '0'
                 timerRef.current = null
             }, 1000)
@@ -107,7 +107,7 @@ function UnrevealedMask({
             // Inverted behavior (D-09): temporarily show letter count, revert to word text
             if (timerRef.current !== null) clearTimeout(timerRef.current)
             setShowingCount(true)
-            timerRef.current = window.setTimeout(() => {
+            timerRef.current = setTimeout(() => {
                 setShowingCount(false)
                 timerRef.current = null
             }, 1000)
