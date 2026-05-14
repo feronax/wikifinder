@@ -138,4 +138,16 @@ describe('computeWordHashSet — variant hash coverage (HASH-SYNC)', () => {
     const hashSet = computeWordHashSet(frTokens, [])
     expect(hashSet).toContain(sha256hex16('genoux'))
   })
+
+  it("contains hash of yeux when the article token is literal 'œil' (U+0153)", () => {
+    // Locks the fix for the pre-existing cleanTokenValue regex bug flagged in
+    // Phase 21-01 SUMMARY: the cleaning regex [^a-zA-ZÀ-ÿ0-9'-] used to strip
+    // œ (U+0153 is outside À-ÿ which ends at U+00FF), so 'œil' became 'il'
+    // before normalize/variantsOf ever saw it. After widening the class to
+    // include œŒ, the U+0153 ligature survives cleaning and the pair table
+    // entry `['œil', 'yeux']` produces the expected variant hash.
+    const frTokens = [{ type: 'word', value: 'œil', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('yeux'))
+  })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalize, wordsMatch, splitOnApostrophe } from '@/lib/matching'
+import { normalize, wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
 
 describe('normalize', () => {
   it('lowercases ASCII', () => {
@@ -239,6 +239,34 @@ describe('wordsMatch', () => {
   })
   it('rejects FR spurious chemin → chemaux', () => {
     expect(wordsMatch('chemin', 'chemaux')).toBe(false)
+  })
+})
+
+describe('cleanTokenValue', () => {
+  // Pre-existing bug surfaced during Phase 21-01: the original regex
+  // [^a-zA-ZÀ-ÿ0-9'-] excluded U+0153 (œ) and U+0152 (Œ), so any FR
+  // token containing the o-e ligature got mangled (e.g. 'œil' → 'il',
+  // 'cœur' → 'cur'). Phase 21-01 documented this in client-hash.test.ts
+  // line 125-130; this test locks the fix.
+  it("preserves œ (U+0153) in lowercase tokens", () => {
+    expect(cleanTokenValue('œil')).toBe('œil')
+    expect(cleanTokenValue('cœur')).toBe('cœur')
+    expect(cleanTokenValue('sœur')).toBe('sœur')
+    expect(cleanTokenValue('bœuf')).toBe('bœuf')
+  })
+  it("preserves Œ (U+0152) in capitalized tokens", () => {
+    expect(cleanTokenValue('Œil')).toBe('Œil')
+    expect(cleanTokenValue('Œuvre')).toBe('Œuvre')
+  })
+  it("still strips punctuation and other non-letter characters", () => {
+    expect(cleanTokenValue("cœur,")).toBe('cœur')
+    expect(cleanTokenValue("œil.")).toBe('œil')
+    expect(cleanTokenValue("(cœur)")).toBe('cœur')
+  })
+  it("leaves ASCII letters / digits / apostrophe / hyphen alone", () => {
+    expect(cleanTokenValue("d'un")).toBe("d'un")
+    expect(cleanTokenValue('peut-être')).toBe('peut-être')
+    expect(cleanTokenValue('test123')).toBe('test123')
   })
 })
 
