@@ -1,23 +1,28 @@
 /**
- * Phase 21-03 — Hash-set 3-way parity test.
+ * Phase 22 — Hash-set self-check + re-inlining tripwire (HASH-PARITY-TEST).
  *
- * Wikifinder builds the client-side word hash set in THREE places:
+ * Originally Phase 21-03's 3-way parity test (after Phase 20-CR-02 caught a real
+ * drift where ranked/start was missing the title-tokens loop). Phase 22 consolidated
+ * both route inline blocks into the single exported helper:
  *
- *   1. lib/client-hash.ts:computeWordHashSet()             — exported helper
- *   2. app/api/game/today/route.ts (lines 99–123 inline)   — daily game route
- *   3. app/api/ranked/start/route.ts (lines 142–168 inline) — ranked mode route
+ *   - lib/client-hash.ts:computeWordHashSet()  — single source of truth
+ *   - app/api/game/today/route.ts              — calls the helper (no inline loop)
+ *   - app/api/ranked/start/route.ts            — calls the helper (no inline loop)
  *
- * Phase 20-CR-02 caught a real drift: ranked/start was missing the title-tokens loop.
- * This test pins the invariant: for the same (tokens, titleTokens) input, all three
- * produce IDENTICAL hash arrays.
+ * Per Phase 22 D-04, the structural-copy helpers below (`buildHashSet*Inline`) are
+ * KEPT verbatim as regression guards. They are now SNAPSHOTS of the historical
+ * pre-consolidation inline code rather than mirrors of live route code. The test
+ * remains green because the helper output matches the snapshots; if a future phase
+ * re-inlines either route with a typo, this test fails loudly.
  *
- * The two `buildHashSet*Inline` helpers below are STRUCTURAL COPIES of the route
- * inline blocks. If you edit a route inline block, ALSO edit the matching helper
- * here; if Phase 22 consolidates the inline blocks into `computeWordHashSet`, drop
- * the helpers and let this test reduce to a self-check.
+ * Companion guard: `no-inline-hash-loops.test.ts` (Phase 22 Plan 05 Task 2) scans
+ * the live route files for inline hash-loop signatures and asserts zero matches —
+ * the load-bearing SC-1 enforcement that survives even if these structural copies
+ * are eventually deleted.
  *
- * Phase 22 will absorb this test (HASH-PARITY-TEST requirement) and lock the
- * consolidated single-call invariant. Until then, this is the guard.
+ * Note: if Phase 22 Plan 04 modified the structural-copy title-token loops to
+ * incorporate the D-01 symmetry fix (cleaned title-token normalization), those
+ * structural copies were updated accordingly and this comment reflects that state.
  */
 import { describe, it, expect } from 'vitest'
 import { createHash } from 'crypto'
