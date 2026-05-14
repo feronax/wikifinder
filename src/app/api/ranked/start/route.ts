@@ -6,8 +6,7 @@ import { getRankFromScore } from '@/lib/badges'
 import { getActiveSeason } from '@/lib/seasons'
 import { seedRankedArticle } from '@/lib/ranked-seed'
 import { maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
-import { normalize } from '@/lib/matching'
-import { variantsOf } from '@/lib/client-hash'
+import { computeWordHashSet } from '@/lib/client-hash'
 import { createHash } from 'crypto'
 import { parseJsonBody, LangSchema } from '@/lib/validation'
 
@@ -139,36 +138,10 @@ export async function POST(req: NextRequest) {
   const tokens = maskTokensForClient(fullTokens)
   const titleWords = maskTitleForClient(fullTitleTokens)
 
-  // Hash set pour le check client-side
-  const wordHashSet: string[] = []
-  const seenHashes = new Set<string>()
-  for (const token of fullTokens) {
-    if (token.type !== 'word' || token.isStopword) continue
-    // Phase 21-03 Rule 1 fix: include œŒ (U+0152/0153) so FR ligature words like
-    // 'œil', 'cœur' survive cleaning. Matches cleanTokenValue() and computeWordHashSet's
-    // inline regex; absence was a hash-set drift for ranked mode FR articles.
-    const norm = normalize(token.value.replace(/[^a-zA-ZÀ-ÿœŒ0-9'-]/g, ''))
-    for (const variant of variantsOf(norm)) {
-      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
-      if (!seenHashes.has(hash)) {
-        seenHashes.add(hash)
-        wordHashSet.push(hash)
-      }
-    }
-  }
-  // Phase 20 CR-02: include title tokens so ranked-mode title-word guesses get
-  // optimistic client-side reveal (mirrors game/today/route.ts).
-  for (const tw of fullTitleTokens) {
-    if (!tw.isWord || tw.isStopword) continue
-    const norm = normalize(tw.value)
-    for (const variant of variantsOf(norm)) {
-      const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
-      if (!seenHashes.has(hash)) {
-        seenHashes.add(hash)
-        wordHashSet.push(hash)
-      }
-    }
-  }
+  // Hash set des mots de l'article (Phase 22, HASH-CONSOLIDATE).
+  // Single source of truth: computeWordHashSet — includes Phase 21-03 œŒ widening
+  // and Phase 20 CR-02 title-tokens inclusion.
+  const wordHashSet = computeWordHashSet(fullTokens, fullTitleTokens)
 
   return NextResponse.json({
     gameId: game.id,
