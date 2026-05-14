@@ -116,5 +116,9 @@ export function splitOnApostrophe(word: string): string[] {
 }
 
 export function cleanTokenValue(value: string): string {
-    return value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, '')
+    // Character class: ASCII letters/digits + Latin-1 Supplement letters
+    // (À-ÿ = U+00C0..U+00FF) + the o-e ligature pair (Œ = U+0152, œ = U+0153)
+    // which sits outside À-ÿ and would otherwise be stripped. Apostrophe and
+    // hyphen are kept for contractions and compound words.
+    return value.replace(/[^a-zA-ZÀ-ÿœŒ0-9'-]/g, '')
 }

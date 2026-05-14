@@ -148,7 +148,9 @@ export function computeWordHashSet(
   const seenHashes = new Set<string>()
   for (const token of tokens) {
     if (token.type !== 'word' || token.isStopword) continue
-    const norm = normalize(token.value.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, ''))
+    // Same cleaning regex as matching.ts:cleanTokenValue — includes œŒ (U+0152/3)
+    // outside À-ÿ so the o-e ligature survives for FR words like 'œil', 'cœur'.
+    const norm = normalize(token.value.replace(/[^a-zA-ZÀ-ÿœŒ0-9'-]/g, ''))
     for (const variant of variantsOf(norm)) {
       const hash = createHash('sha256').update(variant).digest('hex').slice(0, 16)
       if (!seenHashes.has(hash)) {
