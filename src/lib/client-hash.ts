@@ -1,4 +1,4 @@
-import { normalize } from './matching'
+import { normalize, frIrregularVerbs } from './matching'
 import { createHash } from 'crypto'
 
 let hashSetCache: Set<string> | null = null
@@ -74,6 +74,28 @@ export function variantsOf(norm: string): string[] {
     }
   }
 
+  // ===== Phase 21-02: FR verb inflection beyond -er =====
+  // Named-irregular equivalence-class emission: mirrors matching.ts:frIrregularLookup.
+  // The frIrregularVerbs array is the shared source of truth (imported above);
+  // the Map is rebuilt here lazily to avoid coupling private state across files.
+  const irrClass = lazyFrIrregularLookup().get(norm)
+  if (irrClass) {
+    for (const other of irrClass) variants.push(other)
+  }
+
+  // FR -re → -u (regular). Guard: skip if `norm` is an irregular -re infinitive
+  // (those are emitted via the lookup above, so 'prendre' does NOT emit 'prendu').
+  const irrReInfs = lazyFrIrregularReInfinitives()
+  if (norm.endsWith('re') && norm.length > 3 && !irrReInfs.has(norm)) {
+    variants.push(norm.slice(0, -2) + 'u')
+  }
+  // Reverse direction (vendu → vendre). Emitting `slice(0,-1) + 're'` for any norm
+  // ending in 'u' is harmless over-emission — server wordsMatch remains source of
+  // truth for guess validation, so extra hashes never produce false matches.
+  if (norm.endsWith('u') && norm.length > 3) {
+    variants.push(norm.slice(0, -1) + 're')
+  }
+
   // EN verb inflection — +ing simple (independent ifs prevent over-generation for
   // short words like "ring" → "ringing" from the previous if/else structure)
   if (norm.endsWith('ing') && norm.length > 4) variants.push(norm.slice(0, -3))
@@ -110,6 +132,39 @@ export function variantsOf(norm: string): string[] {
   if (!norm.endsWith('r') && norm.length > 3) variants.push(norm + 'r')
 
   return [...new Set(variants)]
+}
+
+// Lazy lookups for Phase 21-02 FR named-irregular verbs. Built once on first call,
+// then cached at module scope. Equivalent to matching.ts:frIrregularLookup but
+// duplicated here to avoid exporting a private Map across the matching ↔ client-hash
+// boundary. The underlying frIrregularVerbs array IS the shared source of truth.
+let _frIrregularLookup: Map<string, Set<string>> | null = null
+function lazyFrIrregularLookup(): Map<string, Set<string>> {
+  if (_frIrregularLookup) return _frIrregularLookup
+  const m = new Map<string, Set<string>>()
+  for (const row of frIrregularVerbs) {
+    const normRow = row.map(f => normalize(f))
+    for (const form of normRow) {
+      const existing = m.get(form) ?? new Set<string>()
+      for (const other of normRow) {
+        if (other !== form) existing.add(other)
+      }
+      m.set(form, existing)
+    }
+  }
+  _frIrregularLookup = m
+  return m
+}
+
+let _frIrregularReInfinitives: Set<string> | null = null
+function lazyFrIrregularReInfinitives(): Set<string> {
+  if (_frIrregularReInfinitives) return _frIrregularReInfinitives
+  _frIrregularReInfinitives = new Set(
+    frIrregularVerbs
+      .map(row => normalize(row[0]))
+      .filter(inf => inf.endsWith('re'))
+  )
+  return _frIrregularReInfinitives
 }
 
 export function setWordHashSet(hashes: string[]) {
