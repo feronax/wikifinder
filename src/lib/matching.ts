@@ -7,6 +7,71 @@ export function normalize(word: string): string {
     return word.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
+/**
+ * FR named-irregular verbs. Each row is an equivalence class \u2014 any pair of
+ * forms in the same row counts as a wordsMatch().
+ *
+ * Forms included per row (where applicable):
+ *   [infinitive, past-participle, present-participle, 3sg-present, 3sg-imperfect]
+ *
+ * Coverage is intentionally limited to forms that show up in encyclopedic prose
+ * (Wikipedia articles). Full conjugations (je/tu/nous/vous, all tenses) are
+ * out of scope \u2014 the matcher targets reading comprehension, not grammar drill.
+ *
+ * IMPORTANT: any -re verb in this table is implicitly EXEMPT from the generic
+ * -re/-u rule (see the rule's guard below). Adding a new -re verb here without
+ * adding its non-regular past participle WILL break that verb's matching.
+ */
+export const frIrregularVerbs: readonly string[][] = [
+    ['\u00eatre',    '\u00e9t\u00e9',     '\u00e9tant',    'est',    '\u00e9tait'],
+    ['avoir',   'eu',      'ayant',    'a',      'avait'],
+    ['aller',   'all\u00e9',    'allant',   'va',     'allait'],
+    ['faire',   'fait',    'faisant',  'fait',   'faisait'],
+    ['dire',    'dit',     'disant',   'dit',    'disait'],
+    ['voir',    'vu',      'voyant',   'voit',   'voyait'],
+    ['savoir',  'su',      'sachant',  'sait',   'savait'],
+    ['pouvoir', 'pu',      'pouvant',  'peut',   'pouvait'],
+    ['vouloir', 'voulu',   'voulant',  'veut',   'voulait'],
+    ['devoir',  'd\u00fb',      'devant',   'doit',   'devait'],
+    ['venir',   'venu',    'venant',   'vient',  'venait'],
+    ['tenir',   'tenu',    'tenant',   'tient',  'tenait'],
+    ['prendre', 'pris',    'prenant',  'prend',  'prenait'],
+    ['mettre',  'mis',     'mettant',  'met',    'mettait'],
+    ['vivre',   'v\u00e9cu',    'vivant',   'vit',    'vivait'],
+    ['na\u00eetre',  'n\u00e9',      'naissant', 'na\u00eet',   'naissait'],
+    ['mourir',  'mort',    'mourant',  'meurt',  'mourait'],
+    ['boire',   'bu',      'buvant',   'boit',   'buvait'],
+    ['croire',  'cru',     'croyant',  'croit',  'croyait'],
+    ['lire',    'lu',      'lisant',   'lit',    'lisait'],
+    ['\u00e9crire',  '\u00e9crit',   '\u00e9crivant', '\u00e9crit',  '\u00e9crivait'],
+]
+
+/** Pre-built lookup: normalized form \u2192 set of all other normalized forms in
+ *  its equivalence class. Built ONCE at module load (O(1) lookup at runtime). */
+const frIrregularLookup: Map<string, Set<string>> = (() => {
+    const m = new Map<string, Set<string>>()
+    for (const row of frIrregularVerbs) {
+        const normRow = row.map(f => normalize(f))
+        for (const form of normRow) {
+            const existing = m.get(form) ?? new Set<string>()
+            for (const other of normRow) {
+                if (other !== form) existing.add(other)
+            }
+            m.set(form, existing)
+        }
+    }
+    return m
+})()
+
+/** Set of -re infinitives in the irregular table. The generic -re/-u rule
+ *  must NOT fire when either side normalizes to a member of this set,
+ *  otherwise 'prendre' \u2192 'prendu' would spuriously match. */
+const frIrregularReInfinitives: Set<string> = new Set(
+    frIrregularVerbs
+        .map(row => normalize(row[0]))
+        .filter(inf => inf.endsWith('re'))
+)
+
 export function wordsMatch(input: string, token: string): boolean {
     const normInput = normalize(input)
     const normToken = normalize(token)
@@ -103,6 +168,34 @@ export function wordsMatch(input: string, token: string): boolean {
     for (const [base, plural] of frIrregularPluralPairs) {
         if ((normInput === base && normToken === plural) || (normToken === base && normInput === plural)) return true
     }
+
+    // ===== Phase 21-02: FR verb inflection beyond -er =====
+    // NB: The -ir/-i past participle is already covered by the existing ±'r' rule
+    // above (normalize('fini')='fini', 'fini'+'r'='finir'). Verified empirically
+    // pre-implementation; no dedicated -ir branch needed. See 21-02 SUMMARY for
+    // Risk 1 verdict.
+
+    // Named-irregular equivalence-class lookup — fires FIRST so 'prendre/pris',
+    // 'être/est', etc. resolve before the generic -re/-u rule below.
+    const inputClass = frIrregularLookup.get(normInput)
+    if (inputClass && inputClass.has(normToken)) return true
+    const tokenClass = frIrregularLookup.get(normToken)
+    if (tokenClass && tokenClass.has(normInput)) return true
+
+    // FR -re → -u past participle (regular). Guard: skip if either side is the
+    // infinitive of an irregular -re verb (prendre, mettre, vivre, naître, …)
+    // — those were handled by the lookup above; the guard prevents spurious
+    // matches like 'prendre' ↔ 'prendu'.
+    if (
+        normInput.endsWith('re') &&
+        normToken === normInput.slice(0, -2) + 'u' &&
+        !frIrregularReInfinitives.has(normInput)
+    ) return true
+    if (
+        normToken.endsWith('re') &&
+        normInput === normToken.slice(0, -2) + 'u' &&
+        !frIrregularReInfinitives.has(normToken)
+    ) return true
 
     return false
 }
