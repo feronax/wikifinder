@@ -270,6 +270,187 @@ describe('cleanTokenValue', () => {
   })
 })
 
+// ===== Phase 21-02: FR verb inflection beyond -er =====
+describe('wordsMatch — Phase 21-02 FR verb inflection', () => {
+  // -- FR -ir verbs (regular -ir/-i past participle) --
+  it('matches FR -ir verb finir ↔ fini', () => {
+    expect(wordsMatch('finir', 'fini')).toBe(true)
+    expect(wordsMatch('fini', 'finir')).toBe(true)
+  })
+  it('matches FR -ir verb choisir ↔ choisi', () => {
+    expect(wordsMatch('choisir', 'choisi')).toBe(true)
+    expect(wordsMatch('choisi', 'choisir')).toBe(true)
+  })
+  it('matches FR -ir verb partir ↔ parti', () => {
+    expect(wordsMatch('partir', 'parti')).toBe(true)
+    expect(wordsMatch('parti', 'partir')).toBe(true)
+  })
+  it('matches FR -ir verb dormir ↔ dormi', () => {
+    expect(wordsMatch('dormir', 'dormi')).toBe(true)
+    expect(wordsMatch('dormi', 'dormir')).toBe(true)
+  })
+  it('matches FR -ir verb sortir ↔ sorti', () => {
+    expect(wordsMatch('sortir', 'sorti')).toBe(true)
+    expect(wordsMatch('sorti', 'sortir')).toBe(true)
+  })
+
+  // -- FR -re verbs (regular -re/-u past participle) --
+  it('matches FR -re verb vendre ↔ vendu', () => {
+    expect(wordsMatch('vendre', 'vendu')).toBe(true)
+    expect(wordsMatch('vendu', 'vendre')).toBe(true)
+  })
+  it('matches FR -re verb attendre ↔ attendu', () => {
+    expect(wordsMatch('attendre', 'attendu')).toBe(true)
+    expect(wordsMatch('attendu', 'attendre')).toBe(true)
+  })
+  it('matches FR -re verb répondre ↔ répondu', () => {
+    expect(wordsMatch('répondre', 'répondu')).toBe(true)
+    expect(wordsMatch('répondu', 'répondre')).toBe(true)
+  })
+  it('matches FR -re verb entendre ↔ entendu', () => {
+    expect(wordsMatch('entendre', 'entendu')).toBe(true)
+    expect(wordsMatch('entendu', 'entendre')).toBe(true)
+  })
+  it('matches FR -re verb descendre ↔ descendu', () => {
+    expect(wordsMatch('descendre', 'descendu')).toBe(true)
+    expect(wordsMatch('descendu', 'descendre')).toBe(true)
+  })
+  it('matches FR -re verb perdre ↔ perdu', () => {
+    expect(wordsMatch('perdre', 'perdu')).toBe(true)
+    expect(wordsMatch('perdu', 'perdre')).toBe(true)
+  })
+  it('matches FR -re verb rendre ↔ rendu', () => {
+    expect(wordsMatch('rendre', 'rendu')).toBe(true)
+    expect(wordsMatch('rendu', 'rendre')).toBe(true)
+  })
+
+  // -- FR named-irregular equivalence classes --
+  it('matches FR named-irregular être class (être/été/étant/est/était)', () => {
+    const forms = ['être', 'été', 'étant', 'est', 'était']
+    for (let i = 0; i < forms.length; i++) {
+      for (let j = 0; j < forms.length; j++) {
+        if (i === j) continue
+        expect(wordsMatch(forms[i], forms[j])).toBe(true)
+      }
+    }
+  })
+  it('matches FR named-irregular avoir class (avoir/eu/ayant/a/avait)', () => {
+    const forms = ['avoir', 'eu', 'ayant', 'a', 'avait']
+    for (let i = 0; i < forms.length; i++) {
+      for (let j = 0; j < forms.length; j++) {
+        if (i === j) continue
+        expect(wordsMatch(forms[i], forms[j])).toBe(true)
+      }
+    }
+  })
+  it('matches FR named-irregular aller class', () => {
+    const forms = ['aller', 'allé', 'allant', 'va', 'allait']
+    for (let i = 0; i < forms.length; i++) {
+      for (let j = 0; j < forms.length; j++) {
+        if (i === j) continue
+        expect(wordsMatch(forms[i], forms[j])).toBe(true)
+      }
+    }
+  })
+  it('matches FR named-irregular faire class', () => {
+    expect(wordsMatch('faire', 'fait')).toBe(true)
+    expect(wordsMatch('faire', 'faisait')).toBe(true)
+    expect(wordsMatch('faisant', 'fait')).toBe(true)
+  })
+  it('matches FR named-irregular dire class', () => {
+    expect(wordsMatch('dire', 'dit')).toBe(true)
+    expect(wordsMatch('dire', 'disait')).toBe(true)
+    expect(wordsMatch('disant', 'dit')).toBe(true)
+  })
+  it('matches FR named-irregular voir class', () => {
+    expect(wordsMatch('voir', 'vu')).toBe(true)
+    expect(wordsMatch('voir', 'voit')).toBe(true)
+    expect(wordsMatch('voyant', 'voyait')).toBe(true)
+  })
+  it('matches FR named-irregular savoir class', () => {
+    expect(wordsMatch('savoir', 'su')).toBe(true)
+    expect(wordsMatch('savoir', 'sait')).toBe(true)
+  })
+  it('matches FR named-irregular pouvoir class', () => {
+    expect(wordsMatch('pouvoir', 'peut')).toBe(true)
+    expect(wordsMatch('pouvoir', 'pu')).toBe(true)
+  })
+  it('matches FR named-irregular vouloir class', () => {
+    expect(wordsMatch('vouloir', 'voulu')).toBe(true)
+    expect(wordsMatch('vouloir', 'veut')).toBe(true)
+  })
+  it('matches FR named-irregular devoir class', () => {
+    expect(wordsMatch('devoir', 'dû')).toBe(true)
+    expect(wordsMatch('devoir', 'doit')).toBe(true)
+  })
+  it('matches FR named-irregular venir class', () => {
+    expect(wordsMatch('venir', 'venu')).toBe(true)
+    expect(wordsMatch('venir', 'vient')).toBe(true)
+  })
+  it('matches FR named-irregular tenir class', () => {
+    expect(wordsMatch('tenir', 'tenu')).toBe(true)
+    expect(wordsMatch('tenir', 'tient')).toBe(true)
+  })
+  it('matches FR named-irregular prendre class', () => {
+    expect(wordsMatch('prendre', 'pris')).toBe(true)
+    expect(wordsMatch('prendre', 'prend')).toBe(true)
+    expect(wordsMatch('pris', 'prenant')).toBe(true)
+  })
+  it('matches FR named-irregular mettre class', () => {
+    expect(wordsMatch('mettre', 'mis')).toBe(true)
+    expect(wordsMatch('mettre', 'met')).toBe(true)
+  })
+  it('matches FR named-irregular vivre class', () => {
+    expect(wordsMatch('vivre', 'vécu')).toBe(true)
+    expect(wordsMatch('vivre', 'vit')).toBe(true)
+  })
+  it('matches FR named-irregular naître class', () => {
+    expect(wordsMatch('naître', 'né')).toBe(true)
+    expect(wordsMatch('naître', 'naît')).toBe(true)
+  })
+  it('matches FR named-irregular mourir class', () => {
+    expect(wordsMatch('mourir', 'mort')).toBe(true)
+    expect(wordsMatch('mourir', 'meurt')).toBe(true)
+  })
+  it('matches FR named-irregular boire class', () => {
+    expect(wordsMatch('boire', 'bu')).toBe(true)
+    expect(wordsMatch('boire', 'boit')).toBe(true)
+  })
+  it('matches FR named-irregular croire class', () => {
+    expect(wordsMatch('croire', 'cru')).toBe(true)
+    expect(wordsMatch('croire', 'croit')).toBe(true)
+  })
+  it('matches FR named-irregular lire class', () => {
+    expect(wordsMatch('lire', 'lu')).toBe(true)
+    expect(wordsMatch('lire', 'lit')).toBe(true)
+  })
+  it('matches FR named-irregular écrire class', () => {
+    expect(wordsMatch('écrire', 'écrit')).toBe(true)
+    expect(wordsMatch('écrire', 'écrivait')).toBe(true)
+  })
+
+  // -- Negative cases (prevent -re/-u over-generation on irregular -re verbs) --
+  it('does NOT match prendre/prendu (irregular table override prevents -re/-u)', () => {
+    expect(wordsMatch('prendre', 'prendu')).toBe(false)
+  })
+  it('does NOT match mettre/mettu', () => {
+    expect(wordsMatch('mettre', 'mettu')).toBe(false)
+  })
+  it('does NOT match vivre/vivu', () => {
+    expect(wordsMatch('vivre', 'vivu')).toBe(false)
+  })
+
+  // -- Backward-compat: Phase 20-01 -er rule regression guards --
+  it('still matches manger ↔ mangé (Phase 20-01 -er rule)', () => {
+    expect(wordsMatch('manger', 'mangé')).toBe(true)
+    expect(wordsMatch('mangé', 'manger')).toBe(true)
+  })
+  it('still matches parler ↔ parlé (Phase 20-01 -er rule)', () => {
+    expect(wordsMatch('parler', 'parlé')).toBe(true)
+    expect(wordsMatch('parlé', 'parler')).toBe(true)
+  })
+})
+
 describe('splitOnApostrophe', () => {
   it("splits on ASCII apostrophe (c'est → c, est)", () => {
     expect(splitOnApostrophe("c'est")).toEqual(['c', 'est'])
