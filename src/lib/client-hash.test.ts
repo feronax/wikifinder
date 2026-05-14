@@ -36,6 +36,39 @@ describe('variantsOf', () => {
     const v = variantsOf('run')
     expect(v.length).toBe(new Set(v).size)
   })
+
+  // ===== Phase 21-01: FR irregular plurals =====
+  it('includes FR -al/-aux variant (cheval → chevaux)', () => {
+    expect(variantsOf('cheval')).toContain('chevaux')
+  })
+  it('includes reverse (chevaux → cheval)', () => {
+    expect(variantsOf('chevaux')).toContain('cheval')
+  })
+  it('includes FR -al/-aux variant (journal → journaux)', () => {
+    expect(variantsOf('journal')).toContain('journaux')
+  })
+  it('includes FR -al/-aux variant (travail → travaux)', () => {
+    expect(variantsOf('travail')).toContain('travaux')
+  })
+  it('includes FR -ou exception variant (genou → genoux)', () => {
+    expect(variantsOf('genou')).toContain('genoux')
+  })
+  it('includes FR -ou reverse (genoux → genou)', () => {
+    expect(variantsOf('genoux')).toContain('genou')
+  })
+  it('includes FR vowel-change variant (œil → yeux)', () => {
+    expect(variantsOf('œil')).toContain('yeux')
+  })
+  it('includes FR vowel-change reverse with oe fallback (yeux → oeil)', () => {
+    expect(variantsOf('yeux')).toContain('oeil')
+  })
+  it('includes FR vowel-change variant (ciel → cieux)', () => {
+    expect(variantsOf('ciel')).toContain('cieux')
+  })
+  it('FR plural variants deduplicate', () => {
+    const v = variantsOf('cheval')
+    expect(v.length).toBe(new Set(v).size)
+  })
 })
 
 describe('computeWordHashSet — variant hash coverage (HASH-SYNC)', () => {
@@ -80,5 +113,24 @@ describe('computeWordHashSet — variant hash coverage (HASH-SYNC)', () => {
     const withStopword = [...tokens, { type: 'word', value: 'le', isStopword: true }]
     const hashSet = computeWordHashSet(withStopword, [])
     expect(hashSet).not.toContain(sha256hex16('le'))
+  })
+
+  // ===== Phase 21-01: FR irregular plurals =====
+  it('contains hash of FR -al/-aux variant (chevaux)', () => {
+    const frTokens = [{ type: 'word', value: 'cheval', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('chevaux'))
+  })
+
+  it('contains hash of FR vowel-change variant (yeux from œil token)', () => {
+    const frTokens = [{ type: 'word', value: 'œil', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('yeux'))
+  })
+
+  it('contains hash of FR -ou exception variant (genoux from genou token)', () => {
+    const frTokens = [{ type: 'word', value: 'genou', isStopword: false }]
+    const hashSet = computeWordHashSet(frTokens, [])
+    expect(hashSet).toContain(sha256hex16('genoux'))
   })
 })
