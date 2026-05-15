@@ -18,6 +18,7 @@ interface CenterArticleProps {
     // "Voir le résultat" banner can open the desktop ResultModal.
     onOpenResult?: () => void
     proximityHints?: Map<number, { score: number; word: string }>
+    justRevealedNorms?: Set<string>
 }
 
 export default function CenterArticle({
@@ -31,6 +32,7 @@ export default function CenterArticle({
     attemptsCount,
     onOpenResult,
     proximityHints,
+    justRevealedNorms,
 }: CenterArticleProps) {
     return (
         <div style={{ minWidth: 0 }}>
@@ -49,6 +51,7 @@ export default function CenterArticle({
                 highlightedWord={highlightedWord}
                 lang={lang}
                 proximityHints={proximityHints}
+                justRevealedNorms={justRevealedNorms}
             />
         </div>
     )

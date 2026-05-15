@@ -152,6 +152,12 @@ export default function GamePage() {
         shareText: string
     } | null>(null)
 
+    // justRevealedNorms: populated from server revealedTokens after syncGuessWithServer
+    // resolves, so morphological variants (e.g. "calcule" from "calculer") amber-flash
+    // even when the network round-trip outlasts the 1100ms justRevealedWord window.
+    const [justRevealedNorms, setJustRevealedNorms] = useState<Set<string>>(new Set())
+    const justRevealedNormsIdRef = useRef(0)
+
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const safeSetTimeout = useSafeTimeout()
     // HARD-01: single-in-flight queue — serializes POST /api/game/guess
@@ -1213,6 +1219,22 @@ export default function GamePage() {
                     }
                 })
 
+                // Second amber flash for morphological variants (e.g. "calcule" when
+                // guessing "calculer"). The justRevealedWord window (1100ms) may have
+                // already closed by the time the server response arrives, so we build
+                // the set of revealed token norms here and let ArticleBody use it as
+                // an independent flash signal. The idRef guards against stale clears
+                // when multiple guesses are submitted in quick succession.
+                if (revealedTokenMap.size > 0) {
+                    const norms = new Set<string>()
+                    for (const rt of data.revealedTokens) norms.add(normalize(rt.value))
+                    const revealId = ++justRevealedNormsIdRef.current
+                    setJustRevealedNorms(norms)
+                    safeSetTimeout(() => {
+                        if (justRevealedNormsIdRef.current === revealId) setJustRevealedNorms(new Set())
+                    }, 1100)
+                }
+
                 // Phase 10.3 D-01: post-win side-effects, transplanted from the
                 // legacy block at page.tsx:794-821. Single-fire guarded by
                 // prevWonRef so remount / idempotency replay / tab re-focus
@@ -1439,6 +1461,7 @@ export default function GamePage() {
                         revealAll={revealAll}
                         onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
                         proximityHints={proximityHints}
+                        justRevealedNorms={justRevealedNorms}
                     />
                     {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface
                         so ChallengeButton's onCreate (wired in P3) has a toast
@@ -1520,6 +1543,7 @@ export default function GamePage() {
                     revealAll={revealAll}
                     onRevealSolution={showRevealCTA ? handleRevealSolution : undefined}
                     proximityHints={proximityHints}
+                    justRevealedNorms={justRevealedNorms}
                 />
                 {/* Phase 10.3 D-09 P3 plumbing: DuelToast feedback surface for
                     ChallengeButton.onCreate (wired in P3). Sibling of the screen
