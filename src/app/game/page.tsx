@@ -1197,11 +1197,11 @@ export default function GamePage() {
                         ...prev,
                         tokens: prev.tokens.map(token =>
                             revealedTokenMap.has(token.index)
-                                // Keep `visible: false` so ArticleBody routes through
-                                // Mask (which carries `data-word` for click-to-cycle),
-                                // not the pre-revealed plain <span> branch. Mask
-                                // switches to revealed state via foundSet.has(norm).
-                                ? { ...token, value: revealedTokenMap.get(token.index)! }
+                                // Set visible: true so morphological variants (e.g. "calcule"
+                                // revealed by "calculer") show as revealed. foundSet only
+                                // contains the exact guessed word, not its inflected forms.
+                                // ArticleBody always routes through Mask regardless of visible.
+                                ? { ...token, value: revealedTokenMap.get(token.index)!, visible: true }
                                 : token,
                         ),
                         titleWords: prev.titleWords.map(tw =>
