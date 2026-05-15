@@ -5,7 +5,6 @@ import { fetchRandomQualityArticle } from '@/lib/wikipedia-seed'
 import { wordsMatch, splitOnApostrophe, cleanTokenValue } from '@/lib/matching'
 import { computeWordHashSet } from '@/lib/client-hash'
 import { tokenizeContent, tokenizeTitle, maskTokensForClient, maskTitleForClient } from '@/lib/tokenize'
-import { findProximityHints } from '@/lib/proximity'
 import type { GuessRow } from '@/lib/wikipedia-types'
 
 async function seedPage(date: string) {
@@ -147,33 +146,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 5. Calcule les proximity hints pour la restauration
-  let restoredProximityHints: { index: number; score: number; word: string }[] = []
-  if (gameId) {
-    const revealedIndices = new Set(
-      tokens.filter((t: any) => t.type === 'word' && t.visible && !t.isStopword).map((t: any) => t.index)
-    )
-    const unrevealed = fullTokens.filter((t: any) =>
-      t.type === 'word' && !t.isStopword && !revealedIndices.has(t.index)
-    )
-
-    // Phase 20 WR-02: reuse the guesses fetched above instead of re-querying.
-    const previousWords = cachedGuesses.map((g) => g.word)
-    const hintsMap = new Map<number, { score: number; word: string }>()
-
-    for (const w of previousWords) {
-      const hints = findProximityHints(w, unrevealed)
-      for (const h of hints) {
-        if (!hintsMap.has(h.index) || hintsMap.get(h.index)!.score < h.score) {
-          hintsMap.set(h.index, { score: h.score, word: w })
-        }
-      }
-    }
-
-    restoredProximityHints = Array.from(hintsMap.entries()).map(([index, { score, word }]) => ({
-      index, score, word,
-    }))
-  }
+  // 5. (proximity hints are now restored lazily client-side via /api/game/proximity
+  //    to avoid blocking the restore path on large articles — WR-PERF-01)
 
   // 6. Cache CDN :
   //    - Sans gameId : réponse déterministe (lang, date, contenu de page) →
@@ -193,7 +167,6 @@ export async function GET(req: NextRequest) {
       tokens,
       wikipedia_url_fr: page.wikipedia_url_fr,
       wikipedia_url_en: page.wikipedia_url_en,
-      proximityHints: restoredProximityHints,
       firstGuessAt,
       wordHashSet,
     },

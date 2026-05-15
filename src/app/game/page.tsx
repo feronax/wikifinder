@@ -444,13 +444,30 @@ export default function GamePage() {
 
             setGameState(finalState)
 
-            // Restaure les proximity hints
-            if (finalData.proximityHints && finalData.proximityHints.length > 0) {
-                const restored = new Map<number, { score: number; word: string }>()
-                for (const h of finalData.proximityHints) {
-                    restored.set(h.index, { score: h.score, word: h.word })
-                }
-                setProximityHints(restored)
+            // Restaure les proximity hints en parallèle de façon non-bloquante
+            // (WR-PERF-01: hints computed lazily to avoid blocking the load path)
+            const notFoundWords = guessesWithStatus.filter(g => !g.found).map(g => g.word)
+            if (notFoundWords.length > 0 && !finalState.won) {
+                Promise.all(
+                    notFoundWords.map(word =>
+                        fetch('/api/game/proximity', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pageId, lang: l, word, gameId }),
+                        }).then(r => r.ok ? r.json() : { proximityHints: [] })
+                    )
+                ).then(results => {
+                    const merged = new Map<number, { score: number; word: string }>()
+                    for (let i = 0; i < results.length; i++) {
+                        const word = notFoundWords[i]
+                        for (const h of (results[i].proximityHints || [])) {
+                            if (!merged.has(h.index) || merged.get(h.index)!.score < h.score) {
+                                merged.set(h.index, { score: h.score, word })
+                            }
+                        }
+                    }
+                    if (merged.size > 0) setProximityHints(merged)
+                }).catch(() => {})
             }
 
             if (finalState.won) {
