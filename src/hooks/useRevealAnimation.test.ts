@@ -96,6 +96,45 @@ describe('useRevealAnimation', () => {
     expect(scrollSpy.mock.instances[0]).toBe(document.getElementById('first'))
   })
 
+  it('does NOT scroll when the revealed node is already in the safe viewport', () => {
+    const { result } = renderHook(() => useRevealAnimation())
+    document.body.innerHTML = '<span data-word="pomme" id="first"></span>'
+    const el = document.getElementById('first')!
+    // In-view rect: well inside [8px, innerHeight − reserve].
+    el.getBoundingClientRect = () =>
+      ({ top: 100, bottom: 150, left: 0, right: 0, width: 0, height: 50, x: 0, y: 100, toJSON() {} }) as DOMRect
+
+    act(() => {
+      result.current.trigger('pomme')
+    })
+    act(() => {
+      vi.advanceTimersByTime(80)
+    })
+
+    expect(scrollSpy).not.toHaveBeenCalled()
+  })
+
+  it('waits for the node to appear (retries) before scrolling', () => {
+    const { result } = renderHook(() => useRevealAnimation())
+    // Node absent at trigger time — mirrors the server round-trip delay.
+    document.body.innerHTML = ''
+
+    act(() => {
+      result.current.trigger('pomme')
+    })
+    act(() => {
+      vi.advanceTimersByTime(80) // first attempt: nothing to scroll
+    })
+    expect(scrollSpy).not.toHaveBeenCalled()
+
+    // Server response unmasks the token.
+    document.body.innerHTML = '<span data-word="pomme"></span>'
+    act(() => {
+      vi.advanceTimersByTime(80) // retry finds it → scroll (jsdom rect=0 ⇒ off-screen)
+    })
+    expect(scrollSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('honors prefers-reduced-motion: uses behavior "auto"', () => {
     stubMatchMedia(true)
     const { result } = renderHook(() => useRevealAnimation())
