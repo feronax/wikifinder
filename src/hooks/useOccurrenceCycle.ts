@@ -55,7 +55,19 @@ export function useOccurrenceCycle(): {
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const rect = (nodes[next] as HTMLElement).getBoundingClientRect()
-    const targetY = rect.top + window.scrollY - window.innerHeight / 2 + rect.height / 2
+    // Center within the VISIBLE band, not the full viewport: the sticky header
+    // (~57px) covers the top and the fixed input + soft keyboard cover the
+    // bottom. Centering on innerHeight/2 drops the occurrence behind the
+    // keyboard. --wf-kb-inset (useKeyboardInset) is the keyboard height; 0 when
+    // closed. INPUT_RESERVE ≈ fixed input card height + breathing room.
+    const HEADER = 57
+    const INPUT_RESERVE = 90
+    const kbInset =
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--wf-kb-inset'),
+      ) || 0
+    const bandMid = (HEADER + (window.innerHeight - kbInset - INPUT_RESERVE)) / 2
+    const targetY = rect.top + window.scrollY - bandMid + rect.height / 2
     window.scrollTo({ top: targetY, behavior: reduced ? 'auto' : 'smooth' })
 
     // Highlighted persists (sticky) — amber marks the LAST-CLICKED word in the

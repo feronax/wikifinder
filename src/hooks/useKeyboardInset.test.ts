@@ -101,7 +101,7 @@ describe('useKeyboardInset', () => {
     ).toBe('')
   })
 
-  it('removes resize + scroll listeners and clears --wf-kb-inset on unmount', () => {
+  it('removes the resize listener and clears --wf-kb-inset on unmount', () => {
     const { unmount } = renderHook(() => useKeyboardInset())
     // Sanity: hook wired up listeners
     expect(vvListeners.size).toBeGreaterThan(0)
