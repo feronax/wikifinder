@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   const playedPageIds = new Set((playedGames || []).map((g: any) => g.page_id))
 
-  let { data: availablePages } = await supabaseAdmin
+  const { data: availablePages } = await supabaseAdmin
     .from('ranked_pages')
     .select('id, lang, difficulty, wikipedia_title, wikipedia_url, tokens, title_tokens, used_count')
     .eq('lang', lang)

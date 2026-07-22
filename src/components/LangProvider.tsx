@@ -45,7 +45,7 @@ export default function LangProvider({
     if (local.lang === 'fr' || local.lang === 'en') {
       setLangState(local.lang)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
   usePreferencesBootstrap({

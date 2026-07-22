@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   const { pageId, lang, word, gameId } = parsed.data
 
   // Charge la page (quotidien ou classé)
-  let { data: page } = await supabaseAdmin
+  const { data: page } = await supabaseAdmin
     .from('pages')
     .select('content_fr, content_en, tokens_fr, tokens_en')
     .eq('id', pageId)
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const fullTokens = precomputed || tokenizeContent(content, lang)
 
   // Trouve les tokens déjà révélés (pour ne pas les inclure dans les hints)
-  let revealedIndices = new Set<number>()
+  const revealedIndices = new Set<number>()
   if (gameId) {
     const { data: guesses } = await supabaseAdmin
       .from('guesses')
