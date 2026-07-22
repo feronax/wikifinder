@@ -48,7 +48,10 @@ export default function FixedBottomInput(props: FixedBottomInputProps) {
         borderTop: '1px solid var(--wf-border-strong)',
         boxShadow: '0 -4px 20px rgb(0 0 0 / 0.3)',
         padding: '8px 12px',
-        transition: 'bottom 160ms ease-out',
+        // No bottom transition: --wf-kb-inset updates on every visualViewport
+        // scroll/resize frame; animating toward that moving target made the bar
+        // lag behind and settle late during fast scroll. Snap instead → tracks
+        // the viewport tightly. Keyboard open/close is a one-off jump.
       }}
     >
       <GuessInput {...props} compact />
