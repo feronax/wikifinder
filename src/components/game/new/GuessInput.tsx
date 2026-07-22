@@ -107,7 +107,9 @@ export default function GuessInput({
     setActiveIndex(-1)
     setHistoryIndex(-1)
     // Paired with enterKeyHint="send" — keeps the mobile soft keyboard open between guesses.
-    inputRef.current?.focus()
+    // preventScroll: mobile browsers scroll a focused form field into the keyboard-shrunk
+    // visual viewport on every programmatic focus — the "scrolls a tiny bit each guess" bug.
+    inputRef.current?.focus({ preventScroll: true })
 
     if (inArticle) {
       performance.mark('guess:enter')
@@ -383,7 +385,7 @@ export default function GuessInput({
                   setInput(s)
                   setActiveIndex(-1)
                   setHistoryIndex(-1)
-                  inputRef.current?.focus()
+                  inputRef.current?.focus({ preventScroll: true })
                 }}
                 onMouseEnter={() => setActiveIndex(i)}
                 onMouseLeave={() => setActiveIndex(-1)}
