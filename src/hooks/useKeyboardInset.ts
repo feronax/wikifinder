@@ -40,12 +40,14 @@ export function useKeyboardInset(): { inset: number; isOpen: boolean } {
 
     update()
     vv.addEventListener('resize', update)
-    vv.addEventListener('scroll', update)
+    // NOTE: no 'scroll' listener. The inset formula subtracts vv.offsetTop,
+    // which changes during page scroll — recomputing on every scroll frame made
+    // the fixed input jitter up/down chasing the scroll (esp. iOS momentum).
+    // Keyboard show/hide fires 'resize', which is all we actually need.
 
     return () => {
       cancelAnimationFrame(raf)
       vv.removeEventListener('resize', update)
-      vv.removeEventListener('scroll', update)
       document.documentElement.style.removeProperty('--wf-kb-inset')
     }
   }, [])
