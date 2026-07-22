@@ -12,12 +12,21 @@ export default function MobileChipStrip({ found, onChipClick }: MobileChipStripP
   if (found.length === 0) return null
 
   return (
+    // Sticky wrapper is SEPARATE from the horizontal scroller: iOS Safari drops
+    // position:sticky when the same element is also an overflow scroll container.
+    // Outer div sticks; inner div does the x-scroll.
     <div
-      className="wf-chip-strip-scroller"
       style={{
         position: 'sticky',
         top: 57,
         zIndex: 70,
+        background: 'var(--wf-bg)',
+        borderBottom: '1px solid var(--wf-border)',
+      }}
+    >
+    <div
+      className="wf-chip-strip-scroller"
+      style={{
         display: 'flex',
         gap: 6,
         overflowX: 'auto',
@@ -29,8 +38,6 @@ export default function MobileChipStrip({ found, onChipClick }: MobileChipStripP
         padding: '8px 16px',
         whiteSpace: 'nowrap',
         height: 36 + 16,
-        background: 'var(--wf-bg)',
-        borderBottom: '1px solid var(--wf-border)',
       }}
     >
       {found.map(entry => (
@@ -70,6 +77,7 @@ export default function MobileChipStrip({ found, onChipClick }: MobileChipStripP
           )}
         </button>
       ))}
+    </div>
     </div>
   )
 }
