@@ -69,7 +69,9 @@ export async function GET(req: NextRequest) {
     .from('pages')
     .select('id, date, wikipedia_title_fr, wikipedia_title_en, wikipedia_url_fr, wikipedia_url_en, content_fr, content_en, tokens_fr, tokens_en, title_tokens_fr, title_tokens_en, word_count_fr, word_count_en')
   pageQuery = pageIdParam ? pageQuery.eq('id', pageIdParam) : pageQuery.eq('date', targetDate)
-  let { data: page, error } = await pageQuery.single()
+  const pageRes = await pageQuery.single()
+  let page = pageRes.data
+  const error = pageRes.error
 
   // Si la page du jour n'existe pas (cron échoué), la générer automatiquement
   if ((error || !page) && targetDate === new Date().toISOString().split('T')[0]) {

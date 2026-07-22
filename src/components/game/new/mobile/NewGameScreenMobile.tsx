@@ -3,9 +3,7 @@
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
@@ -210,36 +208,10 @@ export default function NewGameScreenMobile({
       .length
   }, [gameState.tokens])
 
-  // Per-tab scroll position memory (D-05). Scroll top is captured per tab
-  // on the OUTGOING tab before the swap and restored on the INCOMING tab
-  // after activeTab commits (useLayoutEffect — runs before paint).
-  const scrollPosRef = useRef<Map<MobileTab, number>>(new Map())
-  const jeuRef = useRef<HTMLDivElement | null>(null)
-  const motsRef = useRef<HTMLDivElement | null>(null)
-  const statsRef = useRef<HTMLDivElement | null>(null)
-  const panelRefs: Record<MobileTab, React.RefObject<HTMLDivElement | null>> = {
-    jeu: jeuRef,
-    mots: motsRef,
-    stats: statsRef,
-  }
-
-  const handleTabChange = useCallback(
-    (next: MobileTab) => {
-      const out = panelRefs[activeTab].current
-      if (out) scrollPosRef.current.set(activeTab, out.scrollTop)
-      setActiveTab(next)
-    },
-    // panelRefs is a stable ref-object map; eslint-react-hooks can safely
-    // ignore it, but including activeTab + setActiveTab covers the real deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTab, setActiveTab],
-  )
-
-  useLayoutEffect(() => {
-    const el = panelRefs[activeTab].current
-    if (el) el.scrollTop = scrollPosRef.current.get(activeTab) ?? 0
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab])
+  // Per-tab scroll restoration (old D-05) was removed: the tab panels are not
+  // overflow scroll containers — the window scrolls — so panel.scrollTop was
+  // always 0 and the save/restore was a no-op. setActiveTab is passed straight
+  // through to MobileShell.
 
   // Reveal + cycle handlers — mirror NewGameScreen.tsx:110-126 verbatim.
   const handleReveal = useCallback(
@@ -277,7 +249,7 @@ export default function NewGameScreenMobile({
     <>
     <MobileShell
       activeTab={activeTab}
-      onTabChange={handleTabChange}
+      onTabChange={setActiveTab}
       keyboardOpen={keyboardOpen}
       lang={lang}
       onLangChange={onLangChange}
@@ -289,7 +261,7 @@ export default function NewGameScreenMobile({
       isAuthed={isAuthed}
     >
       {/* Jeu tab — TitleHero + StatsCard progress + chip strip + ArticleBody */}
-      <div ref={jeuRef} style={panelBaseStyle('jeu')}>
+      <div style={panelBaseStyle('jeu')}>
         <div style={{ padding: '12px 16px 12px' }}>
           <TitleHero
             titleWords={gameState.titleWords}
@@ -323,7 +295,7 @@ export default function NewGameScreenMobile({
       </div>
 
       {/* Mots tab — reuse Phase-9 RightTriedColumn verbatim (D-06) */}
-      <div ref={motsRef} style={panelBaseStyle('mots')}>
+      <div style={panelBaseStyle('mots')}>
         <div style={{ padding: 16 }}>
           <RightTriedColumn
             found={foundEntries}
@@ -335,7 +307,7 @@ export default function NewGameScreenMobile({
       </div>
 
       {/* Stats tab — reuse Phase-9 TitleHero + StatsCard (D-07) */}
-      <div ref={statsRef} style={panelBaseStyle('stats')}>
+      <div style={panelBaseStyle('stats')}>
         <div
           style={{
             display: 'flex',
