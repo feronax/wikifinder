@@ -3,30 +3,52 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 
 /**
- * Reveal-animation orchestrator (GS-03). Drives the four-stage chain for a
- * newly-revealed word:
- *   flash 400ms → fade 600ms → smooth scroll to first occurrence (+80ms)
- *                                                             → pulse 500ms
+ * Reveal-animation orchestrator (GS-03). Drives the chain for a newly-revealed
+ * word:
+ *   flash 400ms → fade 600ms → smooth scroll to first occurrence → pulse 500ms
  *
  * State:
  *   - `justRevealed: string | null` — the normalized word currently in the
  *     flash/fade window. Consumers (Mask) read this to apply the animation.
  *     Cleared back to null at +1100ms (400 flash + 600 fade + 100ms slack).
  *
+ * Scroll timing (fixed 2026-07-22):
+ *   The token's `data-word="<word>"` only appears AFTER the server round-trip
+ *   applies revealedTokens (page.tsx syncGuessWithServer) — before that the
+ *   masked span carries data-word="". The old fixed +80ms scroll therefore
+ *   raced the server: it silently no-op'd on slow networks and, when the server
+ *   won the race, yanked the view to re-center a word that was often already
+ *   on screen ("scrolls a tiny bit each guess"). We now:
+ *     1. poll (via short setTimeouts) until the revealed node actually exists,
+ *     2. scroll ONLY if that node is off the safe viewport (above the fixed
+ *        input + soft keyboard) — an already-visible reveal never moves the page.
+ *
  * DOM contract:
  *   - Targets `document.querySelector('[data-word="<word>"]')` (first in
- *     document order) for smooth scroll. Emitted by Mask per 09-PATTERNS.md.
+ *     document order). Emitted by Mask per 09-PATTERNS.md.
  *
- * Safe-timer cleanup: matches `src/lib/use-safe-timeout.ts` — all scheduled
- * setTimeouts are tracked in a ref-held Set and cleared on unmount, so late
- * callbacks cannot dispatch state updates on an unmounted component (D-07).
+ * Safe-timer cleanup: all scheduled setTimeouts are tracked in a ref-held Set
+ * and cleared on unmount, so late callbacks cannot dispatch on an unmounted
+ * component (D-07).
  *
- * Reduced-motion (D-09, D-19): `prefers-reduced-motion` is detected at
- * call-time (not mount-time) so system toggles take effect immediately. When
- * reduced, scroll uses `behavior: 'auto'` (jump, not smooth). The flash/fade
- * chain itself still sets `justRevealed` — the visual degradation is owned
- * by Mask's CSS.
+ * Reduced-motion (D-09, D-19): detected at call-time; reduced ⇒ behavior 'auto'.
  */
+
+// Reserve for the fixed bottom input (~76px) + breathing room, plus the soft
+// keyboard inset published by useKeyboardInset. A reveal whose box sits inside
+// [8px, innerHeight − kbInset − reserve] is considered visible → no scroll.
+const BOTTOM_RESERVE = 120
+
+function isInSafeView(el: Element): boolean {
+  const r = el.getBoundingClientRect()
+  const kb =
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--wf-kb-inset'),
+    ) || 0
+  const bottomLimit = window.innerHeight - kb - BOTTOM_RESERVE
+  return r.top >= 8 && r.bottom <= bottomLimit
+}
+
 export function useRevealAnimation(): {
   justRevealed: string | null
   trigger: (normalizedWord: string) => void
@@ -49,20 +71,30 @@ export function useRevealAnimation(): {
 
     setJustRevealed(normalizedWord)
 
-    // Scroll to the first occurrence once the flash has begun (+80ms).
-    const scrollT: ReturnType<typeof setTimeout> = setTimeout(() => {
-      timersRef.current.delete(scrollT)
+    // Poll for the revealed node (it appears only once the server round-trip
+    // unmasks it), then scroll if off-screen. ~8 tries × 80ms ≈ 640ms budget.
+    let attempts = 0
+    const schedule = (fn: () => void, ms: number) => {
+      const t: ReturnType<typeof setTimeout> = setTimeout(() => {
+        timersRef.current.delete(t)
+        fn()
+      }, ms)
+      timersRef.current.add(t)
+    }
+    const tryScroll = () => {
       const el = document.querySelector(`[data-word="${normalizedWord}"]`)
-      el?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' })
-    }, 80)
-    timersRef.current.add(scrollT)
+      if (el) {
+        if (!isInSafeView(el)) {
+          el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' })
+        }
+        return
+      }
+      if (attempts++ < 8) schedule(tryScroll, 80)
+    }
+    schedule(tryScroll, 80)
 
     // Clear flash/fade state after the chain completes (400 + 600 + 100 slack).
-    const clearT: ReturnType<typeof setTimeout> = setTimeout(() => {
-      timersRef.current.delete(clearT)
-      setJustRevealed(null)
-    }, 1100)
-    timersRef.current.add(clearT)
+    schedule(() => setJustRevealed(null), 1100)
   }, [])
 
   return { justRevealed, trigger }
