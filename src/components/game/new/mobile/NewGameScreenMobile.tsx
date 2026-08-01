@@ -79,6 +79,7 @@ export interface NewGameScreenMobileProps {
   // Actions section (parity with desktop ActionRow defeat CTA).
   onRevealSolution?: () => void
   proximityHints?: Map<number, { score: number; word: string }>
+  justRevealedNorms?: Set<string>
 }
 
 export default function NewGameScreenMobile({
@@ -98,6 +99,7 @@ export default function NewGameScreenMobile({
   revealAll = false,
   onRevealSolution,
   proximityHints,
+  justRevealedNorms,
 }: NewGameScreenMobileProps) {
   const reveal = useRevealAnimation()
   const cycle = useOccurrenceCycle()
@@ -318,6 +320,7 @@ export default function NewGameScreenMobile({
             highlightedWord={cycle.highlighted?.word ?? null}
             lang={lang}
             proximityHints={proximityHints}
+            justRevealedNorms={justRevealedNorms}
           />
         </div>
       </div>

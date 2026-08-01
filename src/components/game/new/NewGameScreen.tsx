@@ -45,6 +45,7 @@ export interface NewGameScreenProps {
   // when the game is won or the user can still keep guessing.
   onRevealSolution?: () => void
   proximityHints?: Map<number, { score: number; word: string }>
+  justRevealedNorms?: Set<string>
 }
 
 // Local chrono formatter — mm:ss (e.g. 125 -> "2:05"). Mirrors
@@ -85,6 +86,7 @@ export default function NewGameScreen({
   revealAll = false,
   onRevealSolution,
   proximityHints,
+  justRevealedNorms,
 }: NewGameScreenProps) {
   // Phase 10.3 P4 — ResultModal open-state. Opened by the new TitleHero
   // "Voir le résultat" banner via onOpenResult. TitleHero is consumed
@@ -254,6 +256,7 @@ export default function NewGameScreen({
             attemptsCount={gameState.guessCount}
             onOpenResult={() => setResultOpen(true)}
             proximityHints={proximityHints}
+            justRevealedNorms={justRevealedNorms}
           />
           <RightTriedColumn
             found={foundEntries}
@@ -301,6 +304,7 @@ export default function NewGameScreen({
             attemptsCount={gameState.guessCount}
             onOpenResult={() => setResultOpen(true)}
             proximityHints={proximityHints}
+            justRevealedNorms={justRevealedNorms}
           />
           <RightTriedColumn
             found={foundEntries}
